@@ -1,0 +1,107 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Componentry — export smoke test</title>
+<style>
+  html, body { margin: 0; }
+  body { font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  .tst-bar {
+    position: sticky; top: 0; z-index: 9999;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; background: #0c0f16; color: #e6ebf3;
+    border-bottom: 1px solid #262d3c; font-size: 13px;
+  }
+  .tst-bar strong { font-weight: 700; }
+  .tst-bar code { font-family: ui-monospace, Consolas, monospace; color: #a5a8ff; }
+  .tst-ok { color: #4ade80; } .tst-bad { color: #fb7185; }
+  .tst-label {
+    padding: 6px 16px; background: #eef1f7; color: #475569;
+    font: 700 11px/1 ui-monospace, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase;
+    border-top: 1px solid #cbd5e1;
+  }
+</style>
+</head>
+<body>
+<div class="tst-bar" id="bar">Building…</div>
+<div id="out"></div>
+
+<script src="../js/core.js"></script>
+<script src="../js/components/heroes.js"></script>
+<script src="../js/components/content.js"></script>
+<script src="../js/components/interactive.js"></script>
+<script src="../js/components/media.js"></script>
+<script src="../js/export.js"></script>
+<script>
+/* Renders every component through the real export pipeline, into the real
+   document — so what you interact with here is exactly what a user pastes. */
+(function () {
+  var tokens = CB.DEFAULT_TOKENS;
+  var out = document.getElementById('out');
+  var allCss = [], allJs = [], errors = [], sizes = [];
+
+  CB.all().forEach(function (def, n) {
+    var inst = {
+      uid: 'test' + n,
+      cls: 'cb-' + def.id + '-' + Math.random().toString(36).slice(2, 7),
+      type: def.id,
+      props: CB.defaults(def)
+    };
+    var built;
+    try {
+      built = CB.build(inst, tokens);
+    } catch (e) {
+      errors.push(def.id + ': ' + e.message);
+      return;
+    }
+    if (/failed to render/.test(built.html)) { errors.push(def.id + ': render threw'); return; }
+
+    var label = document.createElement('div');
+    label.className = 'tst-label';
+    label.textContent = def.id;
+    out.appendChild(label);
+
+    var holder = document.createElement('div');
+    holder.innerHTML = built.html;
+    out.appendChild(holder);
+
+    allCss.push(built.css);
+    allJs.push(built.js);
+    sizes.push({ id: def.id, kb: ((built.html.length + built.css.length + built.js.length) / 1024).toFixed(1) });
+  });
+
+  var style = document.createElement('style');
+  style.textContent = allCss.join('\n');
+  document.head.appendChild(style);
+
+  // Run the generated behaviour the same way a pasted <script> would.
+  var jsErrors = [];
+  allJs.forEach(function (src, i) {
+    if (!src.trim()) return;
+    try { (0, eval)(src); }
+    catch (e) { jsErrors.push(CB.all()[i].id + ': ' + e.message); }
+  });
+
+  window.__test = {
+    errors: errors, jsErrors: jsErrors, sizes: sizes,
+    count: CB.all().length
+  };
+
+  var bar = document.getElementById('bar');
+  var bad = errors.length + jsErrors.length;
+  bar.innerHTML =
+    '<strong>Componentry export smoke test</strong>' +
+    '<span><code>' + CB.all().length + '</code> components</span>' +
+    '<span class="' + (bad ? 'tst-bad' : 'tst-ok') + '">' +
+      (bad ? bad + ' failure(s): ' + errors.concat(jsErrors).join(' · ') : 'all rendered and initialised') +
+    '</span>';
+})();
+</script>
+</body>
+</html>
+
+
+
+
+

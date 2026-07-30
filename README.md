@@ -1,0 +1,213 @@
+# Componentry
+
+A component builder and editor for web design blocks that get pasted into a WYSIWYG
+editor. Pick a pattern, edit it live, and export self-contained HTML + CSS + JavaScript.
+
+**No build step, no dependencies, no server.** Open `index.html` in a browser.
+
+---
+
+## Running it
+
+Double-click `index.html`. That's it — it works from `file://`.
+
+> If you edit the source and a reload seems to show the old version, your browser has
+> cached the `js/*.js` files. Hard-reload with **Ctrl+Shift+R**.
+
+---
+
+## The 18 components
+
+| Category | Component | Notes |
+|---|---|---|
+| **Heroes & Banners** | Parallax Banner | `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't |
+| | Video Hero | Muted looping background video, poster fallback, pause control |
+| | Split Hero | Copy + image, reversible, optional tick list |
+| | CTA Banner | Solid / gradient / image / tint backgrounds |
+| **Content** | Card Grid | "Whole card clickable" via a pseudo-element, so text stays selectable |
+| | Feature Grid | Icon + title + blurb, four icon treatments |
+| | Stats Counter | Counts up on scroll via `IntersectionObserver` |
+| | Timeline | Alternating or single-column, staggered reveal |
+| | Pricing Table | Highlighted tier, monthly/annual switch, unavailable-feature syntax |
+| **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
+| | Tabs | APG tabs pattern, roving tabindex, arrow keys |
+| | Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay |
+| | Testimonial Slider | Cross-fade, ratings, height-equalised so the page doesn't jump |
+| **Media & Utility** | Before / After Slider | Built on a real `<input type="range">` |
+| | Gallery + Lightbox | Masonry or uniform; lightbox is a native `<dialog>` |
+| | Logo Marquee | Seamless loop, duplicate track hidden from screen readers |
+| | Countdown Timer | Announces once a minute, not once a second |
+| | Video Embed (lite) | Click-to-load facade — nothing loads from YouTube until you press play |
+
+---
+
+## Why the output survives a page builder
+
+Page builders drop your markup into a theme you don't control. Four things protect it:
+
+**1. Everything is scoped to a generated class.**
+Each instance gets a class like `cb-accordion-k3f9a`. Every selector in the exported
+CSS is prefixed with it. Nothing targets a bare element or a global utility name, so
+the component can't restyle the host page.
+
+**2. Design tokens live on the component, not on `:root`.**
+Custom properties are declared on the wrapper element. A host page that also defines
+`--cb-brand` doesn't win, and your tokens don't leak into the rest of the site.
+
+**3. A defensive reset hands back the properties themes usually steal.**
+`box-sizing`, heading and paragraph margins, `line-height`, `color`, `font-family`,
+`letter-spacing`, list bullets, image borders, link underlines and button chrome are
+all re-declared inside the scope.
+
+**4. The script is safe to run more than once.**
+A `data-cb-ready` attribute stops double-initialisation, and if the same snippet is
+pasted twice on one page the second copy's `id`s are automatically re-uniqued so its
+`aria-controls` / `aria-labelledby` keep pointing at its own nodes.
+
+### The one thing it can't defend against
+
+A host rule using `!important` on a bare element selector — most commonly
+`a { color: red !important; }`. Only `!important` beats `!important`, and adding it
+throughout would stop you restyling your own components. If a pasted block picks up
+the wrong link colour, add one rule to your theme:
+
+```css
+.cb-card-grid-k3f9a a { color: inherit !important; }
+```
+
+---
+
+## Accessibility
+
+Interactive components follow the [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/):
+
+- **Accordion** — `<h3><button aria-expanded aria-controls>`, panel is a labelled
+  `region`, collapsed panels are `inert`, Up/Down/Home/End move between headers.
+- **Tabs** — `tablist` / `tab` / `tabpanel`, roving tabindex, Left/Right/Home/End.
+- **Carousel** — `aria-roledescription="carousel"`, per-slide `group` labels,
+  a rotation control, `aria-live` that flips to `polite` when rotation stops,
+  and pause on hover and focus.
+- **Video Hero** — a pause control, because WCAG 2.2.2 requires one for motion
+  that runs over five seconds.
+- **Countdown** — announces remaining time once a minute; a per-second live region
+  is unusable with a screen reader.
+- Every component respects `prefers-reduced-motion`, and the marquee and parallax
+  stop entirely rather than merely slowing down.
+
+---
+
+## Export formats
+
+Choose a target platform and the format switches to what that platform actually needs.
+
+| Format | Use for |
+|---|---|
+| **One block** | Anything with a raw-HTML field — markup, `<style>` and `<script>` together |
+| **Split files** | Webflow, HubSpot — separate HTML / CSS / JS panes |
+| **Full page** | Wix and other iframe-sandboxed embeds; also a standalone hand-off file |
+
+Platform notes cover the real gotchas: Webflow's 50 kB embed cap, Squarespace not
+running scripts in edit mode, the WordPress Visual tab stripping `<script>`, Wix
+embeds being sandboxed iframes that can't self-size.
+
+---
+
+## Using the editor
+
+- **Library** — click a component to append it to the canvas.
+- **Layers** — drag to reorder, or use the arrows; duplicate and delete inline.
+- **Canvas** — click any block to select it. Toggle mobile / tablet / desktop widths,
+  and cycle the canvas between light, grid and dark to check contrast.
+- **Properties** — every editable field for the selected block. Repeatable lists
+  (cards, slides, plans) can be added, reordered, duplicated and removed.
+- **Design tokens** — colour, type and shape shared by every block, with six presets.
+
+Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
+
+**Shortcuts:** `Ctrl+Z` undo · `Ctrl+Shift+Z` redo · `Ctrl+S` save · `Ctrl+E` export ·
+`Delete` remove selected.
+
+Work autosaves to `localStorage`. **Save file** / **Open** move projects between
+browsers as `.componentry.json`.
+
+---
+
+## Project layout
+
+```
+index.html              Editor shell
+css/app.css             Editor chrome (does not ship with exports)
+js/core.js              Registry, scoping, escaping, tokens, defensive reset
+js/inspector.js         Schema → property panel
+js/export.js            Code assembly, minifier, preview document, platform notes
+js/app.js               State, history, persistence, wiring
+js/components/
+  heroes.js             parallax-banner, video-hero, split-hero, cta-banner
+  content.js            card-grid, feature-grid, stats-counter, timeline, pricing
+  interactive.js        accordion, tabs, carousel, testimonials
+  media.js              before-after, gallery, logo-marquee, countdown, video-embed
+test/
+  gallery.html          Renders all 18 through the real export path; reports failures
+  hostile-host.html     Pastes exports into a deliberately awful theme; 27 assertions
+```
+
+Open the two files in `test/` in a browser — each prints a pass/fail banner at the top.
+
+---
+
+## Adding a component
+
+Register a definition. Everything else — the library entry, the property panel, the
+preview, and all three export formats — is generated from it.
+
+```js
+CB.register({
+  id: 'my-block',
+  name: 'My Block',
+  category: 'Content',
+  icon: '★',
+  blurb: 'One line shown in the library list.',
+
+  props: [
+    { t: 'section', label: 'Content' },
+    { k: 'title', t: 'text', label: 'Title', value: 'Hello' },
+    { k: 'bg',    t: 'color', label: 'Background', value: '#ffffff' },
+    { k: 'pad',   t: 'range', label: 'Padding', min: 0, max: 120, step: 8, unit: 'px', value: 48 }
+  ],
+
+  render: function (p, c) {
+    return {
+      html: `<section class="${c.cls} cb-mb">
+               <div class="cb-wrap"><h2>${c.rich(p.title)}</h2></div>
+             </section>`,
+      css:  `${c.s}.cb-mb { background: ${p.bg}; padding-block: ${c.num(p.pad, 48)}px; }`,
+      js:   c.wrap(c.cls, 'console.log("root is", root);')
+    };
+  }
+});
+```
+
+Then add the file to the `<script>` list in `index.html`.
+
+**Field types:** `text` · `textarea` · `number` · `range` · `color` · `select` ·
+`toggle` · `url` · `image` · `datetime` · `list` · `section`.
+Add `when: { otherKey: [value] }` to any field to show it conditionally.
+
+**Rules for `render`:**
+
+- Prefix *every* CSS selector with `c.s` (the scoped class). Nothing global.
+- Escape user text — `c.esc` for plain, `c.rich` for line breaks and `**bold**`,
+  `c.attr` for attributes, `c.url` for `href`/`src` (it blocks `javascript:`).
+- Wrap behaviour in `c.wrap(c.cls, body)`. Inside, `root` is the component element;
+  the double-init and id-uniquing guards are added for you.
+- Use `var(--cb-brand)`, `var(--cb-radius)`, `var(--cb-max)` and friends so the
+  component follows the project's design tokens.
+
+---
+
+## Browser support
+
+Current Chrome, Edge, Firefox and Safari. Uses `:has()`, `inert`, `<dialog>`,
+`aspect-ratio`, `color-mix()`, scroll-snap and `IntersectionObserver` — all baseline
+since 2023. Components degrade rather than break on older engines: the carousel still
+scrolls, the accordion still opens, the lightbox falls back to a non-modal panel.

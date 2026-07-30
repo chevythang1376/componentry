@@ -1,0 +1,202 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Componentry — web component builder</title>
+<meta name="description" content="Build, edit and export self-contained web design components for any WYSIWYG editor.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b5bd6'/%3E%3Cpath d='M9 11h14M9 16h9M9 21h12' stroke='white' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand__mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="26" height="26"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M9 11h14M9 16h9M9 21h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
+    </span>
+    <span class="brand__text">
+      <strong>Componentry</strong>
+      <span class="brand__sub"><span id="compCount">0</span> components · no dependencies</span>
+    </span>
+  </div>
+
+  <div class="topbar__mid">
+    <label class="sr" for="projectName">Project name</label>
+    <input id="projectName" class="projname" type="text" value="Untitled project" spellcheck="false">
+  </div>
+
+  <div class="topbar__acts">
+    <div class="btngroup">
+      <button id="undo" class="icon" type="button" title="Undo (Ctrl+Z)" aria-label="Undo">&#8630;</button>
+      <button id="redo" class="icon" type="button" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">&#8631;</button>
+    </div>
+    <div class="btngroup">
+      <button id="newBtn" class="btn btn--ghost btn--sm" type="button" title="Start a new project">New</button>
+      <button id="importProjectBtn" class="btn btn--ghost btn--sm" type="button" title="Open a .componentry.json file">Open</button>
+      <button id="exportProjectBtn" class="btn btn--ghost btn--sm" type="button" title="Download this project as JSON">Save file</button>
+      <input id="importFile" type="file" accept=".json,application/json" hidden>
+    </div>
+    <button id="saveBtn" class="btn btn--ghost btn--sm" type="button" title="Save to this browser (Ctrl+S)">Save</button>
+    <button id="exportBtn" class="btn btn--primary" type="button" title="Get the code (Ctrl+E)">
+      <span aria-hidden="true">&lt;/&gt;</span> Get code
+    </button>
+  </div>
+</header>
+
+<main class="shell">
+
+  <!-- ---------------------------------------------------------- left rail -->
+  <aside id="leftRail" class="rail rail--left">
+    <div class="rail__tabs" role="tablist" aria-label="Left panel">
+      <button class="rail__tab is-active" type="button" role="tab" data-rail="library" aria-selected="true">Library</button>
+      <button class="rail__tab" type="button" role="tab" data-rail="layers" aria-selected="false">
+        Layers <span class="pill" id="layerCount">0</span>
+      </button>
+    </div>
+
+    <div id="libraryPanel" class="rail__panel">
+      <div class="rail__search">
+        <label class="sr" for="librarySearch">Search components</label>
+        <input id="librarySearch" type="search" placeholder="Search components…" spellcheck="false">
+      </div>
+      <div id="library" class="rail__body"></div>
+    </div>
+
+    <div id="layersPanel" class="rail__panel" hidden>
+      <div class="rail__hint">Drag to reorder. Click to select and jump to it on the canvas.</div>
+      <div id="layers" class="rail__body"></div>
+    </div>
+  </aside>
+
+  <!-- ------------------------------------------------------------- canvas -->
+  <section class="canvas">
+    <div class="canvas__bar">
+      <div id="deviceBar" class="segmented" role="group" aria-label="Preview width">
+        <button class="seg" type="button" data-device="mobile" aria-pressed="false" title="390 px">
+          <span aria-hidden="true">▯</span> Mobile
+        </button>
+        <button class="seg" type="button" data-device="tablet" aria-pressed="false" title="834 px">
+          <span aria-hidden="true">▭</span> Tablet
+        </button>
+        <button class="seg is-active" type="button" data-device="desktop" aria-pressed="true" title="Full width">
+          <span aria-hidden="true">▬</span> Desktop
+        </button>
+      </div>
+
+      <div class="canvas__right">
+        <button id="canvasToggle" class="icon icon--wide" type="button" data-mode="light" title="Canvas: light">
+          <span aria-hidden="true">◐</span> Canvas
+        </button>
+      </div>
+    </div>
+
+    <div id="stage" class="stage">
+      <div id="frameWrap" class="framewrap">
+        <iframe id="preview" title="Component preview" sandbox="allow-scripts allow-forms"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------------- right rail -->
+  <aside id="rightRail" class="rail rail--right">
+    <div class="rail__tabs" role="tablist" aria-label="Right panel">
+      <button class="rail__tab is-active" type="button" role="tab" data-insp="props" aria-selected="true">Properties</button>
+      <button class="rail__tab" type="button" role="tab" data-insp="tokens" aria-selected="false">Design tokens</button>
+    </div>
+
+    <div id="propsPanel" class="rail__panel">
+      <div class="insp__head">
+        <h2 id="inspTitle">Properties</h2>
+        <p id="inspSub">Nothing selected</p>
+      </div>
+      <div id="inspector" class="rail__body"></div>
+    </div>
+
+    <div id="tokensPanel" class="rail__panel" hidden>
+      <div class="insp__head">
+        <h2>Design tokens</h2>
+        <p>Shared by every component on the canvas</p>
+      </div>
+      <div id="tokens" class="rail__body"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- ------------------------------------------------------------ export -->
+<dialog id="exportModal" class="modal" aria-labelledby="exportTitle">
+  <header class="modal__head">
+    <div>
+      <h2 id="exportTitle">Get the code</h2>
+      <p>Self-contained output — paste it into any HTML embed field.</p>
+    </div>
+    <button id="closeExport" class="icon" type="button" aria-label="Close">&times;</button>
+  </header>
+
+  <div class="modal__controls">
+    <div class="ctrlgroup">
+      <span class="ctrlgroup__label">Target</span>
+      <select id="platformSelect" class="ctl ctl--select">
+        <option value="generic">Generic HTML embed</option>
+        <option value="wordpress">WordPress</option>
+        <option value="squarespace">Squarespace</option>
+        <option value="webflow">Webflow</option>
+        <option value="wix">Wix</option>
+        <option value="shopify">Shopify</option>
+        <option value="hubspot">HubSpot</option>
+      </select>
+    </div>
+
+    <div class="ctrlgroup">
+      <span class="ctrlgroup__label">Format</span>
+      <div class="segmented">
+        <button class="seg" type="button" data-format="embed" aria-pressed="true">One block</button>
+        <button class="seg" type="button" data-format="separate" aria-pressed="false">Split files</button>
+        <button class="seg" type="button" data-format="document" aria-pressed="false">Full page</button>
+      </div>
+    </div>
+
+    <div class="ctrlgroup">
+      <span class="ctrlgroup__label">Include</span>
+      <div class="segmented">
+        <button class="seg" type="button" data-scope="all" aria-pressed="true">Whole canvas</button>
+        <button class="seg" type="button" data-scope="one" aria-pressed="false">Selected only</button>
+      </div>
+    </div>
+
+    <label class="checkline">
+      <input id="minifyToggle" type="checkbox"> <span>Minify</span>
+    </label>
+  </div>
+
+  <p id="platformNote" class="modal__note"></p>
+
+  <div id="exportPanes" class="modal__body"></div>
+
+  <footer class="modal__foot">
+    <p class="modal__foothint">Styles are scoped to a generated class and the script guards against double-init, so the same block can appear more than once on a page.</p>
+    <div class="modal__footacts">
+      <button id="downloadBtn" class="btn btn--ghost" type="button">Download .html</button>
+      <button id="copyAllBtn" class="btn btn--primary" type="button">Copy everything</button>
+    </div>
+  </footer>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<span class="sr" id="year"></span>
+
+<script src="js/core.js"></script>
+<script src="js/components/heroes.js"></script>
+<script src="js/components/content.js"></script>
+<script src="js/components/interactive.js"></script>
+<script src="js/components/media.js"></script>
+<script src="js/inspector.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
+
+
+
+
+

@@ -1,0 +1,209 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hostile host page — WYSIWYG paste test</title>
+
+<style>
+/* ---------------------------------------------------------------------------
+   A deliberately awful host theme. This is the sort of thing that lives in a
+   real WordPress/Squarespace template and breaks naive pasted components.
+   Nothing below is scoped — it all targets bare element and utility selectors.
+--------------------------------------------------------------------------- */
+:root {
+  --cb-brand: #ff0000;            /* same custom-property names as ours */
+  --cb-radius: 0px;
+  --cb-max: 300px;
+  --cb-font: "Comic Sans MS", cursive;
+}
+* { box-sizing: content-box; }
+body { margin: 0; font-family: "Comic Sans MS", cursive; background: #fffbe6; }
+img { width: 100% !important; height: auto; border: 4px solid magenta; }
+h1, h2, h3, h4 { margin: 2.5em 0; font-family: "Comic Sans MS", cursive; color: #cc00cc; letter-spacing: 3px; }
+p { margin: 2em 0; line-height: 3; color: #996600; }
+ul, ol { list-style: square outside; padding-left: 44px; margin: 2em 0; }
+li { margin: 1em 0; }
+a { color: #ff0000 !important; text-decoration: underline wavy; }
+section { padding: 40px; border: 3px dashed #ff9900; }
+button { border: 2px groove #888; background: #ddd; padding: 12px; font-family: inherit; }
+figure, blockquote { margin: 3em; }
+video { width: 100% !important; }
+/* Utility-class collisions with common names */
+.cb-btn { background: lime; color: #000; }
+.cb-wrap { max-width: 200px; }
+
+/* Host page's own chrome */
+.host-note {
+  padding: 14px 18px; background: #1f2937; color: #e5e7eb;
+  font: 13px/1.6 ui-monospace, Consolas, monospace;
+}
+.host-note b { color: #86efac; }
+.host-junk { padding: 24px 40px; }
+</style>
+</head>
+<body>
+
+<div class="host-note" id="report">Pasting…</div>
+
+<div class="host-junk">
+  <h2>Existing host page content</h2>
+  <p>This paragraph and heading use the host theme’s hostile styles. The pasted
+     components below must be unaffected by them — and must not affect this text either.</p>
+  <ul><li>Host list item</li><li>Another host list item</li></ul>
+  <button class="cb-btn">A host button that happens to use the class <code>cb-btn</code></button>
+</div>
+
+<!-- Pasted component blocks land here -->
+<div id="paste-a"></div>
+<div id="paste-b"></div>
+
+<div class="host-junk">
+  <h2>More host content after the paste</h2>
+  <p>Still styled by the host theme. Nothing from the components should leak up here.</p>
+</div>
+
+<script src="../js/core.js"></script>
+<script src="../js/components/heroes.js"></script>
+<script src="../js/components/content.js"></script>
+<script src="../js/components/interactive.js"></script>
+<script src="../js/components/media.js"></script>
+<script src="../js/export.js"></script>
+<script>
+/* Simulates a real WYSIWYG paste: take the exact `embed` output, drop it into
+   the page as innerHTML, and run its <script> the way a browser would.
+   The same block is pasted TWICE to prove the double-init guard holds. */
+(function () {
+  var picks = ['card-grid', 'accordion', 'pricing', 'split-hero'];
+  var instances = picks.map(function (id, n) {
+    return {
+      uid: 'h' + n,
+      cls: 'cb-' + id + '-' + Math.random().toString(36).slice(2, 7),
+      type: id,
+      props: CB.defaults(CB.get(id))
+    };
+  });
+
+  var snippet = CB.Export.embed(CB.Export.parts(instances, CB.DEFAULT_TOKENS), {});
+
+  function paste(hostId, html) {
+    var host = document.getElementById(hostId);
+    host.innerHTML = html;
+    // innerHTML never executes scripts — re-create them, as a real paste would run.
+    Array.prototype.forEach.call(host.querySelectorAll('script'), function (old) {
+      var s = document.createElement('script');
+      s.textContent = old.textContent;
+      old.parentNode.replaceChild(s, old);
+    });
+  }
+
+  paste('paste-a', snippet);
+  paste('paste-b', snippet);   // identical duplicate
+
+  /* ---- assertions ---- */
+  function cs(el, prop) { return getComputedStyle(el).getPropertyValue(prop).trim(); }
+  var a = document.querySelector('#paste-a .cb-cg');
+  var b = document.querySelector('#paste-b .cb-cg');
+  var hostP = document.querySelector('.host-junk p');
+  var hostImgRule = document.querySelector('#paste-a .cb-cg__media img');
+  var accBtns = document.querySelectorAll('#paste-a .cb-acc__btn');
+
+  var checks = [];
+  function check(name, pass, detail) { checks.push({ name: name, pass: !!pass, detail: detail }); }
+
+  check('box-sizing survives host content-box',
+        cs(a, 'box-sizing') === 'border-box', cs(a, 'box-sizing'));
+  check('font-family not hijacked by host',
+        cs(a, 'font-family').indexOf('Comic') === -1, cs(a, 'font-family').slice(0, 40));
+  check('brand token scoped, not host :root red',
+        cs(a, '--cb-brand') !== '#ff0000', cs(a, '--cb-brand'));
+  check('radius token scoped',
+        cs(a, '--cb-radius') !== '0px', cs(a, '--cb-radius'));
+  check('container width token scoped',
+        cs(a, '--cb-max') !== '300px', cs(a, '--cb-max'));
+  check('heading margin reset (host says 2.5em)',
+        parseFloat(cs(document.querySelector('#paste-a .cb-cg__title'), 'margin-top')) === 0,
+        cs(document.querySelector('#paste-a .cb-cg__title'), 'margin-top'));
+  check('list bullets removed (host says square)',
+        cs(document.querySelector('#paste-a .cb-cg__grid'), 'list-style-type') === 'none',
+        cs(document.querySelector('#paste-a .cb-cg__grid'), 'list-style-type'));
+  check('images not given host magenta border',
+        parseFloat(cs(hostImgRule, 'border-top-width')) === 0, cs(hostImgRule, 'border-top-width'));
+  check('component grid actually laid out in columns',
+        cs(document.querySelector('#paste-a .cb-cg__grid'), 'display') === 'grid');
+  check('heading colour not hijacked (host says magenta)',
+        cs(document.querySelector('#paste-a .cb-cg__title'), 'color') !== 'rgb(204, 0, 204)',
+        cs(document.querySelector('#paste-a .cb-cg__title'), 'color'));
+  check('paragraph line-height not hijacked (host says 3)',
+        parseFloat(cs(document.querySelector('#paste-a .cb-cg__x'), 'line-height')) < 30,
+        cs(document.querySelector('#paste-a .cb-cg__x'), 'line-height'));
+  check('heading letter-spacing not hijacked (host says 3px)',
+        cs(document.querySelector('#paste-a .cb-sh__title'), 'letter-spacing') !== '3px',
+        cs(document.querySelector('#paste-a .cb-sh__title'), 'letter-spacing'));
+  check('link underline-wavy not inherited from host',
+        cs(document.querySelector('#paste-a .cb-cg__link'), 'text-decoration-line') === 'none',
+        cs(document.querySelector('#paste-a .cb-cg__link'), 'text-decoration-line'));
+  check('host paragraph still has its own styling (no leak up)',
+        cs(hostP, 'line-height') !== 'normal' && parseFloat(cs(hostP, 'margin-top')) > 20,
+        cs(hostP, 'margin-top') + ' / ' + cs(hostP, 'line-height'));
+  check('host .cb-btn keeps host lime background',
+        cs(document.querySelector('.host-junk .cb-btn'), 'background-color') === 'rgb(0, 255, 0)',
+        cs(document.querySelector('.host-junk .cb-btn'), 'background-color'));
+
+  /* Duplicate-paste behaviour */
+  check('both copies present and independently classed',
+        a && b && a.className !== '' && a.className === b.className, a ? a.className : '?');
+  check('duplicate did not double-init (data-cb-ready set once each)',
+        document.querySelectorAll('[data-cb-ready]').length ===
+        document.querySelectorAll('#paste-a [data-cb-ready], #paste-b [data-cb-ready]').length,
+        document.querySelectorAll('[data-cb-ready]').length + ' initialised');
+
+  /* Behaviour still works after a duplicate paste */
+  var accA = document.querySelector('#paste-a .cb-acc__btn:nth-of-type(1)');
+  var btnsA = document.querySelectorAll('#paste-a .cb-acc__btn');
+  var btnsB = document.querySelectorAll('#paste-b .cb-acc__btn');
+  btnsA[1].click();
+  check('accordion in copy A opens', btnsA[1].getAttribute('aria-expanded') === 'true');
+  check('copy B unaffected by copy A', btnsB[1].getAttribute('aria-expanded') === 'false');
+  btnsB[2].click();
+  check('accordion in copy B opens independently', btnsB[2].getAttribute('aria-expanded') === 'true');
+
+  /* Duplicated ids would silently break the second copy's ARIA wiring. */
+  var allIds = Array.prototype.map.call(document.querySelectorAll('[id]'), function (n) { return n.id; });
+  var dupIds = allIds.filter(function (id, i) { return allIds.indexOf(id) !== i; });
+  check('no duplicate ids across the two pastes', dupIds.length === 0, dupIds.slice(0, 3).join(',') || 'none');
+
+  ['a', 'b'].forEach(function (copy) {
+    var btn = document.querySelector('#paste-' + copy + ' .cb-acc__btn');
+    var target = document.getElementById(btn.getAttribute('aria-controls'));
+    check('copy ' + copy.toUpperCase() + ' aria-controls resolves inside its own copy',
+          target && document.getElementById('paste-' + copy).contains(target),
+          btn.getAttribute('aria-controls'));
+    var panel = document.querySelector('#paste-' + copy + ' .cb-acc__panel');
+    var labeller = document.getElementById(panel.getAttribute('aria-labelledby'));
+    check('copy ' + copy.toUpperCase() + ' aria-labelledby resolves inside its own copy',
+          labeller && document.getElementById('paste-' + copy).contains(labeller),
+          panel.getAttribute('aria-labelledby'));
+  });
+
+  var swA = document.querySelectorAll('#paste-a .cb-pr__sw');
+  var amtA = document.querySelectorAll('#paste-a .cb-pr__amount');
+  var amtB = document.querySelectorAll('#paste-b .cb-pr__amount');
+  var beforeB = amtB[1].textContent;
+  swA[1].click();
+  check('pricing switch in A changes A', amtA[1].textContent === '290', amtA[1].textContent);
+  check('pricing switch in A leaves B alone', amtB[1].textContent === beforeB, amtB[1].textContent);
+
+  window.__hostile = checks;
+  var failed = checks.filter(function (c) { return !c.pass; });
+  document.getElementById('report').innerHTML =
+    '<b>' + (checks.length - failed.length) + '/' + checks.length + ' passed</b>' +
+    (failed.length ? ' — FAILED: ' + failed.map(function (c) { return c.name + ' (' + c.detail + ')'; }).join(' · ')
+                   : ' — component survived the hostile theme intact');
+})();
+</script>
+</body>
+</html>
+
+
+
