@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Heroes & Banners
    ========================================================================== */
 (function () {
@@ -26,13 +26,13 @@
       { k: 'btn2Url', t: 'url', label: 'Secondary link', value: '#' },
 
       { t: 'section', label: 'Media' },
-      { k: 'image', t: 'image', label: 'Background image', value: CB.ph(1600, 900, '', '#312e81', '#0891b2') },
+      { k: 'image', t: 'image', label: 'Background image', value: CB.ph(1600, 900, '', '#2b241f', '#2b241f') },
       { k: 'height', t: 'range', label: 'Height', min: 280, max: 900, step: 10, unit: 'px', value: 580 },
       { k: 'speed', t: 'range', label: 'Parallax strength', min: 0, max: 60, step: 5, unit: '%', value: 30 },
       { k: 'focal', t: 'select', label: 'Image focus', value: 'center', options: [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom']] },
 
       { t: 'section', label: 'Overlay' },
-      { k: 'overlay', t: 'color', label: 'Overlay colour', value: '#0b1020' },
+      { k: 'overlay', t: 'color', label: 'Overlay colour', value: '#12100e' },
       { k: 'overlayOpacity', t: 'range', label: 'Overlay opacity', min: 0, max: 90, step: 5, unit: '%', value: 45 },
       { k: 'gradient', t: 'toggle', label: 'Extra fade at bottom', value: true },
 
@@ -174,12 +174,12 @@
 
       { t: 'section', label: 'Video' },
       { k: 'src', t: 'url', label: 'MP4 URL', value: '', help: 'Self-hosted .mp4 or .webm. Leave blank to show the poster only.' },
-      { k: 'poster', t: 'image', label: 'Poster image', value: CB.ph(1600, 900, '', '#0f172a', '#7c3aed') },
+      { k: 'poster', t: 'image', label: 'Poster image', value: CB.ph(1600, 900, '', '#141210', '#6f4c37') },
       { k: 'height', t: 'range', label: 'Height', min: 320, max: 900, step: 10, unit: 'px', value: 620 },
       { k: 'control', t: 'toggle', label: 'Show pause control', value: true, help: 'WCAG 2.2.2 — any motion over 5s needs a pause affordance.' },
 
       { t: 'section', label: 'Overlay' },
-      { k: 'overlay', t: 'color', label: 'Overlay colour', value: '#0f172a' },
+      { k: 'overlay', t: 'color', label: 'Overlay colour', value: '#141210' },
       { k: 'overlayOpacity', t: 'range', label: 'Overlay opacity', min: 0, max: 90, step: 5, unit: '%', value: 50 },
 
       { t: 'section', label: 'Layout' },
@@ -305,7 +305,7 @@
       { k: 'btn2Url', t: 'url', label: 'Secondary link', value: '#' },
 
       { t: 'section', label: 'Media' },
-      { k: 'image', t: 'image', label: 'Image', value: CB.ph(900, 800, '', '#6366f1', '#22d3ee') },
+      { k: 'image', t: 'image', label: 'Image', value: CB.ph(900, 800, '', '#96694c', '#3a332d') },
       { k: 'alt', t: 'text', label: 'Image alt text', value: '' },
       { k: 'side', t: 'select', label: 'Image side', value: 'right', options: [['right', 'Right'], ['left', 'Left']] },
       { k: 'ratio', t: 'select', label: 'Image ratio', value: '4/3', options: [['4/3', '4 : 3'], ['1/1', 'Square'], ['3/4', 'Portrait'], ['16/9', '16 : 9'], ['auto', 'Natural']] },
@@ -351,7 +351,7 @@
         ${s} .cb-sh__media img {
           width: 100%; border-radius: var(--cb-radius);
           ${p.ratio !== 'auto' ? 'aspect-ratio: ' + p.ratio + '; object-fit: cover;' : ''}
-          box-shadow: 0 24px 60px -28px rgba(15,23,42,.45);
+          box-shadow: 0 24px 60px -28px rgba(20,18,16,.45);
         }
         ${s} .cb-sh__eyebrow {
           font-size: .78em; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
@@ -402,8 +402,8 @@
 
       { t: 'section', label: 'Background' },
       { k: 'style', t: 'select', label: 'Background style', value: 'gradient', options: [['gradient', 'Brand gradient'], ['solid', 'Solid colour'], ['image', 'Image'], ['soft', 'Soft tint']] },
-      { k: 'solid', t: 'color', label: 'Solid colour', value: '#0f172a', when: { style: ['solid'] } },
-      { k: 'image', t: 'image', label: 'Image', value: CB.ph(1600, 600, '', '#1e1b4b', '#0e7490'), when: { style: ['image'] } },
+      { k: 'solid', t: 'color', label: 'Solid colour', value: '#141210', when: { style: ['solid'] } },
+      { k: 'image', t: 'image', label: 'Image', value: CB.ph(1600, 600, '', '#141210', '#96694c'), when: { style: ['image'] } },
       { k: 'overlayOpacity', t: 'range', label: 'Image overlay', min: 0, max: 90, step: 5, unit: '%', value: 60, when: { style: ['image'] } },
 
       { t: 'section', label: 'Layout' },
@@ -449,7 +449,7 @@
         }
         ${s} .cb-cta__bg { position: absolute; inset: 0; z-index: 0; }
         ${s} .cb-cta__bg img { width: 100%; height: 100%; object-fit: cover; }
-        ${s} .cb-cta__veil { position: absolute; inset: 0; z-index: 1; background: ${c.rgba('#0b1020', c.num(p.overlayOpacity, 60) / 100)}; }
+        ${s} .cb-cta__veil { position: absolute; inset: 0; z-index: 1; background: ${c.rgba('#12100e', c.num(p.overlayOpacity, 60) / 100)}; }
         ${s} .cb-cta__inner {
           position: relative; z-index: 2;
           display: flex; gap: 28px;
@@ -475,3 +475,5 @@
     }
   });
 })();
+
+

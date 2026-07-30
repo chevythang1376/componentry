@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Export — assembles instances into paste-ready code, and builds the
    preview document that the sandboxed iframe renders.
    ========================================================================== */
@@ -136,32 +136,32 @@ CB.Export = (function () {
     var chrome = `
       html, body { margin: 0; padding: 0; }
       body {
-        background: ${opts.canvas === 'dark' ? '#0b1020' : opts.canvas === 'grid' ? '#ffffff' : '#ffffff'};
-        ${opts.canvas === 'grid' ? 'background-image: linear-gradient(#eef1f7 1px, transparent 1px), linear-gradient(90deg, #eef1f7 1px, transparent 1px); background-size: 24px 24px;' : ''}
+        background: ${opts.canvas === 'dark' ? '#121110' : opts.canvas === 'grid' ? '#ffffff' : '#ffffff'};
+        ${opts.canvas === 'grid' ? 'background-image: linear-gradient(#efeae4 1px, transparent 1px), linear-gradient(90deg, #efeae4 1px, transparent 1px); background-size: 24px 24px;' : ''}
         min-height: 100vh;
       }
       .cb-pv { position: relative; }
       ${opts.outline ? `
       .cb-pv::after {
         content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 99998;
-        outline: 1px dashed rgba(91,91,214,.4); outline-offset: -1px;
+        outline: 1px dashed rgba(150,105,76,.45); outline-offset: -1px;
         opacity: 0; transition: opacity .15s ease;
       }
       .cb-pv:hover::after { opacity: 1; }
       .cb-pv[data-selected]::after {
-        opacity: 1; outline: 2px solid #5b5bd6; outline-offset: -2px;
+        opacity: 1; outline: 2px solid #96694c; outline-offset: -2px;
       }
       .cb-pv[data-selected]::before {
         content: attr(data-name); position: absolute; z-index: 99999;
-        top: 0; left: 0; background: #5b5bd6; color: #fff;
+        top: 0; left: 0; background: #96694c; color: #fff;
         font: 600 11px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em;
         padding: 5px 8px; border-radius: 0 0 6px 0; pointer-events: none;
       }` : ''}
       .cb-empty {
         display: grid; place-items: center; min-height: 92vh; padding: 40px; text-align: center;
-        font: 15px/1.7 ui-sans-serif, system-ui, sans-serif; color: #7c8aa0;
+        font: 15px/1.7 ui-sans-serif, system-ui, sans-serif; color: #8b8078;
       }
-      .cb-empty strong { display: block; font-size: 19px; color: #334155; margin-bottom: 8px; font-weight: 700; }`;
+      .cb-empty strong { display: block; font-size: 19px; color: #2b2520; margin-bottom: 8px; font-weight: 700; }`;
 
     var bridge = `
       document.addEventListener("click", function (e) {
@@ -260,3 +260,5 @@ CB.Export = (function () {
     PLATFORMS: PLATFORMS
   };
 })();
+
+

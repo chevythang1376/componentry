@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Content blocks — cards, features, stats, timeline, pricing
    ========================================================================== */
 (function () {
@@ -24,7 +24,7 @@
       {
         k: 'items', t: 'list', label: 'Cards', itemLabel: 'title',
         fields: [
-          { k: 'image', t: 'image', label: 'Image', value: CB.ph(800, 600, '', '#4f46e5', '#0891b2') },
+          { k: 'image', t: 'image', label: 'Image', value: CB.ph(800, 600, '', '#96694c', '#2b241f') },
           { k: 'alt', t: 'text', label: 'Alt text', value: '' },
           { k: 'tag', t: 'text', label: 'Tag / eyebrow', value: '' },
           { k: 'title', t: 'text', label: 'Title', value: 'Card title' },
@@ -34,9 +34,9 @@
           { k: 'linkUrl', t: 'url', label: 'Link URL', value: '#' }
         ],
         value: [
-          { image: CB.ph(800, 600, '', '#4f46e5', '#0891b2'), alt: '', tag: 'Performance', title: 'Why your hero image is the whole story', text: 'Largest Contentful Paint is usually one element. Here is how to find it and fix it.', meta: '6 min read', linkText: 'Read more', linkUrl: '#' },
-          { image: CB.ph(800, 600, '', '#7c3aed', '#db2777'), alt: '', tag: 'Accessibility', title: 'Accordions that survive a keyboard audit', text: 'Roles, focus order and the animation trick that does not break screen readers.', meta: '9 min read', linkText: 'Read more', linkUrl: '#' },
-          { image: CB.ph(800, 600, '', '#0891b2', '#22c55e'), alt: '', tag: 'CSS', title: 'Scoping styles without a build step', text: 'Custom properties, generated classes, and staying out of the host theme’s way.', meta: '4 min read', linkText: 'Read more', linkUrl: '#' }
+          { image: CB.ph(800, 600, '', '#96694c', '#2b241f'), alt: '', tag: 'Performance', title: 'Why your hero image is the whole story', text: 'Largest Contentful Paint is usually one element. Here is how to find it and fix it.', meta: '6 min read', linkText: 'Read more', linkUrl: '#' },
+          { image: CB.ph(800, 600, '', '#6f4c37', '#141210'), alt: '', tag: 'Accessibility', title: 'Accordions that survive a keyboard audit', text: 'Roles, focus order and the animation trick that does not break screen readers.', meta: '9 min read', linkText: 'Read more', linkUrl: '#' },
+          { image: CB.ph(800, 600, '', '#2b241f', '#4a443e'), alt: '', tag: 'CSS', title: 'Scoping styles without a build step', text: 'Custom properties, generated classes, and staying out of the host theme’s way.', meta: '4 min read', linkText: 'Read more', linkUrl: '#' }
         ]
       },
 
@@ -48,7 +48,7 @@
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Card style', value: 'elevated', options: [['elevated', 'Elevated'], ['outline', 'Outlined'], ['flat', 'Flat / borderless'], ['overlay', 'Text over image']] },
       { k: 'hover', t: 'select', label: 'Hover effect', value: 'lift', options: [['lift', 'Lift'], ['zoom', 'Image zoom'], ['border', 'Border glow'], ['none', 'None']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f4f6fb' },
+      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -96,21 +96,21 @@
         </section>`);
 
       var hoverCss = {
-        lift: `${s} .cb-cg__card:hover .cb-cg__inner { transform: translateY(-6px); box-shadow: 0 28px 50px -28px rgba(15,23,42,.45); }`,
+        lift: `${s} .cb-cg__card:hover .cb-cg__inner { transform: translateY(-6px); box-shadow: 0 28px 50px -28px rgba(20,18,16,.45); }`,
         zoom: `${s} .cb-cg__card:hover .cb-cg__media img { transform: scale(1.07); }`,
         border: `${s} .cb-cg__card:hover .cb-cg__inner { border-color: var(--cb-brand); box-shadow: 0 0 0 1px var(--cb-brand), 0 20px 40px -30px var(--cb-brand); }`,
         none: ''
       }[p.hover] || '';
 
       var variantCss = {
-        elevated: `${s} .cb-cg__inner { background: var(--cb-surface); box-shadow: 0 12px 30px -22px rgba(15,23,42,.5); border: 1px solid transparent; }`,
+        elevated: `${s} .cb-cg__inner { background: var(--cb-surface); box-shadow: 0 12px 30px -22px rgba(20,18,16,.5); border: 1px solid transparent; }`,
         outline: `${s} .cb-cg__inner { background: var(--cb-surface); border: 1px solid var(--cb-border); }`,
         flat: `${s} .cb-cg__inner { background: transparent; border: 1px solid transparent; }
                ${s} .cb-cg__body { padding-inline: 0; }`,
         overlay: `
-          ${s} .cb-cg__inner { background: #0b1020; border: 1px solid transparent; }
+          ${s} .cb-cg__inner { background: #12100e; border: 1px solid transparent; }
           ${s} .cb-cg__media { position: absolute; inset: 0; }
-          ${s} .cb-cg__media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(6,10,20,.9) 10%, rgba(6,10,20,.15) 65%); }
+          ${s} .cb-cg__media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(12,10,8,.9) 10%, rgba(12,10,8,.15) 65%); }
           ${s} .cb-cg__media img { height: 100%; }
           ${s} .cb-cg__body { position: relative; z-index: 1; min-height: 320px; justify-content: flex-end; color: #fff; }
           ${s} .cb-cg__x { color: rgba(255,255,255,.82); }
@@ -607,7 +607,7 @@
       { k: 'yearPeriod', t: 'text', label: 'Annual period label', value: '/ year', when: { toggle: [true] } },
 
       { t: 'section', label: 'Style' },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f4f6fb' },
+      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 88 }
     ],
 
@@ -679,7 +679,7 @@
           border-radius: calc(var(--cb-radius) * 1.2); padding: 30px 26px;
           transition: transform .25s ease, box-shadow .25s ease;
         }
-        ${s} .cb-pr__plan:hover { transform: translateY(-4px); box-shadow: 0 24px 50px -34px rgba(15,23,42,.55); }
+        ${s} .cb-pr__plan:hover { transform: translateY(-4px); box-shadow: 0 24px 50px -34px rgba(20,18,16,.55); }
         ${s} .cb-pr__plan.is-featured {
           border-color: var(--cb-brand); border-width: 2px;
           box-shadow: 0 24px 60px -32px var(--cb-brand);
@@ -744,3 +744,5 @@
     }
   });
 })();
+
+

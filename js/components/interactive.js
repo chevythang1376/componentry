@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Interactive — accordion, tabs, carousel, testimonials
    All follow the WAI-ARIA Authoring Practices patterns.
    ========================================================================== */
@@ -225,9 +225,9 @@
           { k: 'linkUrl', t: 'url', label: 'Link URL', value: '#' }
         ],
         value: [
-          { label: 'Pick', heading: 'Start from a real pattern', body: 'Choose from banners, carousels, accordions, pricing tables and more — every one built to the conventions people already expect.', image: CB.ph(900, 560, '', '#4f46e5', '#0891b2'), linkText: '', linkUrl: '#' },
-          { label: 'Edit', heading: 'Change anything that matters', body: 'Copy, colours, spacing, imagery, timings and behaviour — all editable, with the preview updating as you type.', image: CB.ph(900, 560, '', '#7c3aed', '#db2777'), linkText: '', linkUrl: '#' },
-          { label: 'Export', heading: 'Paste it and move on', body: 'Take a single self-contained snippet, or split HTML, CSS and JS into your builder’s separate fields.', image: CB.ph(900, 560, '', '#0891b2', '#22c55e'), linkText: '', linkUrl: '#' }
+          { label: 'Pick', heading: 'Start from a real pattern', body: 'Choose from banners, carousels, accordions, pricing tables and more — every one built to the conventions people already expect.', image: CB.ph(900, 560, '', '#96694c', '#2b241f'), linkText: '', linkUrl: '#' },
+          { label: 'Edit', heading: 'Change anything that matters', body: 'Copy, colours, spacing, imagery, timings and behaviour — all editable, with the preview updating as you type.', image: CB.ph(900, 560, '', '#6f4c37', '#141210'), linkText: '', linkUrl: '#' },
+          { label: 'Export', heading: 'Paste it and move on', body: 'Take a single self-contained snippet, or split HTML, CSS and JS into your builder’s separate fields.', image: CB.ph(900, 560, '', '#2b241f', '#4a443e'), linkText: '', linkUrl: '#' }
         ]
       },
 
@@ -290,7 +290,7 @@
         segmented: `
           ${s} .cb-tabs__list { gap: 4px; background: var(--cb-subtle); padding: 5px; border-radius: 999px; }
           ${s} .cb-tabs__tab { padding: 10px 20px; border-radius: 999px; }
-          ${s} .cb-tabs__tab[aria-selected="true"] { background: var(--cb-surface); color: var(--cb-brand); box-shadow: 0 2px 8px -2px rgba(15,23,42,.2); }`
+          ${s} .cb-tabs__tab[aria-selected="true"] { background: var(--cb-surface); color: var(--cb-brand); box-shadow: 0 2px 8px -2px rgba(20,18,16,.2); }`
       }[p.variant] || '';
 
       var css = `
@@ -383,18 +383,18 @@
       {
         k: 'items', t: 'list', label: 'Slides', itemLabel: 'caption',
         fields: [
-          { k: 'image', t: 'image', label: 'Image', value: CB.ph(1200, 750, '', '#4f46e5', '#0891b2') },
+          { k: 'image', t: 'image', label: 'Image', value: CB.ph(1200, 750, '', '#96694c', '#2b241f') },
           { k: 'alt', t: 'text', label: 'Alt text', value: '' },
           { k: 'caption', t: 'text', label: 'Caption', value: 'New slide' },
           { k: 'sub', t: 'text', label: 'Sub-caption', value: '' },
           { k: 'linkUrl', t: 'url', label: 'Link URL', value: '' }
         ],
         value: [
-          { image: CB.ph(1200, 750, '', '#4f46e5', '#0891b2'), alt: '', caption: 'Northwind rebrand', sub: 'Identity · 2025', linkUrl: '' },
-          { image: CB.ph(1200, 750, '', '#7c3aed', '#db2777'), alt: '', caption: 'Atlas dashboard', sub: 'Product design', linkUrl: '' },
-          { image: CB.ph(1200, 750, '', '#0891b2', '#22c55e'), alt: '', caption: 'Field guide microsite', sub: 'Web · 2026', linkUrl: '' },
-          { image: CB.ph(1200, 750, '', '#ea580c', '#f59e0b'), alt: '', caption: 'Harbour packaging', sub: 'Print', linkUrl: '' },
-          { image: CB.ph(1200, 750, '', '#0f766e', '#84cc16'), alt: '', caption: 'Meridian campaign', sub: 'Art direction', linkUrl: '' }
+          { image: CB.ph(1200, 750, '', '#96694c', '#2b241f'), alt: '', caption: 'Northwind rebrand', sub: 'Identity · 2025', linkUrl: '' },
+          { image: CB.ph(1200, 750, '', '#6f4c37', '#141210'), alt: '', caption: 'Atlas dashboard', sub: 'Product design', linkUrl: '' },
+          { image: CB.ph(1200, 750, '', '#2b241f', '#4a443e'), alt: '', caption: 'Field guide microsite', sub: 'Web · 2026', linkUrl: '' },
+          { image: CB.ph(1200, 750, '', '#c08d63', '#d9c3ad'), alt: '', caption: 'Harbour packaging', sub: 'Print', linkUrl: '' },
+          { image: CB.ph(1200, 750, '', '#3a332d', '#96694c'), alt: '', caption: 'Meridian campaign', sub: 'Art direction', linkUrl: '' }
         ]
       },
 
@@ -508,7 +508,7 @@
         ${s} .cb-car__cap {
           position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 2px;
           padding: 44px 18px 16px; color: #fff;
-          background: linear-gradient(to top, rgba(6,10,20,.86), rgba(6,10,20,0));
+          background: linear-gradient(to top, rgba(12,10,8,.86), rgba(12,10,8,0));
         }
         ${s} .cb-car__capT { font-weight: 700; }
         ${s} .cb-car__capS { font-size: .85em; opacity: .8; }
@@ -659,9 +659,9 @@
           { k: 'rating', t: 'range', label: 'Rating', min: 0, max: 5, step: 1, value: 5 }
         ],
         value: [
-          { quote: 'We replaced three plugins with a single pasted snippet. It loads faster and finally matches the rest of the site.', name: 'Dana Whitfield', role: 'Head of Digital, Northwind', avatar: CB.ph(200, 200, 'DW', '#4f46e5', '#0891b2'), rating: 5 },
-          { quote: 'The accordion actually works with a keyboard. That sounds like a low bar until you audit what most builders ship.', name: 'Marcus Lee', role: 'Accessibility lead', avatar: CB.ph(200, 200, 'ML', '#7c3aed', '#db2777'), rating: 5 },
-          { quote: 'Being able to hand a marketer an editable block and get clean code back has saved us an entire review cycle.', name: 'Priya Raman', role: 'Front-end engineer', avatar: CB.ph(200, 200, 'PR', '#0891b2', '#22c55e'), rating: 4 }
+          { quote: 'We replaced three plugins with a single pasted snippet. It loads faster and finally matches the rest of the site.', name: 'Dana Whitfield', role: 'Head of Digital, Northwind', avatar: CB.ph(200, 200, 'DW', '#96694c', '#2b241f'), rating: 5 },
+          { quote: 'The accordion actually works with a keyboard. That sounds like a low bar until you audit what most builders ship.', name: 'Marcus Lee', role: 'Accessibility lead', avatar: CB.ph(200, 200, 'ML', '#6f4c37', '#141210'), rating: 5 },
+          { quote: 'Being able to hand a marketer an editable block and get clean code back has saved us an entire review cycle.', name: 'Priya Raman', role: 'Front-end engineer', avatar: CB.ph(200, 200, 'PR', '#2b241f', '#4a443e'), rating: 4 }
         ]
       },
 
@@ -671,7 +671,7 @@
 
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Variant', value: 'centered', options: [['centered', 'Centred'], ['card', 'Card']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f4f6fb' },
+      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 88 }
     ],
 
@@ -734,12 +734,14 @@
           text-align: center; max-width: 760px; margin-inline: auto;
           opacity: 0; visibility: hidden; transform: translateY(10px);
           transition: opacity .45s ease, transform .45s ease, visibility .45s;
-          ${card ? 'background: var(--cb-surface); border: 1px solid var(--cb-border); border-radius: calc(var(--cb-radius) * 1.4); padding: clamp(28px, 5vw, 48px); box-shadow: 0 24px 60px -40px rgba(15,23,42,.5);' : ''}
+          ${card ? 'background: var(--cb-surface); border: 1px solid var(--cb-border); border-radius: calc(var(--cb-radius) * 1.4); padding: clamp(28px, 5vw, 48px); box-shadow: 0 24px 60px -40px rgba(20,18,16,.5);' : ''}
         }
         ${s} .cb-tm__item[data-active] { opacity: 1; visibility: visible; transform: none; }
         ${s} .cb-tm__stars { display: flex; gap: 3px; font-size: 1.1em; }
         ${s} .cb-tm__star { color: var(--cb-border); }
-        ${s} .cb-tm__star.is-on { color: #f59e0b; }
+        /* Follows the brand rather than a fixed amber, so filled vs empty stays
+           legible whatever palette is applied. */
+        ${s} .cb-tm__star.is-on { color: var(--cb-brand); }
         ${s} .cb-tm__quote {
           font-size: clamp(18px, 2.6vw, 26px); line-height: 1.5; font-weight: 500;
           letter-spacing: -.01em; text-wrap: balance;
@@ -814,3 +816,5 @@
     }
   });
 })();
+
+

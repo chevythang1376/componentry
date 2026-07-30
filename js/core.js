@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Componentry — core runtime
    Zero-dependency. Classic script (no ES modules) so it runs from file://
    ========================================================================== */
@@ -56,7 +56,7 @@ window.CB = (function () {
 
   /* Inline SVG placeholder — keeps the app fully functional offline. */
   function ph(w, h, label, c1, c2) {
-    c1 = c1 || '#4f46e5'; c2 = c2 || '#06b6d4';
+    c1 = c1 || '#96694c'; c2 = c2 || '#2b241f';
     var fs = Math.round(Math.min(w, h) / 8);
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
@@ -136,14 +136,18 @@ window.CB = (function () {
     rounded: '"Nunito", "Trebuchet MS", "Segoe UI", sans-serif'
   };
 
+  /* Southwire: copper on black and white.
+     brand2 is a *deeper* copper rather than a lighter one on purpose — every
+     gradient built from brand→brand2 stays dark enough for white text to clear
+     WCAG AA (4.75:1 and 7.6:1 respectively). A lighter partner measured 2.9:1. */
   var DEFAULT_TOKENS = {
-    brand: '#5b5bd6',
-    brand2: '#0ea5e9',
-    ink: '#0f172a',
-    muted: '#5b6b7f',
+    brand: '#96694c',
+    brand2: '#6f4c37',
+    ink: '#141210',
+    muted: '#6b625a',
     surface: '#ffffff',
-    subtle: '#f4f6fb',
-    border: '#e2e8f0',
+    subtle: '#f7f4f1',
+    border: '#e4ddd5',
     onBrand: '#ffffff',
     font: 'system',
     fontImport: '',
@@ -300,3 +304,4 @@ window.CB = (function () {
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack
   };
 })();
+

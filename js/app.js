@@ -37,6 +37,8 @@
   ];
 
   var PRESETS = [
+    { name: 'Southwire', brand: '#96694c', brand2: '#6f4c37', ink: '#141210', muted: '#6b625a', surface: '#ffffff', subtle: '#f7f4f1', border: '#e4ddd5', onBrand: '#ffffff' },
+    { name: 'Copper/Blk', brand: '#96694c', brand2: '#2b241f', ink: '#0a0a0a', muted: '#5c554e', surface: '#ffffff', subtle: '#f2efec', border: '#ded7cf', onBrand: '#ffffff' },
     { name: 'Indigo', brand: '#5b5bd6', brand2: '#0ea5e9', ink: '#0f172a', muted: '#5b6b7f', surface: '#ffffff', subtle: '#f4f6fb', border: '#e2e8f0', onBrand: '#ffffff' },
     { name: 'Forest', brand: '#15803d', brand2: '#84cc16', ink: '#14261a', muted: '#5c7065', surface: '#ffffff', subtle: '#f2f8f3', border: '#dcebe0', onBrand: '#ffffff' },
     { name: 'Ember', brand: '#ea580c', brand2: '#f59e0b', ink: '#231409', muted: '#7c6355', surface: '#ffffff', subtle: '#fdf6f0', border: '#f0e2d5', onBrand: '#ffffff' },
