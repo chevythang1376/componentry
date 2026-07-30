@@ -54,6 +54,19 @@ window.CB = (function () {
     return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + alpha + ')';
   }
 
+  /* Light-on-dark text has to state its colour, not inherit it.
+     Themes very commonly ship `h2 { color: #111 !important }` (Elementor, Divi
+     and most "fix my theme" snippets do). On a block with its own dark
+     background that inheritance loss is catastrophic — a black title inside a
+     black box — so these declarations are defended. Everything else is left
+     overridable on purpose; this is only used where failure hides content.
+
+     The block's own colour props still win, because changing one regenerates
+     this rule. */
+  function pin(selectors, color) {
+    return selectors.join(',\n') + ' { color: ' + color + ' !important; }';
+  }
+
   /* Inline SVG placeholder — keeps the app fully functional offline. */
   function ph(w, h, label, c1, c2) {
     c1 = c1 || '#96694c'; c2 = c2 || '#2b241f';
@@ -348,7 +361,7 @@ window.CB = (function () {
     var ctx = {
       cls: cls, s: s, id: cls, tokens: tokens,
       esc: esc, attr: attr, rich: rich, url: url, num: num, clamp: clamp,
-      rgba: rgba, ph: ph, uid: uid, wrap: wrap, dedent: dedent, indent: indent
+      rgba: rgba, ph: ph, uid: uid, wrap: wrap, dedent: dedent, indent: indent, pin: pin
     };
 
     var p = Object.assign({}, defaults(def), instance.props || {});
