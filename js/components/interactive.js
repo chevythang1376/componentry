@@ -593,6 +593,7 @@ ${p.deepLink ? `
         }
         ${s} .cb-car__capT { font-weight: 700; }
         ${s} .cb-car__capS { font-size: .85em; opacity: .8; }
+        ${c.pin([s + ' .cb-car__cap', s + ' .cb-car__capT', s + ' .cb-car__capS'], '#fff')}
         ${s} .cb-car__dots { display: flex; justify-content: center; gap: 8px; margin-top: 22px; flex-wrap: wrap; }
         ${s} .cb-car__dot {
           width: 9px; height: 9px; border-radius: 50%; padding: 0;

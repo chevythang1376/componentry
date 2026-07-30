@@ -114,7 +114,10 @@
           ${s} .cb-cg__media img { height: 100%; }
           ${s} .cb-cg__body { position: relative; z-index: 1; min-height: 320px; justify-content: flex-end; color: #fff; }
           ${s} .cb-cg__x { color: rgba(255,255,255,.82); }
-          ${s} .cb-cg__meta { color: rgba(255,255,255,.7); }`
+          ${s} .cb-cg__meta { color: rgba(255,255,255,.7); }
+          ${c.pin([s + ' .cb-cg__t', s + ' .cb-cg__link', s + ' .cb-cg__tag', s + ' .cb-cg__cta'], '#fff')}
+          ${c.pin([s + ' .cb-cg__x'], 'rgba(255,255,255,.82)')}
+          ${c.pin([s + ' .cb-cg__meta'], 'rgba(255,255,255,.7)')}`
       }[p.variant] || '';
 
       var css = `
@@ -346,7 +349,11 @@
       var numColor = {
         brand: 'color: var(--cb-brand);',
         ink: 'color: var(--cb-ink);',
-        gradient: 'background: linear-gradient(120deg, var(--cb-brand), var(--cb-brand-2)); -webkit-background-clip: text; background-clip: text; color: transparent;'
+        /* A real colour first. If background-clip is stripped by a CSS filter or
+           unsupported, the number stays readable instead of vanishing into a
+           solid gradient box — `color: transparent` alone is only safe when the
+           clip is guaranteed, so the transparency is gated behind @supports. */
+        gradient: 'color: var(--cb-brand); background: linear-gradient(120deg, var(--cb-brand), var(--cb-brand-2)); -webkit-background-clip: text; background-clip: text;'
       }[p.numColor] || '';
 
       var css = `
@@ -365,6 +372,11 @@
           font-size: clamp(34px, 5.5vw, 56px); font-weight: 800; line-height: 1;
           letter-spacing: -.03em; font-variant-numeric: tabular-nums; ${numColor}
         }
+        ${p.numColor === 'gradient' ? `
+        ${c.pin([s + ' .cb-st__num'], 'var(--cb-brand)')}
+        @supports ((background-clip: text) or (-webkit-background-clip: text)) {
+          ${s} .cb-st__num { -webkit-text-fill-color: transparent !important; }
+        }` : ''}
         ${s} .cb-st__fix { font-size: .62em; font-weight: 700; }
         ${s} .cb-st__label { font-weight: 650; margin-top: 8px; }
         ${s} .cb-st__sub { color: var(--cb-muted); font-size: .88em; }

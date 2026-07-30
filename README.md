@@ -64,12 +64,19 @@ A `data-cb-ready` attribute stops double-initialisation, and if the same snippet
 pasted twice on one page the second copy's `id`s are automatically re-uniqued so its
 `aria-controls` / `aria-labelledby` keep pointing at its own nodes.
 
+**5. Light-on-dark text states its colour rather than inheriting it.**
+Themes very commonly ship `h2 { color: #111 !important }` — Elementor, Divi and most
+"fix my theme" snippets do. On a block with its own dark background, losing that
+inheritance is catastrophic: a black title inside a black box. Every place where light
+text sits on a dark surface therefore declares its colour defensively. Everything else
+is left overridable on purpose; this is used only where failure would hide content.
+
 ### The one thing it can't defend against
 
-A host rule using `!important` on a bare element selector — most commonly
-`a { color: red !important; }`. Only `!important` beats `!important`, and adding it
-throughout would stop you restyling your own components. If a pasted block picks up
-the wrong link colour, add one rule to your theme:
+A host rule using `!important` on a bare element selector, for text that is *not* on a
+dark background — most commonly `a { color: red !important; }`. Only `!important` beats
+`!important`, and applying it everywhere would stop you restyling your own components.
+If a pasted block picks up the wrong link colour, add one rule to your theme:
 
 ```css
 .cb-card-grid-k3f9a a { color: inherit !important; }
@@ -209,6 +216,9 @@ test/
   hostile-host.html     Pastes exports into a deliberately awful theme; 27 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         144 round-trips, then functionally probes what survives
+  degrade.html          Removes one CSS capability at a time (background-clip,
+                        gradients, clip-path, backdrop-filter, images) and reports
+                        any text that becomes unreadable
   probes.js             Per-component functional assertions, shared by the harnesses
 ```
 

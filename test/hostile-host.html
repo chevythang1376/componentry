@@ -25,6 +25,11 @@ p { margin: 2em 0; line-height: 3; color: #996600; }
 ul, ol { list-style: square outside; padding-left: 44px; margin: 2em 0; }
 li { margin: 1em 0; }
 a { color: #ff0000 !important; text-decoration: underline wavy; }
+/* The Elementor/Divi-style rule that caused "black title in a black box":
+   an !important heading colour that beats plain inheritance on a block with
+   its own dark background. */
+h1, h2, h3, h4, h5, h6 { color: #111111 !important; }
+p, span, li { color: #333333 !important; }
 section { padding: 40px; border: 3px dashed #ff9900; }
 button { border: 2px groove #888; background: #ddd; padding: 12px; font-family: inherit; }
 figure, blockquote { margin: 3em; }
@@ -74,7 +79,7 @@ video { width: 100% !important; }
    the page as innerHTML, and run its <script> the way a browser would.
    The same block is pasted TWICE to prove the double-init guard holds. */
 (function () {
-  var picks = ['card-grid', 'accordion', 'pricing', 'split-hero'];
+  var picks = ['card-grid', 'accordion', 'pricing', 'split-hero', 'countdown', 'parallax-banner'];
   var instances = picks.map(function (id, n) {
     return {
       uid: 'h' + n,
@@ -186,6 +191,39 @@ video { width: 100% !important; }
           panel.getAttribute('aria-labelledby'));
   });
 
+  /* Light-on-dark text must survive the theme's !important heading colour.
+     This is the regression guard for "black title inside a black box". */
+  function lum(c) {
+    var m = c.match(/\d+/g);
+    var v = [+m[0], +m[1], +m[2]].map(function (x) {
+      x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  function contrast(a, b) {
+    var l1 = lum(a), l2 = lum(b);
+    if (l2 > l1) { var t = l1; l1 = l2; l2 = t; }
+    return (l1 + 0.05) / (l2 + 0.05);
+  }
+  [
+    ['countdown title',  '#paste-a .cb-cd__title', '#paste-a .cb-cd'],
+    ['countdown digits', '#paste-a .cb-cd__num',   '#paste-a .cb-cd'],
+    ['parallax headline','#paste-a .cb-px__title', null],
+    ['parallax sub',     '#paste-a .cb-px__sub',   null]
+  ].forEach(function (row) {
+    var el = document.querySelector(row[1]);
+    if (!el) { check(row[0] + ' present', false, 'not found'); return; }
+    var fg = cs(el, 'color');
+    if (row[2]) {
+      var bg = cs(document.querySelector(row[2]), 'background-color');
+      var r = contrast(fg, bg);
+      check(row[0] + ' readable on its dark background', r >= 4.5, r.toFixed(2) + ':1  (' + fg + ' on ' + bg + ')');
+    } else {
+      // Over imagery — just assert the theme did not force it to near-black.
+      check(row[0] + ' not hijacked to theme black', lum(fg) > 0.5, fg);
+    }
+  });
+
   var swA = document.querySelectorAll('#paste-a .cb-pr__sw');
   var amtA = document.querySelectorAll('#paste-a .cb-pr__amount');
   var amtB = document.querySelectorAll('#paste-b .cb-pr__amount');
@@ -204,6 +242,10 @@ video { width: 100% !important; }
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
