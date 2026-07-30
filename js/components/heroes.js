@@ -29,6 +29,10 @@
       { k: 'image', t: 'image', label: 'Background image', value: CB.ph(1600, 900, '', '#2b241f', '#2b241f') },
       { k: 'height', t: 'range', label: 'Height', min: 280, max: 900, step: 10, unit: 'px', value: 580 },
       { k: 'speed', t: 'range', label: 'Parallax strength', min: 0, max: 60, step: 5, unit: '%', value: 30 },
+      {
+        k: 'mobileParallax', t: 'toggle', label: 'Parallax on mobile', value: false,
+        help: 'Off by default — scroll-linked movement is janky on phones and eats battery.'
+      },
       { k: 'focal', t: 'select', label: 'Image focus', value: 'center', options: [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom']] },
 
       { t: 'section', label: 'Overlay' },
@@ -128,11 +132,18 @@
         if (!bg) return;
         if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+        /* Scroll-linked movement is janky and battery-hungry on phones, so it
+           is opt-in there. Re-checked on resize rather than read once. */
+        var mobileOn = ${p.mobileParallax ? 'true' : 'false'};
+        var small = window.matchMedia ? window.matchMedia("(max-width: 640px)") : null;
+        function enabled() { return mobileOn || !small || !small.matches; }
+
         var strength = ${sp} / 200;   /* half the over-scan, as a fraction */
         var queued = false;
 
         function paint() {
           queued = false;
+          if (!enabled()) { bg.style.transform = ""; return; }
           var r = root.getBoundingClientRect();
           var vh = window.innerHeight || document.documentElement.clientHeight;
           if (r.bottom < -80 || r.top > vh + 80) return;

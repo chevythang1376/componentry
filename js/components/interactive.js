@@ -40,6 +40,14 @@
       { t: 'section', label: 'Behaviour' },
       { k: 'multi', t: 'toggle', label: 'Allow multiple open', value: false },
       { k: 'firstOpen', t: 'toggle', label: 'Open first item', value: true },
+      {
+        k: 'deepLink', t: 'toggle', label: 'Link to individual answers', value: false,
+        help: 'Each question gets a shareable #hash. Arriving on that link opens and scrolls to it.'
+      },
+      {
+        k: 'closeOthers', t: 'toggle', label: 'Scroll opened item into view', value: false,
+        help: 'Useful for long answers that would otherwise open below the fold.'
+      },
       { k: 'schema', t: 'toggle', label: 'Emit FAQPage structured data', value: false, help: 'Adds JSON-LD for rich results. Only use when the content really is a FAQ.' },
 
       { t: 'section', label: 'Style' },
@@ -176,13 +184,44 @@
           btn.setAttribute("aria-expanded", open ? "true" : "false");
         }
 
+        ${p.deepLink ? `
+        function slug(item) {
+          var q = item.querySelector(".cb-acc__q");
+          return (q ? q.textContent : "").toLowerCase().trim()
+            .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+        }
+        items.forEach(function (item) { item.setAttribute("data-slug", slug(item)); });` : ''}
+
         items.forEach(function (item) {
           item.querySelector(".cb-acc__btn").addEventListener("click", function () {
             var open = item.hasAttribute("data-open");
             if (!multi && !open) items.forEach(function (o) { if (o !== item) setOpen(o, false); });
             setOpen(item, !open);
+            if (open) return;
+${p.deepLink ? `
+            if (history.replaceState) {
+              history.replaceState(null, "", "#" + item.getAttribute("data-slug"));
+            }` : ''}
+${p.closeOthers ? `
+            var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            setTimeout(function () {
+              item.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+            }, 340);` : ''}
           });
         });
+${p.deepLink ? `
+        /* Open the item named by the URL hash, on load and on later changes. */
+        function openFromHash() {
+          var want = (location.hash || "").replace(/^#/, "");
+          if (!want) return;
+          var match = items.filter(function (i) { return i.getAttribute("data-slug") === want; })[0];
+          if (!match) return;
+          if (!multi) items.forEach(function (o) { if (o !== match) setOpen(o, false); });
+          setOpen(match, true);
+          match.scrollIntoView({ block: "start" });
+        }
+        openFromHash();
+        window.addEventListener("hashchange", openFromHash);` : ''}
 
         /* APG: Up/Down move between headers, Home/End jump to the ends. */
         root.addEventListener("keydown", function (e) {
@@ -229,6 +268,17 @@
           { label: 'Edit', heading: 'Change anything that matters', body: 'Copy, colours, spacing, imagery, timings and behaviour — all editable, with the preview updating as you type.', image: CB.ph(900, 560, '', '#6f4c37', '#141210'), linkText: '', linkUrl: '#' },
           { label: 'Export', heading: 'Paste it and move on', body: 'Take a single self-contained snippet, or split HTML, CSS and JS into your builder’s separate fields.', image: CB.ph(900, 560, '', '#2b241f', '#4a443e'), linkText: '', linkUrl: '#' }
         ]
+      },
+
+      { t: 'section', label: 'Behaviour' },
+      {
+        k: 'deepLink', t: 'toggle', label: 'Link to individual tabs', value: false,
+        help: 'Selecting a tab updates the URL hash, and arriving on that link opens it.'
+      },
+      {
+        k: 'activation', t: 'select', label: 'Keyboard activation', value: 'auto',
+        options: [['auto', 'Automatic — arrow keys switch panels'], ['manual', 'Manual — arrows move, Enter selects']],
+        help: 'Manual is the APG recommendation when panel content is expensive to load.'
       },
 
       { t: 'section', label: 'Style' },
@@ -347,8 +397,18 @@
           }
         }
 
+        var manual = ${p.activation === 'manual' ? 'true' : 'false'};
+${p.deepLink ? `
+        function slug(i) {
+          return (tabs[i].textContent || "tab").toLowerCase().trim()
+            .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+        }` : ''}
+
         tabs.forEach(function (t, i) {
-          t.addEventListener("click", function () { select(i, false); });
+          t.addEventListener("click", function () {
+            select(i, false);
+${p.deepLink ? '            if (history.replaceState) history.replaceState(null, "", "#" + slug(i));' : ''}
+          });
         });
 
         root.querySelector("[role=tablist]").addEventListener("keydown", function (e) {
@@ -359,8 +419,25 @@
           else if (e.key === "ArrowLeft") next = (i - 1 + tabs.length) % tabs.length;
           else if (e.key === "Home") next = 0;
           else if (e.key === "End") next = tabs.length - 1;
-          if (next > -1) { e.preventDefault(); select(next, true); }
-        });`);
+          else if (manual && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault(); select(i, true); return;
+          }
+          if (next === -1) return;
+          e.preventDefault();
+          /* Manual activation moves focus without switching panels (APG). */
+          if (manual) { tabs[next].focus(); } else { select(next, true); }
+        });
+
+${p.deepLink ? `
+        function selectFromHash() {
+          var want = (location.hash || "").replace(/^#/, "");
+          if (!want) return;
+          for (var i = 0; i < tabs.length; i++) {
+            if (slug(i) === want) { select(i, false); root.scrollIntoView({ block: "start" }); return; }
+          }
+        }
+        selectFromHash();
+        window.addEventListener("hashchange", selectFromHash);` : ''}`);
 
       return { html: html, css: css, js: js };
     }
@@ -408,6 +485,10 @@
       { t: 'section', label: 'Controls' },
       { k: 'arrows', t: 'toggle', label: 'Arrows', value: true },
       { k: 'dots', t: 'toggle', label: 'Dots', value: true },
+      {
+        k: 'loop', t: 'toggle', label: 'Wrap around at the ends', value: false,
+        help: 'Next from the last slide returns to the first. Arrows never disable.'
+      },
       { k: 'autoplay', t: 'toggle', label: 'Autoplay', value: false },
       { k: 'interval', t: 'range', label: 'Autoplay interval', min: 2, max: 12, step: 1, unit: 's', value: 5, when: { autoplay: [true] } },
       { k: 'captions', t: 'toggle', label: 'Show captions', value: true },
@@ -544,8 +625,13 @@
            holds however the host page positions its ancestors. */
         function offsetOf(i) { return slides[i].offsetLeft - slides[0].offsetLeft; }
 
+        var loop = ${p.loop ? 'true' : 'false'};
+
         function goTo(i, smooth) {
-          i = Math.max(0, Math.min(i, maxIndex()));
+          var max = maxIndex();
+          // Wrap instead of clamp, so "next" from the end returns to the start.
+          if (loop && max > 0) { i = i < 0 ? max : i > max ? 0 : i; }
+          i = Math.max(0, Math.min(i, max));
           index = i;
           track.scrollTo({
             left: offsetOf(i),
@@ -571,8 +657,8 @@
             d.disabled = i > maxIndex();
             d.style.display = i > maxIndex() ? "none" : "";
           });
-          if (prev) prev.disabled = index <= 0 && !timer;
-          if (next) next.disabled = index >= maxIndex() && !timer;
+          if (prev) prev.disabled = !loop && index <= 0 && !timer;
+          if (next) next.disabled = !loop && index >= maxIndex() && !timer;
         }
 
         var settle;
@@ -627,7 +713,24 @@
         root.addEventListener("focusin", suspend);
         root.addEventListener("focusout", function () { setTimeout(resume, 0); });
 
-        window.addEventListener("resize", function () { sync(); }, { passive: true });
+        /* Recompute when the track resizes *or is first revealed*. A carousel
+           dropped inside a tab panel or collapsed accordion initialises at zero
+           width, which leaves perView() wrong and the arrows wrongly disabled.
+           A window resize listener never fires for that case. */
+        if (typeof ResizeObserver === "function") {
+          var lastW = -1;
+          new ResizeObserver(function () {
+            var w = track.clientWidth;
+            if (!w || Math.abs(w - lastW) < 2) return;
+            var first = lastW < 0;
+            lastW = w;
+            if (first) { sync(); return; }
+            goTo(Math.min(index, maxIndex()), false);
+          }).observe(track);
+        } else {
+          window.addEventListener("resize", function () { sync(); }, { passive: true });
+        }
+
         sync();
         start();`);
 
@@ -804,9 +907,22 @@
           items.forEach(function (el) { tallest = Math.max(tallest, el.scrollHeight); });
           stage.style.minHeight = tallest + "px";
         }
-        window.addEventListener("resize", measure, { passive: true });
-        if (document.readyState === "complete") measure();
-        else window.addEventListener("load", measure);
+        /* Same reveal problem as the carousel: measured at zero width inside a
+           hidden tab, the stage would lock to the wrong height. */
+        if (typeof ResizeObserver === "function") {
+          /* Width-gated: measure() writes minHeight on a descendant, so reacting
+             to height here would feed back into the observer forever. */
+          var lastW = -1;
+          new ResizeObserver(function () {
+            var w = root.clientWidth;
+            if (!w || w === lastW) return;
+            lastW = w;
+            measure();
+          }).observe(root);
+        } else {
+          window.addEventListener("resize", measure, { passive: true });
+        }
+        if (document.readyState !== "complete") window.addEventListener("load", measure);
         measure();
 
         show(0);

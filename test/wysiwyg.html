@@ -1,0 +1,458 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Componentry — WYSIWYG conformance</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/grapesjs/dist/css/grapes.min.css">
+<style>
+  :root {
+    --bg:#0b0a09; --panel:#141210; --line:#2f2a25; --text:#f3efeb;
+    --muted:#9c9289; --dim:#6e655c; --copper:#96694c; --lift:#d7a97f;
+    --ok:#4ade80; --bad:#fb7185; --warn:#fbbf24;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:14px/1.5 ui-sans-serif,system-ui,sans-serif; }
+  header { padding:20px 24px; border-bottom:1px solid var(--line); background:var(--panel);
+           position:sticky; top:0; z-index:50; }
+  h1 { margin:0 0 4px; font-size:17px; letter-spacing:-.01em; }
+  header p { margin:0; color:var(--dim); font-size:12.5px; max-width:80ch; line-height:1.6; }
+  #summary { margin-top:12px; font-size:13px; font-weight:600; }
+  .wrap { padding:20px 24px 60px; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th, td { border:1px solid var(--line); padding:7px 9px; text-align:center; }
+  th { background:var(--panel); font-weight:650; color:var(--muted); position:sticky; top:96px; z-index:10; }
+  th.c, td.c { text-align:left; white-space:nowrap; }
+  td.c { font-weight:600; }
+  .cell { display:block; font-weight:700; font-size:11px; letter-spacing:.03em; }
+  .pass { color:var(--ok); } .fail { color:var(--bad); } .part { color:var(--warn); }
+  .meta { display:block; color:var(--dim); font-size:10px; font-weight:400; margin-top:2px; }
+  h2 { font-size:14px; margin:34px 0 10px; color:var(--lift); }
+  .note { background:#241c15; border:1px solid #3d2f22; border-radius:8px; padding:12px 15px;
+          font-size:12.5px; line-height:1.65; color:#cbb49e; margin:14px 0; }
+  .note b { color:#ecdcc9; }
+  ul.fails { margin:0; padding-left:18px; font-size:12px; color:var(--muted); line-height:1.8; }
+  ul.fails code { color:var(--lift); font-family:ui-monospace,Consolas,monospace; }
+  #stage { position:absolute; left:-99999px; top:0; width:1200px; }
+  #gjs, #tiny-host, #quill-host { display:none; }
+  .legend { font-size:11.5px; color:var(--dim); margin:10px 0 0; }
+  .legend b { color:var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Componentry — WYSIWYG conformance</h1>
+  <p>Every component is exported, pushed through a <b>real editor engine</b>, read back out, then
+     re-mounted and functionally probed. This measures what actually survives each editor's
+     sanitiser — not whether the markup looks right.</p>
+  <div id="summary">Loading editor engines…</div>
+</header>
+
+<div class="wrap">
+  <div id="results"></div>
+</div>
+
+<!-- editor hosts (offscreen) -->
+<div id="stage"></div>
+<div id="gjs"></div>
+<textarea id="tiny-host"></textarea>
+<div id="quill-host"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/grapesjs/dist/grapes.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+
+<script src="../js/core.js"></script>
+<script src="../js/components/heroes.js"></script>
+<script src="../js/components/content.js"></script>
+<script src="../js/components/interactive.js"></script>
+<script src="../js/components/media.js"></script>
+<script src="../js/export.js"></script>
+<script src="probes.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var stage = document.getElementById('stage');
+  var summary = document.getElementById('summary');
+
+  /* ------------------------------------------------------- editor paths */
+  /* Each returns the HTML string the editor hands back after ingesting ours. */
+
+  var paths = [];
+
+  paths.push({
+    id: 'raw',
+    label: 'Code block',
+    hint: 'Verbatim passthrough — the supported path (WP Custom HTML, Squarespace Code Block, Webflow Embed).',
+    run: function (html) { return Promise.resolve(html); }
+  });
+
+  paths.push({
+    id: 'tiny',
+    label: 'TinyMCE (default)',
+    hint: 'The engine behind the WordPress Classic editor, at stock settings.',
+    run: function (html) {
+      var ed = window.__tiny;
+      if (!ed) return Promise.resolve(null);
+      ed.setContent(html);
+      return Promise.resolve(ed.getContent());
+    }
+  });
+
+  paths.push({
+    id: 'tinyOpen',
+    label: 'TinyMCE (permissive)',
+    hint: 'TinyMCE configured with valid_elements:"*[*]" — what a developer-tuned install allows.',
+    run: function (html) {
+      var ed = window.__tinyOpen;
+      if (!ed) return Promise.resolve(null);
+      ed.setContent(html);
+      return Promise.resolve(ed.getContent());
+    }
+  });
+
+  paths.push({
+    id: 'grapes',
+    label: 'GrapesJS',
+    hint: 'A real drag-and-drop page builder. Splits CSS out of the markup the way visual builders do.',
+    run: function (html) {
+      var ed = window.__grapes;
+      if (!ed) return Promise.resolve(null);
+      ed.setComponents(html);
+      var out = ed.getHtml();
+      var css = ed.getCss();
+      // GrapesJS hoists <style> into its own sheet — reattach so the test is fair.
+      return Promise.resolve(out + (css ? '<style>' + css + '</style>' : ''));
+    }
+  });
+
+  paths.push({
+    id: 'quill',
+    label: 'Quill',
+    hint: 'Strict allow-list editor (Slack/Notion-style rich text). Worst realistic case.',
+    run: function (html) {
+      var qd = window.__quill;
+      if (!qd) return Promise.resolve(null);
+      qd.setText('');
+      qd.clipboard.dangerouslyPasteHTML(0, html);
+      return Promise.resolve(qd.root.innerHTML);
+    }
+  });
+
+  paths.push({
+    id: 'purify',
+    label: 'DOMPurify',
+    hint: 'The sanitiser many CMSs run server-side on submitted HTML, at defaults.',
+    run: function (html) { return Promise.resolve(DOMPurify.sanitize(html)); }
+  });
+
+  paths.push({
+    id: 'purifyTuned',
+    label: 'DOMPurify (tuned)',
+    hint: 'Same sanitiser with style/script/dialog explicitly allowed — a deliberate integration.',
+    run: function (html) {
+      return Promise.resolve(DOMPurify.sanitize(html, {
+        ADD_TAGS: ['style', 'script', 'dialog'],
+        ADD_ATTR: ['inert', 'onclick', 'target', 'allowfullscreen', 'allow', 'referrerpolicy'],
+        FORCE_BODY: true, ALLOW_DATA_ATTR: true
+      }));
+    }
+  });
+
+  /* wp_kses_post — approximation of WordPress's documented post allow-list.
+     Deliberately conservative: no script, no style, no dialog, no data-*. */
+  /* HTML5 sectioning and form elements ARE in WordPress's post allow-list —
+     omitting them deleted every component root and made this row meaningless.
+     What WP genuinely drops: script, style, dialog, and data-* attributes. */
+  var KSES_TAGS = ('a,abbr,acronym,address,area,article,aside,audio,b,bdo,big,blockquote,br,button,caption,' +
+    'cite,code,col,colgroup,dd,del,details,dfn,div,dl,dt,em,fieldset,figcaption,figure,font,footer,form,' +
+    'h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,img,input,ins,kbd,label,legend,li,map,mark,menu,nav,object,ol,' +
+    'optgroup,option,p,pre,q,s,samp,section,select,small,source,span,strike,strong,sub,summary,sup,table,' +
+    'tbody,td,textarea,tfoot,th,thead,time,tr,track,tt,u,ul,var,video').split(',');
+  var KSES_ATTRS = ('href,src,srcset,sizes,alt,title,class,id,style,width,height,align,lang,dir,rel,target,' +
+    'loading,decoding,poster,controls,muted,loop,autoplay,playsinline,preload,colspan,rowspan,' +
+    'type,value,name,checked,disabled,placeholder,for,tabindex,hidden,' +
+    'aria-label,aria-labelledby,aria-describedby,aria-hidden,aria-expanded,aria-controls,' +
+    'aria-selected,aria-current,aria-pressed,aria-roledescription,aria-live,role').split(',');
+
+  paths.push({
+    id: 'kses',
+    label: 'wp_kses_post',
+    hint: 'Approximation of the filter WordPress runs on post content for non-admin roles.',
+    run: function (html) {
+      var doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+      (function walk(node) {
+        Array.prototype.slice.call(node.children).forEach(function (el) {
+          var tag = el.tagName.toLowerCase();
+          if (KSES_TAGS.indexOf(tag) === -1) { el.remove(); return; }
+          Array.prototype.slice.call(el.attributes).forEach(function (a) {
+            if (KSES_ATTRS.indexOf(a.name.toLowerCase()) === -1) el.removeAttribute(a.name);
+          });
+          walk(el);
+        });
+      })(doc.body);
+      return Promise.resolve(doc.body.innerHTML);
+    }
+  });
+
+  /* ------------------------------------------------------- mount + probe */
+
+  function extract(html) {
+    var doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+    var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+    var js = Array.prototype.map.call(doc.querySelectorAll('script'), function (s) { return s.textContent; }).join('\n');
+    Array.prototype.forEach.call(doc.querySelectorAll('style,script'), function (n) { n.remove(); });
+    return { markup: doc.body.innerHTML, css: css, js: js };
+  }
+
+  function mountAndProbe(compId, html) {
+    var parts = extract(html);
+    var host = document.createElement('div');
+    var styleEl = document.createElement('style');
+    styleEl.textContent = parts.css;
+    document.head.appendChild(styleEl);
+    host.innerHTML = parts.markup;
+    stage.appendChild(host);
+
+    var jsRan = false, jsError = null;
+    if (parts.js.trim()) {
+      try { (0, eval)(parts.js); jsRan = true; }
+      catch (e) { jsError = e.message; }
+    }
+
+    var root = host.querySelector('[class*="cb-"]');
+    if (!root) {
+      stage.removeChild(host); styleEl.remove();
+      return Promise.resolve({ results: [{ name: 'component element survived', pass: false }],
+                               cssKept: !!parts.css.trim(), jsKept: false, jsError: null });
+    }
+
+    // Let the browser lay out and paint before interacting. Scroll containers
+    // clamp writes until layout has run, and no real user clicks inside the
+    // same task that inserted the markup.
+    return new Promise(function (r) {
+      requestAnimationFrame(function () { setTimeout(r, 32); });
+    }).then(function () {
+      return CBProbe.run(compId, root);
+    }).then(function (results) {
+      var out = { results: results, cssKept: !!parts.css.trim(), jsKept: jsRan, jsError: jsError,
+                  initialised: root.hasAttribute('data-cb-ready') };
+      stage.removeChild(host);
+      styleEl.remove();
+      return out;
+    });
+  }
+
+  /* ----------------------------------------------------------- fidelity */
+
+  function fidelity(before, after) {
+    function count(h, re) { return (h.match(re) || []).length; }
+    return {
+      bytes: after.length,
+      shrink: before.length ? Math.round((1 - after.length / before.length) * 100) : 0,
+      style: /<style[\s>]/i.test(after),
+      script: /<script[\s>]/i.test(after),
+      aria: count(after, /\saria-[a-z]+=/gi),
+      ariaBefore: count(before, /\saria-[a-z]+=/gi),
+      data: count(after, /\sdata-[a-z-]+=/gi),
+      dataBefore: count(before, /\sdata-[a-z-]+=/gi),
+      inert: count(after, /\sinert[\s=>]/gi),
+      dialog: /<dialog[\s>]/i.test(after)
+    };
+  }
+
+  /* --------------------------------------------------------------- run */
+
+  function initEditors() {
+    var jobs = [];
+
+    jobs.push(new Promise(function (res) {
+      if (!window.tinymce) return res();
+      tinymce.init({
+        selector: '#tiny-host', menubar: false, toolbar: false, statusbar: false,
+        license_key: 'gpl', promotion: false, height: 100,
+        setup: function (ed) { ed.on('init', function () { window.__tiny = ed; res(); }); }
+      }).catch(res);
+    }));
+
+    jobs.push(new Promise(function (res) {
+      if (!window.tinymce) return res();
+      var host = document.createElement('textarea');
+      host.id = 'tiny-open'; host.style.display = 'none';
+      document.body.appendChild(host);
+      tinymce.init({
+        selector: '#tiny-open', menubar: false, toolbar: false, statusbar: false,
+        license_key: 'gpl', promotion: false, height: 100,
+        valid_elements: '*[*]', valid_children: '+body[style|script],+div[script|style]',
+        extended_valid_elements: 'script[type|src],style[type]',
+        verify_html: false, cleanup: false,
+        setup: function (ed) { ed.on('init', function () { window.__tinyOpen = ed; res(); }); }
+      }).catch(res);
+    }));
+
+    jobs.push(new Promise(function (res) {
+      try {
+        window.__quill = new Quill('#quill-host');
+        document.getElementById('quill-host').style.display = 'block';
+        document.getElementById('quill-host').style.cssText =
+          'position:absolute;left:-99999px;width:900px;height:200px';
+      } catch (e) {}
+      res();
+    }));
+
+    jobs.push(new Promise(function (res) {
+      try {
+        document.getElementById('gjs').style.cssText =
+          'position:absolute;left:-99999px;width:1000px;height:400px';
+        window.__grapes = grapesjs.init({
+          container: '#gjs', fromElement: false, storageManager: false,
+          panels: { defaults: [] }, height: '400px'
+        });
+      } catch (e) {}
+      res();
+    }));
+
+    return Promise.all(jobs);
+  }
+
+  function run() {
+    var comps = CB.all();
+    var matrix = {};
+    var chain = Promise.resolve();
+
+    comps.forEach(function (def) {
+      paths.forEach(function (path) {
+        chain = chain.then(function () {
+          var inst = {
+            uid: def.id + '-' + path.id,
+            cls: 'cb-' + def.id + '-' + path.id + Math.random().toString(36).slice(2, 5),
+            type: def.id,
+            props: CB.defaults(def)
+          };
+          var source = CB.Export.embed(CB.Export.parts([inst], CB.DEFAULT_TOKENS), {});
+
+          return Promise.resolve(path.run(source)).then(function (after) {
+            if (after === null) {
+              matrix[def.id] = matrix[def.id] || {};
+              matrix[def.id][path.id] = { unavailable: true };
+              return;
+            }
+            return mountAndProbe(def.id, after).then(function (probe) {
+              matrix[def.id] = matrix[def.id] || {};
+              matrix[def.id][path.id] = {
+                fidelity: fidelity(source, after),
+                probe: probe,
+                passed: probe.results.filter(function (r) { return r.pass; }).length,
+                total: probe.results.length,
+                failures: probe.results.filter(function (r) { return !r.pass; })
+              };
+            });
+          }).catch(function (e) {
+            matrix[def.id] = matrix[def.id] || {};
+            matrix[def.id][path.id] = { error: e.message };
+          });
+        });
+      });
+    });
+
+    return chain.then(function () { return matrix; });
+  }
+
+  function render(matrix) {
+    var comps = CB.all();
+    var html = ['<table><thead><tr><th class="c">Component</th>'];
+    paths.forEach(function (p) { html.push('<th>' + p.label + '</th>'); });
+    html.push('</tr></thead><tbody>');
+
+    comps.forEach(function (def) {
+      html.push('<tr><td class="c">' + def.name + '</td>');
+      paths.forEach(function (p) {
+        var cell = (matrix[def.id] || {})[p.id];
+        if (!cell) { html.push('<td><span class="cell fail">—</span></td>'); return; }
+        if (cell.unavailable) { html.push('<td><span class="cell part">n/a</span></td>'); return; }
+        if (cell.error) { html.push('<td><span class="cell fail">ERR</span></td>'); return; }
+        var cls = cell.passed === cell.total ? 'pass' : cell.passed === 0 ? 'fail' : 'part';
+        var label = cell.passed === cell.total ? 'PASS' : cell.passed + '/' + cell.total;
+        var f = cell.fidelity;
+        html.push('<td><span class="cell ' + cls + '">' + label + '</span>' +
+          '<span class="meta">' + (f.style ? 'css' : '–') + ' ' + (f.script ? 'js' : '–') +
+          ' aria ' + f.aria + '/' + f.ariaBefore + '</span></td>');
+      });
+      html.push('</tr>');
+    });
+    html.push('</tbody></table>');
+
+    html.push('<p class="legend"><b>Cell:</b> functional probes passed. ' +
+      '<b>Below:</b> whether &lt;style&gt; and &lt;script&gt; survived, and aria-attributes kept/original.</p>');
+
+    // Per-path verdict
+    html.push('<h2>What each path does to the output</h2>');
+    paths.forEach(function (p) {
+      var cells = comps.map(function (d) { return (matrix[d.id] || {})[p.id]; })
+                       .filter(function (c) { return c && c.fidelity; });
+      if (!cells.length) { html.push('<div class="note"><b>' + p.label + '</b> — engine unavailable.</div>'); return; }
+      var full = cells.filter(function (c) { return c.passed === c.total; }).length;
+      var css = cells.filter(function (c) { return c.fidelity.style; }).length;
+      var js = cells.filter(function (c) { return c.fidelity.script; }).length;
+      var ariaKept = cells.reduce(function (a, c) { return a + c.fidelity.aria; }, 0);
+      var ariaOrig = cells.reduce(function (a, c) { return a + c.fidelity.ariaBefore; }, 0);
+      html.push('<div class="note"><b>' + p.label + '</b> — ' + p.hint +
+        '<br>Fully working: <b>' + full + '/' + cells.length + '</b> · ' +
+        'kept &lt;style&gt; on ' + css + '/' + cells.length + ' · ' +
+        'kept &lt;script&gt; on ' + js + '/' + cells.length + ' · ' +
+        'ARIA attributes retained ' + ariaKept + '/' + ariaOrig + '</div>');
+    });
+
+    // Failures on the supported path only — those are real bugs.
+    var realBugs = [];
+    comps.forEach(function (def) {
+      var cell = (matrix[def.id] || {}).raw;
+      if (cell && cell.failures && cell.failures.length) {
+        cell.failures.forEach(function (f) {
+          realBugs.push('<code>' + def.id + '</code> — ' + f.name + (f.detail ? ' <em>(' + f.detail + ')</em>' : ''));
+        });
+      }
+    });
+    html.push('<h2>Failures on the supported path (real bugs)</h2>');
+    html.push(realBugs.length
+      ? '<ul class="fails"><li>' + realBugs.join('</li><li>') + '</li></ul>'
+      : '<div class="note">None. Every component passes every functional probe when inserted through a code/embed block.</div>');
+
+    document.getElementById('results').innerHTML = html.join('');
+
+    var rawCells = comps.map(function (d) { return (matrix[d.id] || {}).raw; }).filter(Boolean);
+    var rawPass = rawCells.filter(function (c) { return c.passed === c.total; }).length;
+    var totalProbes = rawCells.reduce(function (a, c) { return a + c.total; }, 0);
+    summary.innerHTML = '<span class="' + (rawPass === rawCells.length ? 'pass' : 'fail') + '">' +
+      rawPass + '/' + rawCells.length + ' components fully functional on the supported path</span> ' +
+      '<span style="color:var(--dim)">· ' + totalProbes + ' assertions · ' +
+      paths.length + ' insertion paths × ' + comps.length + ' components</span>';
+
+    window.__wysiwyg = matrix;
+    window.__wysiwygDone = true;
+  }
+
+  summary.textContent = 'Initialising editor engines…';
+  initEditors()
+    .then(function () { summary.textContent = 'Running ' + (CB.all().length * paths.length) + ' round-trips…'; return run(); })
+    .then(render)
+    .catch(function (e) {
+      summary.innerHTML = '<span class="fail">Harness error: ' + e.message + '</span>';
+      window.__wysiwygDone = true;
+      window.__wysiwygError = e.message;
+    });
+})();
+</script>
+</body>
+</html>
+
+
+
+
+

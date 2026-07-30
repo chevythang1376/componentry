@@ -243,10 +243,85 @@ window.CB = (function () {
 
   /* ------------------------------------------------------------- registry */
 
+  /* Controls every component gets for free. Appended at registration and
+     applied centrally in build(), so a component's render() never deals with
+     them and they can't drift apart between the 18 definitions. */
+  var ADVANCED = [
+    { t: 'section', label: 'Advanced' },
+    {
+      k: '_anchor', t: 'text', label: 'Anchor ID', value: '', ph: 'our-services',
+      help: 'Adds an id to the block so you can link straight to it with #our-services.'
+    },
+    {
+      k: '_class', t: 'text', label: 'Extra CSS class', value: '', ph: 'theme-dark-section',
+      help: 'Added alongside the generated class so your theme can target this block.'
+    },
+    {
+      k: '_heading', t: 'select', label: 'Heading level', value: '2',
+      options: [['2', 'H2 — top-level section'], ['3', 'H3 — nested'], ['4', 'H4 — deeply nested']],
+      help: 'Drop to H3/H4 when the block sits beneath an existing heading, so the page outline stays valid.'
+    },
+    {
+      k: '_maxWidth', t: 'range', label: 'Content width', min: 0, max: 1600, step: 20, unit: 'px',
+      value: 0, auto: 0, help: 'Overrides the project token for this block only.'
+    },
+    { k: '_padTop', t: 'range', label: 'Top padding', min: -4, max: 200, step: 4, unit: 'px', value: -4, auto: -4 },
+    { k: '_padBottom', t: 'range', label: 'Bottom padding', min: -4, max: 200, step: 4, unit: 'px', value: -4, auto: -4 },
+    {
+      k: '_hide', t: 'select', label: 'Visibility', value: 'all',
+      options: [['all', 'Always visible'], ['mobile', 'Hide on mobile (≤640px)'], ['desktop', 'Hide on desktop (>640px)']]
+    }
+  ];
+
   function register(def) {
-    def.props = def.props || [];
+    def.props = (def.props || []).concat(ADVANCED);
     defs.set(def.id, def);
     order.push(def.id);
+  }
+
+  /* ------------------------------------------------- advanced post-process */
+
+  /* Shift every heading in the block by the same delta, so the internal
+     hierarchy (section h2 > item h3) is preserved as it moves down the page. */
+  function shiftHeadings(html, delta) {
+    if (!delta) return html;
+    return html.replace(/<(\/?)h([1-6])\b/gi, function (m, slash, n) {
+      return '<' + slash + 'h' + Math.min(6, Math.max(1, parseInt(n, 10) + delta));
+    });
+  }
+
+  function patchRoot(html, anchor, extraClass) {
+    if (!anchor && !extraClass) return html;
+    return html.replace(/^(\s*<)([a-zA-Z0-9]+)([^>]*?)(\s*\/?)>/, function (m, lt, tag, attrs, tail) {
+      if (anchor && !/\sid\s*=/.test(attrs)) attrs += ' id="' + attr(anchor) + '"';
+      if (extraClass) {
+        attrs = /\sclass\s*=\s*"/.test(attrs)
+          ? attrs.replace(/(\sclass\s*=\s*")([^"]*)(")/, '$1$2 ' + attr(extraClass) + '$3')
+          : attrs + ' class="' + attr(extraClass) + '"';
+      }
+      return lt + tag + attrs + tail + '>';
+    });
+  }
+
+  /* Build a selector from the root's full class list so overrides match the
+     component's own specificity and win on source order — no !important. */
+  function rootSelector(html, fallback) {
+    var m = html.match(/^\s*<[a-zA-Z0-9]+[^>]*?\sclass\s*=\s*"([^"]+)"/);
+    if (!m) return fallback;
+    return '.' + m[1].trim().split(/\s+/).join('.');
+  }
+
+  function advancedCss(sel, s, p) {
+    var out = [];
+    var pt = num(p._padTop, -4), pb = num(p._padBottom, -4), mw = num(p._maxWidth, 0);
+    var box = [];
+    if (pt >= 0) box.push('padding-top: ' + pt + 'px');
+    if (pb >= 0) box.push('padding-bottom: ' + pb + 'px');
+    if (box.length) out.push(sel + ' { ' + box.join('; ') + '; }');
+    if (mw > 0) out.push(s + ' .cb-wrap { max-width: ' + mw + 'px; }');
+    if (p._hide === 'mobile') out.push('@media (max-width: 640px) { ' + sel + ' { display: none !important; } }');
+    if (p._hide === 'desktop') out.push('@media (min-width: 641px) { ' + sel + ' { display: none !important; } }');
+    return out.length ? '\n/* Advanced overrides */\n' + out.join('\n') : '';
   }
   function get(id) { return defs.get(id); }
   function all() { return order.map(function (id) { return defs.get(id); }); }
@@ -289,9 +364,16 @@ window.CB = (function () {
       };
     }
 
+    var html = (out.html || '').trim();
+    html = shiftHeadings(html, clamp(num(p._heading, 2), 2, 4) - 2);
+    html = patchRoot(html, (p._anchor || '').trim().replace(/\s+/g, '-'), (p._class || '').trim());
+
+    var sel = rootSelector(html, s);
+
     return {
-      html: (out.html || '').trim(),
-      css: [tokenCss(s, tokens), baseCss(s), dedent(out.css || '')].join('\n\n').trim(),
+      html: html,
+      css: [tokenCss(s, tokens), baseCss(s), dedent(out.css || ''), advancedCss(sel, s, p)]
+             .filter(function (x) { return x && x.trim(); }).join('\n\n').trim(),
       js: (out.js || '').trim()
     };
   }

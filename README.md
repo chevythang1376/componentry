@@ -77,6 +77,34 @@ the wrong link colour, add one rule to your theme:
 
 ---
 
+## Which editors actually work
+
+Every component is exported, pushed through a **real editor engine**, read back, re-mounted
+and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
+18 components, 144 round-trips.
+
+| Insertion path | Fully working | Keeps CSS | Keeps JS | ARIA kept |
+|---|---|---|---|---|
+| **Code / embed block** (verbatim) | **18/18** | 18/18 | 12/12 | 132/132 |
+| **TinyMCE**, permissive config | **18/18** | 18/18 | 12/12 | 132/132 |
+| **DOMPurify**, style+script allowed | **18/18** | 18/18 | 12/12 | 132/132 |
+| GrapesJS (page builder) | 8/18 | 18/18 | 0/12 | 132/132 |
+| DOMPurify, defaults | 8/18 | 18/18 | 0/12 | 132/132 |
+| TinyMCE, stock config | 4/18 | 0/18 | 0/12 | 97/132 |
+| `wp_kses_post` (approximated) | 4/18 | 0/18 | 0/12 | 126/132 |
+| Quill | 0/18 | 0/18 | 0/12 | 0/132 |
+
+The pattern is consistent and worth internalising:
+
+- **Paste into a code/embed block, never a rich-text area.** Rich-text editors are *supposed*
+  to strip `<script>` and `<style>` — that is their job, not a bug. Every platform that
+  matters offers a raw-HTML block; use it.
+- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 8 components
+  with no JavaScript still work perfectly and the other 10 render correctly but sit inert.
+  Nothing looks broken, it just doesn't move.
+- **Structure and ARIA are resilient.** Even where all styling is stripped, sanitisers keep
+  the semantics — so a stripped component stays readable and screen-reader navigable.
+
 ## Accessibility
 
 Interactive components follow the [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/):
@@ -124,6 +152,36 @@ embeds being sandboxed iframes that can't self-size.
 
 Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
 
+### Advanced controls (every component)
+
+Applied centrally, so they behave identically on all 18 blocks:
+
+| Control | Why it's there |
+|---|---|
+| **Anchor ID** | Gives the block an `id` so you can link to it with `#your-anchor` |
+| **Extra CSS class** | Added to the wrapper so your theme can target this one block |
+| **Heading level** | Shifts every heading together (H2→H3→H4) to keep the page outline valid when a block sits under an existing heading |
+| **Content width** | Overrides the project token for one block |
+| **Top / bottom padding** | Independent overrides; read `auto` until you change them |
+| **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
+
+Overrides are emitted with the root's full class list, so they win on specificity and
+source order — no `!important`, and you can still restyle them from your theme.
+
+### Behaviour controls worth knowing
+
+- **Accordion → link to individual answers.** Each question gets a shareable `#hash`;
+  arriving on that link opens and scrolls to it. Ideal for support docs.
+- **Tabs → link to individual tabs**, plus **manual keyboard activation** (arrows move,
+  Enter selects) — the APG recommendation when panels are expensive to load.
+- **Carousel → wrap around at the ends**, so arrows never dead-end.
+- **Parallax → parallax on mobile**, off by default because scroll-linked movement is
+  janky and battery-hungry on phones.
+- **Countdown → when it reaches zero**: show a message, hide the block, or hold at zero.
+
+Toggles that are off cost nothing: the code for them isn't emitted at all, which keeps
+exports under Webflow's 50 kB embed cap.
+
 **Shortcuts:** `Ctrl+Z` undo · `Ctrl+Shift+Z` redo · `Ctrl+S` save · `Ctrl+E` export ·
 `Delete` remove selected.
 
@@ -149,9 +207,14 @@ js/components/
 test/
   gallery.html          Renders all 18 through the real export path; reports failures
   hostile-host.html     Pastes exports into a deliberately awful theme; 27 assertions
+  wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
+                        144 round-trips, then functionally probes what survives
+  probes.js             Per-component functional assertions, shared by the harnesses
 ```
 
-Open the two files in `test/` in a browser — each prints a pass/fail banner at the top.
+Open the files in `test/` in a browser — each prints a pass/fail banner at the top.
+`wysiwyg.html` loads the editor engines from a CDN, so it needs a network connection;
+the other two are fully offline.
 
 ---
 

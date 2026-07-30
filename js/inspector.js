@@ -57,9 +57,15 @@ CB.Inspector = (function () {
         input.min = field.min; input.max = field.max; input.step = field.step || 1;
         input.value = v;
         var out = el('output', 'ctl-out');
-        out.textContent = v + (field.unit || '');
+        // Sliders with an `auto` sentinel read as "auto" at that value, so a
+        // -4px top padding never shows up as a number the user has to decode.
+        function label(val) {
+          return (field.auto != null && parseFloat(val) === field.auto)
+            ? 'auto' : val + (field.unit || '');
+        }
+        out.textContent = label(v);
         input.addEventListener('input', function () {
-          out.textContent = input.value + (field.unit || '');
+          out.textContent = label(input.value);
           set(parseFloat(input.value));
           onInput();
         });

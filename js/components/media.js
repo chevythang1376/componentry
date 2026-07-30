@@ -480,8 +480,13 @@
       { t: 'section', label: 'Content' },
       { k: 'title', t: 'text', label: 'Headline', value: 'Early access closes soon' },
       { k: 'sub', t: 'textarea', label: 'Subheadline', value: '' },
-      { k: 'target', t: 'datetime', label: 'Target date & time', value: '' },
+      { k: 'target', t: 'datetime', label: 'Target date & time', value: '', help: 'Interpreted in each visitor’s own timezone.' },
       { k: 'expired', t: 'text', label: 'Expired message', value: 'Early access has closed.' },
+      {
+        k: 'onExpire', t: 'select', label: 'When it reaches zero', value: 'message',
+        options: [['message', 'Show the expired message'], ['hide', 'Hide the whole block'], ['zeros', 'Hold at zero']],
+        help: 'Hiding is useful when the offer simply disappears rather than being announced.'
+      },
 
       { t: 'section', label: 'Call to action' },
       { k: 'btnText', t: 'text', label: 'Button label', value: 'Claim your place' },
@@ -596,9 +601,17 @@
           var left = target - Date.now();
           if (left <= 0) {
             clearInterval(id);
-            clock.hidden = true;
-            if (expired) expired.hidden = false;
-            if (live) live.textContent = expired ? expired.textContent : "Countdown finished";
+            var mode = ${JSON.stringify(String(p.onExpire || 'message'))};
+            if (mode === "hide") {
+              root.style.display = "none";
+            } else if (mode === "zeros") {
+              Object.keys(cells).forEach(function (k) { cells[k].textContent = "00"; });
+            } else {
+              clock.hidden = true;
+              if (expired) expired.hidden = false;
+            }
+            if (live) live.textContent = (expired && mode === "message")
+              ? expired.textContent : "Countdown finished";
             return;
           }
           var total = Math.floor(left / 1000);
