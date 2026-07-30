@@ -31,6 +31,11 @@ a { color: #ff0000 !important; text-decoration: underline wavy; }
 h1, h2, h3, h4, h5, h6 { color: #111111 !important; }
 p, span, li { color: #333333 !important; }
 section { padding: 40px; border: 3px dashed #ff9900; }
+/* The site-masthead rule behind the reported "black box around the title".
+   Nearly every theme styles its header this way, and !important is common. */
+header { background: #000 !important; color: #fff !important;
+         padding: 24px !important; border-bottom: 4px solid #ff9900 !important; }
+article { background: #222; border: 2px solid red; }
 button { border: 2px groove #888; background: #ddd; padding: 12px; font-family: inherit; }
 figure, blockquote { margin: 3em; }
 video { width: 100% !important; }
@@ -155,6 +160,26 @@ video { width: 100% !important; }
         cs(document.querySelector('.host-junk .cb-btn'), 'background-color') === 'rgb(0, 255, 0)',
         cs(document.querySelector('.host-junk .cb-btn'), 'background-color'));
 
+  /* Regression guard for "a black box around the title": the host masthead
+     rule must not paint behind any heading wrapper. */
+  Array.prototype.forEach.call(document.querySelectorAll('#paste-a [class*="__head"]'), function (hd) {
+    var name = hd.className.split(' ')[0];
+    check(name + ' has no host background', cs(hd, 'background-color') === 'rgba(0, 0, 0, 0)', cs(hd, 'background-color'));
+    check(name + ' has no host padding', parseFloat(cs(hd, 'padding-top')) === 0, cs(hd, 'padding-top'));
+    check(name + ' has no host border', parseFloat(cs(hd, 'border-bottom-width')) === 0, cs(hd, 'border-bottom-width'));
+  });
+
+  /* ...but components must KEEP the backgrounds they set themselves. */
+  check('card inner article keeps its own surface colour',
+        cs(document.querySelector('#paste-a .cb-cg__inner'), 'background-color') === 'rgb(255, 255, 255)',
+        cs(document.querySelector('#paste-a .cb-cg__inner'), 'background-color'));
+  check('component root sheds host section border',
+        parseFloat(cs(document.querySelector('#paste-a .cb-cg'), 'border-top-width')) === 0,
+        cs(document.querySelector('#paste-a .cb-cg'), 'border-top-width'));
+  check('component root sheds host section side padding',
+        parseFloat(cs(document.querySelector('#paste-a .cb-cg'), 'padding-left')) === 0,
+        cs(document.querySelector('#paste-a .cb-cg'), 'padding-left'));
+
   /* Duplicate-paste behaviour */
   check('both copies present and independently classed',
         a && b && a.className !== '' && a.className === b.className, a ? a.className : '?');
@@ -242,6 +267,11 @@ video { width: 100% !important; }
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
