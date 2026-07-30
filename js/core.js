@@ -207,6 +207,42 @@ window.CB = (function () {
         color: var(--cb-ink);
         -webkit-font-smoothing: antialiased;
         text-align: left;
+        /* Themes style bare section/article elements for their own layout.
+           Without these the block inherits the theme's border and side padding.
+           Each component re-declares what it needs at higher specificity. */
+        background: none;
+        border: 0;
+        padding: 0;
+        box-shadow: none;
+        float: none;
+      }
+      /* The big one: a theme rule such as header { background: #000 } for the
+         site masthead paints a black box behind any heading block that uses
+         a header element. Same story for figure/article/aside.
+         Component rules are class-based, so they still win over this. */
+      ${s} header, ${s} footer, ${s} nav, ${s} aside, ${s} article,
+      ${s} section, ${s} figure, ${s} figcaption, ${s} main, ${s} hgroup {
+        background: none;
+        border: 0;
+        padding: 0;
+        margin: 0;
+        box-shadow: none;
+        display: block;
+        text-align: inherit;
+        float: none;
+        width: auto;
+        min-height: 0;
+      }
+      /* Heading wrappers are the one place a host background is always wrong:
+         a masthead rule like header{background:#000!important} paints a black
+         box behind the block's title, and no plain-specificity reset can beat
+         it. These elements never carry a background of their own, so forcing
+         them is safe — unlike article/figure, which components do style. */
+      ${s} [class*="__head"] {
+        background: none !important;
+        border: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
       }
       ${s} *, ${s} *::before, ${s} *::after { box-sizing: border-box; }
       ${s} h1, ${s} h2, ${s} h3, ${s} h4, ${s} h5, ${s} h6,
