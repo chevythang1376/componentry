@@ -42,6 +42,7 @@
 <script src="../js/components/content.js"></script>
 <script src="../js/components/interactive.js"></script>
 <script src="../js/components/media.js"></script>
+<script src="../js/components/modern.js"></script>
 <script src="../js/export.js"></script>
 <script>
 (function () {
@@ -75,6 +76,17 @@
       id: 'noImages', label: 'images fail to load',
       note: 'Data URIs stripped on paste, or hotlinked images blocked.',
       css: function (c) { return c; }, breakImages: true
+    },
+    {
+      id: 'noScrollTimeline', label: 'scroll timelines unsupported',
+      note: 'Roughly 15% of browsers. Reveal animations must leave content visible, ' +
+            'never hidden at the keyframe start state.',
+      // Drop animation-timeline so the animation would run on the time timeline
+      // instead — the worst case, since `both` fill would otherwise pin the
+      // element at its "from" state (opacity 0) forever.
+      css: function (c) {
+        return c.replace(/(^|[;{\s])animation-timeline\s*:[^;}]*;?/gi, '$1');
+      }
     }
   ];
 
@@ -146,7 +158,11 @@
     comps.forEach(function (def) {
       var row = { id: def.id, name: def.name, cells: {} };
       MODES.forEach(function (mode) {
-        var inst = { uid: 'd', cls: 'cb-' + def.id + '-' + mode.id, type: def.id, props: CB.defaults(def) };
+        // Reveal is switched on so the scroll-timeline path is actually under
+        // test; with it off no animation CSS is emitted at all.
+        var props = CB.defaults(def);
+        props._reveal = 'up';
+        var inst = { uid: 'd', cls: 'cb-' + def.id + '-' + mode.id, type: def.id, props: props };
         var built = CB.build(inst, CB.DEFAULT_TOKENS);
 
         var st = document.createElement('style');
@@ -161,7 +177,19 @@
         }
         stage.appendChild(host);
 
+        // The block itself must never end up invisible. audit() deliberately
+        // skips zero-opacity nodes (hide-on-mobile is a legitimate state), so
+        // the root is checked explicitly — a reveal that leaves content hidden
+        // where scroll timelines are missing would otherwise pass silently.
         var probs = audit(host);
+        var rootEl = host.firstElementChild;
+        if (rootEl) {
+          var rcs = getComputedStyle(rootEl);
+          if (+rcs.opacity < 0.05) {
+            probs.push({ sel: rootEl.className, text: '(whole block)',
+                         why: 'root opacity ' + rcs.opacity + ' — content invisible' });
+          }
+        }
         row.cells[mode.id] = probs.length;
         probs.forEach(function (p) {
           findings.push({ comp: def.id, mode: mode.label, sel: p.sel, text: p.text, why: p.why });
@@ -214,6 +242,10 @@
 </script>
 </body>
 </html>
+
+
+
+
 
 
 

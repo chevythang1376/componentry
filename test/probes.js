@@ -232,6 +232,57 @@ window.CBProbe = (function () {
     t.ok('player iframe is titled', iframe && !!iframe.title);
   });
 
+  /* ----------------------------------------------------- modern layout */
+  /* Both blocks are CSS-only, so "working" means the layout resolved — there
+     is no behaviour to click. That is the point: they keep working on the
+     paths where <script> is stripped. */
+
+  register('bento-grid', function (root, t) {
+    var tiles = qa(root, '.cb-bn__tile');
+    var grid = q(root, '.cb-bn__grid');
+    t.ok('tiles rendered', tiles.length >= 4, tiles.length + ' tiles');
+    t.ok('grid layout applied', grid && getComputedStyle(grid).display === 'grid');
+
+    var wide = tiles.filter(function (x) { return x.dataset.size === '2x1' || x.dataset.size === '2x2'; })[0];
+    if (wide) {
+      t.ok('wide tiles span two columns',
+           /span 2/.test(getComputedStyle(wide).gridColumnStart) ||
+           getComputedStyle(wide).gridColumnEnd === 'span 2',
+           getComputedStyle(wide).gridColumn);
+    } else { t.skip('no multi-column tiles configured'); }
+
+    var dark = q(root, '.cb-bn__tile[data-tone="dark"] .cb-bn__title');
+    if (dark) {
+      var c = getComputedStyle(dark).color;
+      t.ok('dark tile keeps light text', c === 'rgb(255, 255, 255)', c);
+    } else { t.skip('no dark tile configured'); }
+
+    t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
+  });
+
+  register('sticky-stack', function (root, t) {
+    var items = qa(root, '.cb-stk__item');
+    var cards = qa(root, '.cb-stk__card');
+    t.ok('cards rendered', items.length >= 2, items.length + ' cards');
+    t.ok('cards are sticky', items[0] && getComputedStyle(items[0]).position === 'sticky',
+         items[0] && getComputedStyle(items[0]).position);
+
+    // Each card pins a little lower than the one before it.
+    if (items.length >= 2) {
+      var a = parseFloat(getComputedStyle(items[0]).top);
+      var b = parseFloat(getComputedStyle(items[1]).top);
+      t.ok('each card pins below the last', b > a, a + 'px -> ' + b + 'px');
+    }
+
+    var dark = q(root, '.cb-stk__card[data-tone="dark"] .cb-stk__title');
+    if (dark) {
+      var c = getComputedStyle(dark).color;
+      t.ok('dark card keeps light text', c === 'rgb(255, 255, 255)', c);
+    } else { t.skip('no dark card configured'); }
+
+    t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
+  });
+
   /* -------------------------------------------------------------- run */
 
   function run(id, root) {
