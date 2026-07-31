@@ -79,6 +79,7 @@ video { width: 100% !important; }
 <script src="../js/components/interactive.js"></script>
 <script src="../js/components/media.js"></script>
 <script src="../js/components/modern.js"></script>
+<script src="../js/components/product.js"></script>
 <script src="../js/export.js"></script>
 <script>
 /* Simulates a real WYSIWYG paste: take the exact `embed` output, drop it into
@@ -86,7 +87,7 @@ video { width: 100% !important; }
    The same block is pasted TWICE to prove the double-init guard holds. */
 (function () {
   var picks = ['card-grid', 'accordion', 'pricing', 'split-hero', 'countdown', 'parallax-banner',
-               'bento-grid', 'sticky-stack'];
+               'bento-grid', 'sticky-stack', 'finish-switcher', 'spec-strip'];
   var instances = picks.map(function (id, n) {
     return {
       uid: 'h' + n,
@@ -194,6 +195,42 @@ video { width: 100% !important; }
         cs(document.querySelector('#paste-a .cb-stk__item'), 'position') === 'sticky',
         cs(document.querySelector('#paste-a .cb-stk__item'), 'position'));
 
+  /* Radio groups are document-wide, so two pasted copies sharing a name would
+     fight over the selection. The block works with no JavaScript; the tiny
+     script exists purely to keep duplicates apart. */
+  var finA = document.querySelectorAll('#paste-a .cb-fin__radio');
+  var finB = document.querySelectorAll('#paste-b .cb-fin__radio');
+  if (!finA.length || !finB.length) {
+    check('finish switcher present in both copies', false, 'not found');
+  } else {
+    check('duplicated copies use separate radio groups',
+          finA[0].name !== finB[0].name, finA[0].name + ' vs ' + finB[0].name);
+
+    // Shots crossfade over 450ms; reading opacity straight after a click would
+    // sample the animation mid-flight. Suspend the transition so the assertion
+    // measures the resolved value instead of racing it.
+    var allShots = document.querySelectorAll('.cb-fin__shot');
+    Array.prototype.forEach.call(allShots, function (im) { im.style.transition = 'none'; });
+
+    finB[1].click();                       // choose finish 2 in copy B
+    finA[3].click();                       // choose finish 4 in copy A
+    check('copy A selection is its own', finA[3].checked === true);
+    check('copy B keeps its selection when A changes', finB[1].checked === true,
+          'B index checked = ' + Array.prototype.findIndex.call(finB, function (r) { return r.checked; }));
+
+    var shotB1 = document.querySelector('#paste-b .cb-fin__shot[data-i="1"]');
+    var shotA3 = document.querySelector('#paste-a .cb-fin__shot[data-i="3"]');
+    if (CSS.supports('selector(:has(*))')) {
+      check('each copy shows its own product shot',
+            cs(shotB1, 'opacity') === '1' && cs(shotA3, 'opacity') === '1',
+            'B shot1=' + cs(shotB1, 'opacity') + ' A shot3=' + cs(shotA3, 'opacity'));
+    }
+    check('swatch inputs carry no id to collide',
+          Array.prototype.every.call(finA, function (r) { return !r.id; }));
+
+    Array.prototype.forEach.call(allShots, function (im) { im.style.transition = ''; });
+  }
+
   /* ...but components must KEEP the backgrounds they set themselves. */
   check('card inner article keeps its own surface colour',
         cs(document.querySelector('#paste-a .cb-cg__inner'), 'background-color') === 'rgb(255, 255, 255)',
@@ -292,6 +329,11 @@ video { width: 100% !important; }
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 

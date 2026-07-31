@@ -283,6 +283,82 @@ window.CBProbe = (function () {
     t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
   });
 
+  /* --------------------------------------------------- product showcase */
+
+  register('finish-switcher', function (root, t) {
+    var radios = qa(root, '.cb-fin__radio');
+    var shots = qa(root, '.cb-fin__shot');
+    t.ok('finishes rendered', radios.length >= 3, radios.length + ' finishes');
+    t.ok('one shot per finish', shots.length === radios.length);
+    t.ok('uses real radio inputs', radios[0] && radios[0].type === 'radio');
+    t.ok('grouped for keyboard arrow-key navigation',
+         radios.every(function (r) { return r.name === radios[0].name; }), radios[0] && radios[0].name);
+    t.ok('labelled group', !!q(root, 'fieldset legend'));
+
+    // Input sits inside its label, so no id/for pairing exists to collide.
+    t.ok('no id/for wiring to duplicate',
+         radios.every(function (r) { return !r.id && r.closest('label'); }));
+
+    if (!CSS.supports('selector(:has(*))')) { t.skip(':has() unsupported here'); return; }
+
+    // Shots crossfade over 450ms, so suspend the transition and measure the
+    // resolved value rather than sampling the animation mid-flight.
+    shots.forEach(function (s) { s.style.transition = 'none'; });
+
+    t.ok('first finish shown initially', getComputedStyle(shots[0]).opacity === '1');
+
+    radios[2].click();
+    t.ok('selecting a swatch crossfades the shot',
+         getComputedStyle(shots[2]).opacity === '1' && getComputedStyle(shots[0]).opacity === '0',
+         'shot0=' + getComputedStyle(shots[0]).opacity + ' shot2=' + getComputedStyle(shots[2]).opacity);
+
+    t.ok('exactly one shot visible at a time',
+         shots.filter(function (s) { return getComputedStyle(s).opacity === '1'; }).length === 1,
+         shots.map(function (s) { return getComputedStyle(s).opacity; }).join(','));
+
+    // Nothing checked must never mean a blank stage.
+    radios.forEach(function (r) { r.checked = false; });
+    t.ok('never blank when nothing is checked', getComputedStyle(shots[0]).opacity === '1');
+
+    radios[0].checked = true;
+    shots.forEach(function (s) { s.style.transition = ''; });
+  });
+
+  register('pinned-product', function (root, t) {
+    var media = q(root, '.cb-psc__media');
+    var shots = qa(root, '.cb-psc__shot');
+    var steps = qa(root, '.cb-psc__step');
+    t.ok('steps rendered', steps.length >= 2, steps.length + ' steps');
+    t.ok('one shot per step', shots.length === steps.length);
+    t.ok('product pane is sticky', media && getComputedStyle(media).position === 'sticky',
+         media && getComputedStyle(media).position);
+    t.ok('track declares a named view timeline',
+         /cb-pin-/.test(getComputedStyle(q(root, '.cb-psc__track')).viewTimelineName || ''),
+         getComputedStyle(q(root, '.cb-psc__track')).viewTimelineName);
+    // Which shot is visible depends on scroll position once timelines are
+    // driving it, so assert per environment: bound to the timeline where
+    // supported, plainly visible where not. degrade.html covers the stripped
+    // case end to end.
+    if (CSS.supports('animation-timeline', 'view()')) {
+      t.ok('shots bound to the track timeline',
+           /cb-pin-/.test(getComputedStyle(shots[0]).animationTimeline || ''),
+           getComputedStyle(shots[0]).animationTimeline);
+    } else {
+      t.ok('first shot visible without scroll timelines',
+           +getComputedStyle(shots[0]).opacity > 0, getComputedStyle(shots[0]).opacity);
+    }
+    t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
+  });
+
+  register('spec-strip', function (root, t) {
+    var items = qa(root, '.cb-spec__item');
+    t.ok('specs rendered', items.length >= 3, items.length + ' specs');
+    t.ok('laid out in a row', getComputedStyle(q(root, '.cb-spec__row')).display === 'flex');
+    t.ok('value and label both present',
+         !!q(root, '.cb-spec__value') && !!q(root, '.cb-spec__label'));
+    t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
+  });
+
   /* -------------------------------------------------------------- run */
 
   function run(id, root) {
