@@ -16,7 +16,7 @@ Double-click `index.html`. That's it — it works from `file://`.
 
 ---
 
-## The 23 components
+## The 24 components
 
 | Category | Component | Notes |
 |---|---|---|
@@ -33,6 +33,7 @@ Double-click `index.html`. That's it — it works from `file://`.
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
 | | Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay |
 | | Testimonial Slider | Cross-fade, ratings, height-equalised so the page doesn't jump |
+| | Interactive Diagram | Hotspots over an image with a docked detail panel, zoom-to-point and a filtering legend. Core needs no JS |
 | **Media & Utility** | Before / After Slider | Built on a real `<input type="range">` |
 | | Gallery + Lightbox | Masonry or uniform; lightbox is a native `<dialog>` |
 | | Logo Marquee | Seamless loop, duplicate track hidden from screen readers |
@@ -43,6 +44,7 @@ Double-click `index.html`. That's it — it works from `file://`.
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
 | | Spec Strip | Row of headline specs with hairline dividers |
+
 ---
 
 ## Why the output survives a page builder
@@ -92,28 +94,29 @@ If a pasted block picks up the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-23 components, 184 round-trips.
+24 components, 192 round-trips.
 
 | Insertion path | Fully working | Keeps CSS | Keeps JS |
 |---|---|---|---|
-| **Code / embed block** (verbatim) | **23/23** | yes | yes |
-| **TinyMCE**, permissive config | **23/23** | yes | yes |
-| **DOMPurify**, style+script allowed | **23/23** | yes | yes |
-| GrapesJS (page builder) | 13/23 | yes | no |
-| DOMPurify, defaults | 13/23 | yes | no |
-| TinyMCE, stock config | 4/23 | no | no |
-| `wp_kses_post` (approximated) | 4/23 | no | no |
-| Quill | 0/23 | no | no |
+| **Code / embed block** (verbatim) | **24/24** | yes | yes |
+| **TinyMCE**, permissive config | **24/24** | yes | yes |
+| **DOMPurify**, style+script allowed | **24/24** | yes | yes |
+| GrapesJS (page builder) | 14/24 | yes | no |
+| DOMPurify, defaults | 14/24 | yes | no |
+| TinyMCE, stock config | 4/24 | no | no |
+| `wp_kses_post` (approximated) | 4/24 | no | no |
+| Quill | 0/24 | no | no |
 
 The pattern is consistent and worth internalising:
 
 - **Paste into a code/embed block, never a rich-text area.** Rich-text editors are *supposed*
   to strip `<script>` and `<style>` — that is their job, not a bug. Every platform that
   matters offers a raw-HTML block; use it.
-- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 13 components`r`n  that need no JavaScript still work perfectly and the rest render correctly but sit inert.
+- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 14 components
+  that need no JavaScript still work perfectly and the rest render correctly but sit inert.
   Nothing looks broken, it just doesn't move. This is why the newest blocks — Bento Grid,
-  Sticky Stacking Cards, and the scroll reveal — are built in pure CSS: they are the ones
-  that survive here.
+  Sticky Stacking Cards, the scroll reveal and the Interactive Diagram — are built
+  in pure CSS: they are the ones that survive here.
 - **Structure and ARIA are resilient.** Even where all styling is stripped, sanitisers keep
   the semantics — so a stripped component stays readable and screen-reader navigable.
 
@@ -230,6 +233,7 @@ js/components/
   media.js              before-after, gallery, logo-marquee, countdown, video-embed
   modern.js             bento-grid, sticky-stack (both zero-JS)
   product.js            finish-switcher, pinned-product, spec-strip
+  diagram.js            hotspot-diagram
 test/
   gallery.html          Renders all 18 through the real export path; reports failures
   hostile-host.html     Pastes exports into a deliberately awful theme; 27 assertions
@@ -303,6 +307,10 @@ Current Chrome, Edge, Firefox and Safari. Uses `:has()`, `inert`, `<dialog>`,
 `aspect-ratio`, `color-mix()`, scroll-snap and `IntersectionObserver` — all baseline
 since 2023. Components degrade rather than break on older engines: the carousel still
 scrolls, the accordion still opens, the lightbox falls back to a non-modal panel.
+
+
+
+
 
 
 

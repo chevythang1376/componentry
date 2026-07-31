@@ -80,6 +80,7 @@ video { width: 100% !important; }
 <script src="../js/components/media.js"></script>
 <script src="../js/components/modern.js"></script>
 <script src="../js/components/product.js"></script>
+<script src="../js/components/diagram.js"></script>
 <script src="../js/export.js"></script>
 <script>
 /* Simulates a real WYSIWYG paste: take the exact `embed` output, drop it into
@@ -87,7 +88,7 @@ video { width: 100% !important; }
    The same block is pasted TWICE to prove the double-init guard holds. */
 (function () {
   var picks = ['card-grid', 'accordion', 'pricing', 'split-hero', 'countdown', 'parallax-banner',
-               'bento-grid', 'sticky-stack', 'finish-switcher', 'spec-strip'];
+               'bento-grid', 'sticky-stack', 'finish-switcher', 'spec-strip', 'hotspot-diagram'];
   var instances = picks.map(function (id, n) {
     return {
       uid: 'h' + n,
@@ -329,6 +330,10 @@ video { width: 100% !important; }
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
