@@ -1,4 +1,4 @@
-# Componentry
+﻿# Componentry
 
 A component builder and editor for web design blocks that get pasted into a WYSIWYG
 editor. Pick a pattern, edit it live, and export self-contained HTML + CSS + JavaScript.
@@ -16,7 +16,7 @@ Double-click `index.html`. That's it — it works from `file://`.
 
 ---
 
-## The 18 components
+## The 20 components
 
 | Category | Component | Notes |
 |---|---|---|
@@ -38,6 +38,8 @@ Double-click `index.html`. That's it — it works from `file://`.
 | | Logo Marquee | Seamless loop, duplicate track hidden from screen readers |
 | | Countdown Timer | Announces once a minute, not once a second |
 | | Video Embed (lite) | Click-to-load facade — nothing loads from YouTube until you press play |
+| **Modern Layout** | Bento Grid | Asymmetric tiles with mixed spans and per-tile tones. Zero JS |
+| | Sticky Stacking Cards | Cards pin and stack on scroll, built on `position: sticky`. Zero JS |
 
 ---
 
@@ -88,31 +90,37 @@ If a pasted block picks up the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-18 components, 144 round-trips.
+20 components, 160 round-trips.
 
-| Insertion path | Fully working | Keeps CSS | Keeps JS | ARIA kept |
-|---|---|---|---|---|
-| **Code / embed block** (verbatim) | **18/18** | 18/18 | 12/12 | 132/132 |
-| **TinyMCE**, permissive config | **18/18** | 18/18 | 12/12 | 132/132 |
-| **DOMPurify**, style+script allowed | **18/18** | 18/18 | 12/12 | 132/132 |
-| GrapesJS (page builder) | 8/18 | 18/18 | 0/12 | 132/132 |
-| DOMPurify, defaults | 8/18 | 18/18 | 0/12 | 132/132 |
-| TinyMCE, stock config | 4/18 | 0/18 | 0/12 | 97/132 |
-| `wp_kses_post` (approximated) | 4/18 | 0/18 | 0/12 | 126/132 |
-| Quill | 0/18 | 0/18 | 0/12 | 0/132 |
+| Insertion path | Fully working | Keeps CSS | Keeps JS |
+|---|---|---|---|
+| **Code / embed block** (verbatim) | **20/20** | yes | yes |
+| **TinyMCE**, permissive config | **20/20** | yes | yes |
+| **DOMPurify**, style+script allowed | **20/20** | yes | yes |
+| GrapesJS (page builder) | 10/20 | yes | no |
+| DOMPurify, defaults | 10/20 | yes | no |
+| TinyMCE, stock config | 4/20 | no | no |
+| `wp_kses_post` (approximated) | 4/20 | no | no |
+| Quill | 0/20 | no | no |
 
 The pattern is consistent and worth internalising:
 
 - **Paste into a code/embed block, never a rich-text area.** Rich-text editors are *supposed*
   to strip `<script>` and `<style>` — that is their job, not a bug. Every platform that
   matters offers a raw-HTML block; use it.
-- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 8 components
-  with no JavaScript still work perfectly and the other 10 render correctly but sit inert.
-  Nothing looks broken, it just doesn't move.
+- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 10 components
+  that need no JavaScript still work perfectly and the rest render correctly but sit inert.
+  Nothing looks broken, it just doesn't move. This is why the newest blocks — Bento Grid,
+  Sticky Stacking Cards, and the scroll reveal — are built in pure CSS: they are the ones
+  that survive here.
 - **Structure and ARIA are resilient.** Even where all styling is stripped, sanitisers keep
   the semantics — so a stripped component stays readable and screen-reader navigable.
 
 ## Accessibility
+
+Motion is layered as enhancement: scroll-driven effects use `@supports` and only run
+when the visitor has not asked for reduced motion, so content is never hidden waiting
+for an animation that cannot play.
 
 Interactive components follow the [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/):
 
@@ -171,6 +179,14 @@ Applied centrally, so they behave identically on all 18 blocks:
 | **Content width** | Overrides the project token for one block |
 | **Top / bottom padding** | Independent overrides; read `auto` until you change them |
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
+| **Reveal on scroll** | Fade, fade-up or scale as the block enters the viewport |
+
+**Reveal on scroll is pure CSS** — an `animation-timeline: view()` scroll timeline, no
+JavaScript, so it still animates in editors that strip `<script>`. Scroll timelines sit
+around 85% support, so it is layered strictly as an enhancement: the block renders
+visible by default and only animates where timelines exist *and* the visitor has not
+asked for reduced motion. Delete the `animation-timeline` line and nothing disappears —
+`test/degrade.html` asserts exactly that.
 
 Overrides are emitted with the root's full class list, so they win on specificity and
 source order — no `!important`, and you can still restyle them from your theme.
@@ -211,6 +227,7 @@ js/components/
   content.js            card-grid, feature-grid, stats-counter, timeline, pricing
   interactive.js        accordion, tabs, carousel, testimonials
   media.js              before-after, gallery, logo-marquee, countdown, video-embed
+  modern.js             bento-grid, sticky-stack (both zero-JS)
 test/
   gallery.html          Renders all 18 through the real export path; reports failures
   hostile-host.html     Pastes exports into a deliberately awful theme; 27 assertions
@@ -284,3 +301,6 @@ Current Chrome, Edge, Firefox and Safari. Uses `:has()`, `inert`, `<dialog>`,
 `aspect-ratio`, `color-mix()`, scroll-snap and `IntersectionObserver` — all baseline
 since 2023. Components degrade rather than break on older engines: the carousel still
 scrolls, the accordion still opens, the lightbox falls back to a non-modal panel.
+
+
+

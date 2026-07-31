@@ -78,13 +78,15 @@ video { width: 100% !important; }
 <script src="../js/components/content.js"></script>
 <script src="../js/components/interactive.js"></script>
 <script src="../js/components/media.js"></script>
+<script src="../js/components/modern.js"></script>
 <script src="../js/export.js"></script>
 <script>
 /* Simulates a real WYSIWYG paste: take the exact `embed` output, drop it into
    the page as innerHTML, and run its <script> the way a browser would.
    The same block is pasted TWICE to prove the double-init guard holds. */
 (function () {
-  var picks = ['card-grid', 'accordion', 'pricing', 'split-hero', 'countdown', 'parallax-banner'];
+  var picks = ['card-grid', 'accordion', 'pricing', 'split-hero', 'countdown', 'parallax-banner',
+               'bento-grid', 'sticky-stack'];
   var instances = picks.map(function (id, n) {
     return {
       uid: 'h' + n,
@@ -168,6 +170,29 @@ video { width: 100% !important; }
     check(name + ' has no host padding', parseFloat(cs(hd, 'padding-top')) === 0, cs(hd, 'padding-top'));
     check(name + ' has no host border', parseFloat(cs(hd, 'border-bottom-width')) === 0, cs(hd, 'border-bottom-width'));
   });
+
+  /* New zero-JS blocks: light text on their own dark/brand tones must survive
+     the theme's !important heading colour, same as the older components. */
+  [
+    ['bento brand tile',  '#paste-a .cb-bn__tile[data-tone="brand"] .cb-bn__title'],
+    ['bento dark tile',   '#paste-a .cb-bn__tile[data-tone="dark"] .cb-bn__title'],
+    ['bento image tile',  '#paste-a .cb-bn__tile[data-tone="image"] .cb-bn__title'],
+    ['sticky dark card',  '#paste-a .cb-stk__card[data-tone="dark"] .cb-stk__title']
+  ].forEach(function (row) {
+    var el = document.querySelector(row[1]);
+    if (!el) { check(row[0] + ' present', false, 'not found'); return; }
+    var fg = cs(el, 'color');
+    check(row[0] + ' text not hijacked to theme black',
+          fg !== 'rgb(17, 17, 17)' && fg !== 'rgb(51, 51, 51)', fg);
+  });
+
+  /* Both new blocks must ship no JavaScript at all — that is the whole point
+     of building them in CSS. */
+  check('bento grid laid out as a grid',
+        cs(document.querySelector('#paste-a .cb-bn__grid'), 'display') === 'grid');
+  check('sticky cards actually sticky',
+        cs(document.querySelector('#paste-a .cb-stk__item'), 'position') === 'sticky',
+        cs(document.querySelector('#paste-a .cb-stk__item'), 'position'));
 
   /* ...but components must KEEP the backgrounds they set themselves. */
   check('card inner article keeps its own surface colour',
@@ -267,6 +292,10 @@ video { width: 100% !important; }
 </script>
 </body>
 </html>
+
+
+
+
 
 
 

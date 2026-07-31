@@ -319,6 +319,11 @@ window.CB = (function () {
     {
       k: '_hide', t: 'select', label: 'Visibility', value: 'all',
       options: [['all', 'Always visible'], ['mobile', 'Hide on mobile (≤640px)'], ['desktop', 'Hide on desktop (>640px)']]
+    },
+    {
+      k: '_reveal', t: 'select', label: 'Reveal on scroll', value: 'none',
+      options: [['none', 'None'], ['fade', 'Fade in'], ['up', 'Fade up'], ['scale', 'Scale in']],
+      help: 'Pure CSS — no JavaScript, so it still runs where an editor strips <script>. The block stays visible in browsers without scroll timelines.'
     }
   ];
 
@@ -360,6 +365,37 @@ window.CB = (function () {
     return '.' + m[1].trim().split(/\s+/).join('.');
   }
 
+  /* Scroll reveal, in pure CSS via a view() timeline — no JavaScript, so it
+     survives the sanitisers that strip <script> and leave JS-driven blocks
+     inert. Scroll timelines sit around 85% support, so this is layered as a
+     pure enhancement: the block renders visible by default and only animates
+     where timelines exist *and* the visitor hasn't asked for reduced motion.
+     Strip the animation-timeline declaration and nothing is hidden. */
+  function revealCss(sel, cls, p) {
+    var from = {
+      fade: 'opacity: 0;',
+      up: 'opacity: 0; transform: translateY(28px);',
+      scale: 'opacity: 0; transform: scale(.94);'
+    }[p._reveal];
+    if (!from) return '';
+
+    var name = 'cb-reveal-' + cls;
+    return dedent(`
+      @keyframes ${name} {
+        from { ${from} }
+        to { opacity: 1; transform: none; }
+      }
+      @supports (animation-timeline: view()) {
+        @media (prefers-reduced-motion: no-preference) {
+          ${sel} {
+            animation: ${name} linear both;
+            animation-timeline: view();
+            animation-range: entry 0% entry 75%;
+          }
+        }
+      }`);
+  }
+
   function advancedCss(sel, s, p) {
     var out = [];
     var pt = num(p._padTop, -4), pb = num(p._padBottom, -4), mw = num(p._maxWidth, 0);
@@ -370,6 +406,10 @@ window.CB = (function () {
     if (mw > 0) out.push(s + ' .cb-wrap { max-width: ' + mw + 'px; }');
     if (p._hide === 'mobile') out.push('@media (max-width: 640px) { ' + sel + ' { display: none !important; } }');
     if (p._hide === 'desktop') out.push('@media (min-width: 641px) { ' + sel + ' { display: none !important; } }');
+
+    var reveal = revealCss(sel, s.replace(/^\./, ''), p);
+    if (reveal) out.push(reveal);
+
     return out.length ? '\n/* Advanced overrides */\n' + out.join('\n') : '';
   }
   function get(id) { return defs.get(id); }
