@@ -359,6 +359,61 @@ window.CBProbe = (function () {
     t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
   });
 
+  register('hotspot-diagram', function (root, t) {
+    var pins = qa(root, '.cb-hs__pin');
+    var radios = qa(root, '.cb-hs__radio');
+    var details = qa(root, '.cb-hs__detail');
+    t.ok('hotspots rendered', pins.length >= 4, pins.length + ' hotspots');
+    t.ok('one detail panel per hotspot', details.length === pins.length);
+    t.ok('uses real radio inputs in a labelled group',
+         radios[0] && radios[0].type === 'radio' && !!q(root, '.cb-hs__pins legend'));
+    t.ok('image carries a description', (q(root, '.cb-hs__img') || {}).alt);
+
+    // Touch target must clear 44px however small the pin is drawn.
+    var r = pins[0].getBoundingClientRect();
+    t.ok('pin meets the 44px touch target', r.width >= 44 && r.height >= 44,
+         Math.round(r.width) + 'x' + Math.round(r.height));
+
+    if (!CSS.supports('selector(:has(*))')) { t.skip(':has() unsupported here'); return; }
+
+    function shown() {
+      return details.filter(function (d) { return getComputedStyle(d).display !== 'none'; })
+                    .map(function (d) { return d.dataset.i; }).join(',');
+    }
+    t.ok('first hotspot shown initially', shown() === '0', shown());
+
+    radios[3].click();
+    t.ok('selecting a pin swaps the detail panel', shown() === '3', shown());
+    t.ok('exactly one panel visible', shown().split(',').length === 1);
+
+    // Zoom is CSS-driven off the checked radio.
+    var frame = q(root, '.cb-hs__frame');
+    var origin = getComputedStyle(frame).transformOrigin;
+    radios[1].click();
+    t.ok('zoom origin follows the selection',
+         getComputedStyle(frame).transformOrigin !== origin,
+         origin + ' -> ' + getComputedStyle(frame).transformOrigin);
+
+    // Legend filtering, also CSS-only.
+    var box = q(root, '.cb-hs__catBox');
+    if (box) {
+      var cat = box.getAttribute('data-cat');
+      var target = q(root, '.cb-hs__pin[data-cat="' + cat + '"]');
+      if (target) {
+        var before = getComputedStyle(target).opacity;
+        box.click();
+        t.ok('legend filters hotspots', getComputedStyle(target).opacity !== before,
+             before + ' -> ' + getComputedStyle(target).opacity);
+        box.click();
+      }
+    } else { t.skip('legend filtering disabled'); }
+
+    // Nothing checked must never leave an empty panel.
+    radios.forEach(function (x) { x.checked = false; });
+    t.ok('never blank when nothing is checked', shown() === '0', shown());
+    radios[0].checked = true;
+  });
+
   /* -------------------------------------------------------------- run */
 
   function run(id, root) {
