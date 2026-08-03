@@ -188,7 +188,21 @@ window.CB = (function () {
     lg: { py: '.95em', px: '1.9em', fs: '1.06em' }
   };
 
+  /* Pull the family name out of a Google Fonts (or similar) URL, so choosing
+     the imported font is one dropdown rather than hand-typing a stack.
+     ...css2?family=Open+Sans:ital,wght@0,300..800  ->  Open Sans */
+  function familyFromImport(url) {
+    var m = String(url || '').match(/[?&]family=([^:&]+)/);
+    if (!m) return '';
+    try { return decodeURIComponent(m[1]).replace(/\+/g, ' ').trim(); }
+    catch (e) { return m[1].replace(/\+/g, ' ').trim(); }
+  }
+
   function fontStack(t) {
+    if (t.font === 'import') {
+      var fam = familyFromImport(t.fontImport);
+      return fam ? '"' + fam + '", ' + FONT_STACKS.system : FONT_STACKS.system;
+    }
     if (t.font === 'custom') return t.fontCustom || FONT_STACKS.system;
     return FONT_STACKS[t.font] || FONT_STACKS.system;
   }
@@ -535,7 +549,8 @@ window.CB = (function () {
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
     tokenCss: tokenCss, baseCss: baseCss,
-    FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack
+    FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
+    familyFromImport: familyFromImport
   };
 })();
 

@@ -222,6 +222,19 @@ Applied centrally, so they behave identically on all 18 blocks:
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
 | **Reveal on scroll** | Fade, fade-up or scale as the block enters the viewport |
 
+### Using a webfont
+
+Two settings, and both are required — importing a font does not switch to it:
+
+1. **Design tokens → Typography → Webfont @import URL** — paste the Google Fonts URL
+2. **Font stack** — choose **The webfont imported below**
+
+The family name is read out of the URL, so `…css2?family=Open+Sans:…` resolves to
+`"Open Sans"` with the system stack behind it as a fallback. Choosing that option with
+no URL set falls back to the system stack rather than breaking.
+
+The `@import` is emitted as the first rule in the exported CSS, which is the only place
+browsers honour it.
 **Reveal on scroll is pure CSS** — an `animation-timeline: view()` scroll timeline, no
 JavaScript, so it still animates in editors that strip `<script>`. Scroll timelines sit
 around 85% support, so it is layered strictly as an enhancement: the block renders
@@ -367,6 +380,7 @@ Current Chrome, Edge, Firefox and Safari. Uses `:has()`, `inert`, `<dialog>`,
 `aspect-ratio`, `color-mix()`, scroll-snap and `IntersectionObserver` — all baseline
 since 2023. Components degrade rather than break on older engines: the carousel still
 scrolls, the accordion still opens, the lightbox falls back to a non-modal panel.
+
 
 
 
