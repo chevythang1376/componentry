@@ -62,6 +62,18 @@ CB.Export = (function () {
     return out.replace(/;}/g, '}').trim();
   }
 
+  /* @import is only honoured as the very first rule in a stylesheet. Anything
+     that wraps the CSS — the preview chrome, the full-page reset — has to be
+     emitted after it, so pull the imports out and re-emit them at the top. */
+  function hoistImports(css) {
+    var found = [];
+    var body = String(css || '').replace(/@import\s+url\([^)]*\)\s*;/gi, function (m) {
+      found.push(m);
+      return '';
+    });
+    return { imports: found.join('\n'), body: body.replace(/^\s*\n+/, '') };
+  }
+
   function minifyJs(js) {
     // Only safe, line-level tidying — never re-writes tokens or renames anything.
     return js.split('\n')
@@ -89,6 +101,7 @@ CB.Export = (function () {
     var title = opts.title || 'Componentry export';
     var css = opts.minify ? minifyCss(p.css) : p.css;
     var js = opts.minify ? minifyJs(p.js) : p.js;
+    var split = hoistImports(css);
     return [
       '<!doctype html>',
       '<html lang="en">',
@@ -97,8 +110,9 @@ CB.Export = (function () {
       '  <meta name="viewport" content="width=device-width, initial-scale=1">',
       '  <title>' + CB.esc(title) + '</title>',
       '  <style>',
+      split.imports ? CB.indent(split.imports, 4) : '',
       '    html, body { margin: 0; padding: 0; }',
-      CB.indent(css, 4),
+      CB.indent(split.body, 4),
       '  </style>',
       '</head>',
       '<body>',
@@ -202,7 +216,10 @@ CB.Export = (function () {
     return [
       '<!doctype html><html lang="en"><head><meta charset="utf-8">',
       '<meta name="viewport" content="width=device-width, initial-scale=1">',
-      '<style>' + chrome + '\n' + css.join('\n') + '</style>',
+      '<style>' + (function () {
+        var split = hoistImports(css.join('\n'));
+        return (split.imports ? split.imports + '\n' : '') + chrome + '\n' + split.body;
+      })() + '</style>',
       '</head><body>',
       body,
       '<script>' + js.join('\n') + '\n' + bridge + '<\/script>',

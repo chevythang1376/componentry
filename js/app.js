@@ -24,12 +24,17 @@
     { t: 'section', label: 'Typography' },
     {
       k: 'font', t: 'select', label: 'Font stack', options: [
-        ['system', 'System UI'], ['grotesk', 'Inter / grotesk'], ['serif', 'Serif'],
+        ['system', 'System UI'], ['import', 'The webfont imported below'],
+        ['grotesk', 'Inter / grotesk'], ['serif', 'Serif'],
         ['slab', 'Slab'], ['rounded', 'Rounded'], ['mono', 'Monospace'], ['custom', 'Custom…']
-      ]
+      ],
+      help: 'Importing a webfont below does not switch to it on its own — pick it here too.'
     },
     { k: 'fontCustom', t: 'text', label: 'Custom font-family', ph: '"Söhne", Helvetica, sans-serif', when: { font: ['custom'] } },
-    { k: 'fontImport', t: 'url', label: 'Webfont @import URL', ph: 'https://fonts.googleapis.com/css2?family=…', help: 'Optional. Emitted as an @import at the top of the exported CSS.' },
+    {
+      k: 'fontImport', t: 'url', label: 'Webfont @import URL', ph: 'https://fonts.googleapis.com/css2?family=…',
+      help: 'Paste a Google Fonts (or similar) URL, then set Font stack above to “The webfont imported below”. The family name is read from the URL.'
+    },
     { k: 'scale', t: 'range', label: 'Base size', min: 85, max: 120, step: 1, unit: '%' },
     { t: 'section', label: 'Shape' },
     { k: 'radius', t: 'range', label: 'Corner radius', min: 0, max: 32, step: 1, unit: 'px' },
