@@ -246,7 +246,10 @@
       { t: 'section', label: 'Layout' },
       { k: 'side', t: 'select', label: 'Product side', value: 'left', options: [['left', 'Left'], ['right', 'Right']] },
       { k: 'stepHeight', t: 'range', label: 'Scroll distance per step', min: 60, max: 140, step: 5, unit: 'vh', value: 90 },
-      { k: 'topOffset', t: 'range', label: 'Pin offset from top', min: 40, max: 200, step: 4, unit: 'px', value: 100 },
+      {
+        k: 'topOffset', t: 'range', label: 'Pin offset from top', min: 40, max: 200, step: 4, unit: 'px', value: 100,
+        help: 'Measured from the top of the window. Set this to at least the height of your site’s fixed header, or the pinned product will sit underneath it.'
+      },
       { k: 'ratio', t: 'select', label: 'Product ratio', value: '1/1', options: [['1/1', 'Square'], ['4/3', '4 : 3'], ['3/4', 'Portrait']] },
 
       { t: 'section', label: 'Style' },

@@ -78,6 +78,32 @@ inheritance is catastrophic: a black title inside a black box. Every place where
 text sits on a dark surface therefore declares its colour defensively. Everything else
 is left overridable on purpose; this is used only where failure would hide content.
 
+### If a block scrolls *over* your site header
+
+Symptom: with **Reveal on scroll** enabled, the block slides over the fixed navigation
+instead of under it.
+
+Cause is on the host side, and it is a one-line fix. Animating an element promotes it
+into the same paint layer as positioned elements. If your fixed header has no `z-index`,
+the two are ranked by document order — and the block, coming later in the page, wins.
+
+```css
+/* your theme */
+.site-header { position: fixed; z-index: 10; }   /* any value ≥ 1 */
+```
+
+Measured: with a header at `z-index: auto`, an animated block overlapped it at 25 of 25
+scroll positions. With `z-index: 1` or above, zero. Nothing can be done from inside the
+component — a stacking context cannot lower itself beneath an ancestor's sibling — and
+this affects *any* animated content on the page, not only these blocks. A fixed header
+without a `z-index` is fragile regardless.
+
+Two related things worth checking on a site with a fixed header:
+
+- **Pinned Product Scroller** — set *Pin offset from top* to at least the header's height,
+  or the pinned product sits underneath it.
+- The same applies to **Sticky Stacking Cards** and the **Interactive Diagram**'s side panel.
+
 ### The one thing it can't defend against
 
 A host rule using `!important` on a bare element selector, for text that is *not* on a

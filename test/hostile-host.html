@@ -54,6 +54,12 @@ video { width: 100% !important; }
 </head>
 <body>
 
+<!-- A correctly-built fixed site header: positioned AND given a z-index.
+     Components must never paint over this, including when animated. -->
+<nav id="host-nav" style="position:fixed;top:0;left:0;right:0;height:90px;z-index:10;
+     background:#0b3d91;color:#fff;font:700 18px/90px sans-serif;text-align:center;">SITE NAV</nav>
+<div style="height:90px"></div>
+
 <div class="host-note" id="report">Pasting…</div>
 
 <div class="host-junk">
@@ -250,6 +256,41 @@ video { width: 100% !important; }
           cs(document.querySelector('#paste-a .cb-hsl__title'), 'color') !== 'rgb(17, 17, 17)',
           cs(document.querySelector('#paste-a .cb-hsl__title'), 'color'));
   }
+
+  /* A fixed site header must stay on top of every component, including ones
+     with Reveal on scroll enabled — animating a block promotes it into the
+     header's paint layer, and without this guard it wins on tree order. */
+  (function () {
+    var nav = document.getElementById('host-nav');
+    var reveal = document.createElement('div');
+    document.body.appendChild(reveal);
+    var inst = { uid: 'rv', cls: 'cb-navtest', type: 'pinned-product',
+                 props: Object.assign(CB.defaults(CB.get('pinned-product')), { _reveal: 'up' }) };
+    var built = CB.build(inst, CB.DEFAULT_TOKENS);
+    var st = document.createElement('style'); st.textContent = built.css;
+    document.head.appendChild(st);
+    reveal.innerHTML = built.html;
+
+    // Scan relative to where the block actually sits — this page is long, so a
+    // fixed scroll window would never line up with it.
+    var overlaps = 0, sampled = 0, saved = window.scrollY;
+    var top = reveal.getBoundingClientRect().top + window.scrollY;
+    var height = reveal.getBoundingClientRect().height;
+    for (var y = top - 200; y <= top + height + 200; y += 150) {
+      window.scrollTo(0, Math.max(0, y));
+      var r = reveal.getBoundingClientRect();
+      if (r.top > 90 || r.bottom < 0) continue;      // not level with the nav
+      sampled++;
+      var hit = document.elementFromPoint(Math.round(window.innerWidth / 2), 45);
+      if (hit && reveal.contains(hit)) overlaps++;
+    }
+    window.scrollTo(0, saved);
+    check('animated block never paints over a z-indexed fixed header',
+          sampled > 0 && overlaps === 0, overlaps + ' overlaps across ' + sampled + ' samples');
+    check('fixed header keeps its stacking position',
+          getComputedStyle(nav).zIndex === '10', getComputedStyle(nav).zIndex);
+    reveal.remove(); st.remove();
+  })();
 
   /* ...but components must KEEP the backgrounds they set themselves. */
   check('card inner article keeps its own surface colour',
