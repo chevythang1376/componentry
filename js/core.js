@@ -370,7 +370,10 @@ window.CB = (function () {
     {
       k: '_reveal', t: 'select', label: 'Reveal on scroll', value: 'none',
       options: [['none', 'None'], ['fade', 'Fade in'], ['up', 'Fade up'], ['scale', 'Scale in']],
-      help: 'Pure CSS — no JavaScript, so it still runs where an editor strips <script>. The block stays visible in browsers without scroll timelines.'
+      help: 'Pure CSS — no JavaScript, so it still runs where an editor strips <script>. ' +
+            'If your site has a fixed or sticky header, give it a z-index of 1 or more, ' +
+            'or an animated block will scroll over it: animating puts this block in the ' +
+            'same paint layer as the header, and the later element wins.'
     }
   ];
 
