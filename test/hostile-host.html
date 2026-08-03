@@ -88,7 +88,8 @@ video { width: 100% !important; }
    The same block is pasted TWICE to prove the double-init guard holds. */
 (function () {
   var picks = ['card-grid', 'accordion', 'pricing', 'split-hero', 'countdown', 'parallax-banner',
-               'bento-grid', 'sticky-stack', 'finish-switcher', 'spec-strip', 'hotspot-diagram'];
+               'bento-grid', 'sticky-stack', 'finish-switcher', 'spec-strip', 'hotspot-diagram',
+               'hero-slider'];
   var instances = picks.map(function (id, n) {
     return {
       uid: 'h' + n,
@@ -232,6 +233,24 @@ video { width: 100% !important; }
     Array.prototype.forEach.call(allShots, function (im) { im.style.transition = ''; });
   }
 
+  /* Hero Slider: same document-wide radio-group hazard as the finish switcher,
+     and its light-on-dark headline must survive the theme's !important. */
+  var hslA = document.querySelectorAll('#paste-a .cb-hsl__radio');
+  var hslB = document.querySelectorAll('#paste-b .cb-hsl__radio');
+  if (!hslA.length || !hslB.length) {
+    check('hero slider present in both copies', false, 'not found');
+  } else {
+    check('duplicated sliders use separate radio groups',
+          hslA[0].name !== hslB[0].name, hslA[0].name + ' vs ' + hslB[0].name);
+    hslB[1].click();
+    hslA[2].click();
+    check('slider copy B keeps its own slide', hslB[1].checked === true,
+          'B checked index = ' + Array.prototype.findIndex.call(hslB, function (r) { return r.checked; }));
+    check('slider headline not hijacked to theme black',
+          cs(document.querySelector('#paste-a .cb-hsl__title'), 'color') !== 'rgb(17, 17, 17)',
+          cs(document.querySelector('#paste-a .cb-hsl__title'), 'color'));
+  }
+
   /* ...but components must KEEP the backgrounds they set themselves. */
   check('card inner article keeps its own surface colour',
         cs(document.querySelector('#paste-a .cb-cg__inner'), 'background-color') === 'rgb(255, 255, 255)',
@@ -330,6 +349,9 @@ video { width: 100% !important; }
 </script>
 </body>
 </html>
+
+
+
 
 
 

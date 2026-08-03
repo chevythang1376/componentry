@@ -399,6 +399,338 @@
   });
 
   /* --------------------------------------------------------------------- */
+  /* Hero Slider                                                            */
+  /* --------------------------------------------------------------------- */
+  CB.register({
+    id: 'hero-slider',
+    name: 'Hero Slider',
+    category: CAT,
+    icon: '⧉',
+    blurb: 'Multiple banners that rotate. Dots work with no JavaScript; autoplay and arrows are added by script, and autoplay never ships without a pause control.',
+    props: [
+      { t: 'section', label: 'Slides' },
+      {
+        k: 'items', t: 'list', label: 'Banners', itemLabel: 'title',
+        fields: [
+          { k: 'image', t: 'image', label: 'Background image', value: CB.ph(1600, 900, '', '#96694c', '#2b241f') },
+          { k: 'alt', t: 'text', label: 'Image alt text', value: '', help: 'Leave blank if the image is decorative and the headline carries the meaning.' },
+          { k: 'focal', t: 'select', label: 'Image focus', value: 'center', options: [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right']] },
+          { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
+          { k: 'title', t: 'textarea', label: 'Headline', value: 'Headline goes here' },
+          { k: 'sub', t: 'textarea', label: 'Subheadline', value: '' },
+          { k: 'btnText', t: 'text', label: 'Primary button', value: '' },
+          { k: 'btnUrl', t: 'url', label: 'Primary link', value: '#' },
+          { k: 'btn2Text', t: 'text', label: 'Secondary button', value: '' },
+          { k: 'btn2Url', t: 'url', label: 'Secondary link', value: '#' },
+          { k: 'overlay', t: 'range', label: 'Overlay opacity', min: 0, max: 90, step: 5, unit: '%', value: 45 }
+        ],
+        value: [
+          { image: CB.ph(1600, 900, '', '#96694c', '#2b241f'), alt: '', focal: 'center', eyebrow: 'Data centers', title: 'Power that keeps pace with demand', sub: 'Medium voltage through to the rack, from one supplier.', btnText: 'Explore solutions', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 45 },
+          { image: CB.ph(1600, 900, '', '#6f4c37', '#141210'), alt: '', focal: 'center', eyebrow: 'Utility', title: 'Built for the grid,\nbuilt to last', sub: 'Overhead and underground conductor engineered for the long haul.', btnText: 'View products', btnUrl: '#', btn2Text: 'Talk to us', btn2Url: '#', overlay: 50 },
+          { image: CB.ph(1600, 900, '', '#3a332d', '#12100e'), alt: '', focal: 'center', eyebrow: 'Industrial', title: 'On site when it matters', sub: 'Field services and support that shorten the critical path.', btnText: 'Find support', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 42 }
+        ]
+      },
+
+      { t: 'section', label: 'Rotation' },
+      { k: 'autoplay', t: 'toggle', label: 'Rotate automatically', value: true, help: 'Only runs where scripts do — and it always ships with a pause control, which WCAG 2.2.2 requires.' },
+      { k: 'interval', t: 'range', label: 'Seconds per slide', min: 3, max: 15, step: 1, unit: 's', value: 6, when: { autoplay: [true] } },
+      { k: 'loop', t: 'toggle', label: 'Wrap around at the ends', value: true },
+      { k: 'transition', t: 'select', label: 'Transition', value: 'fade', options: [['fade', 'Cross-fade'], ['slide', 'Slide across'], ['none', 'Cut']] },
+      { k: 'kenBurns', t: 'toggle', label: 'Slow zoom on the active slide', value: false },
+
+      { t: 'section', label: 'Controls' },
+      { k: 'dots', t: 'toggle', label: 'Dots', value: true, help: 'The only control that works without JavaScript — leave this on.' },
+      { k: 'arrows', t: 'toggle', label: 'Arrows', value: true },
+      { k: 'counter', t: 'toggle', label: 'Slide counter', value: false },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'height', t: 'range', label: 'Height', min: 320, max: 900, step: 10, unit: 'px', value: 600 },
+      { k: 'align', t: 'select', label: 'Alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center']] },
+      { k: 'titleSize', t: 'range', label: 'Headline size', min: 30, max: 88, step: 2, unit: 'px', value: 58 },
+
+      { t: 'section', label: 'Style' },
+      { k: 'overlayColor', t: 'color', label: 'Overlay colour', value: '#0b0a09' },
+      { k: 'gradient', t: 'toggle', label: 'Extra fade at bottom', value: true },
+      { k: 'textColor', t: 'color', label: 'Text colour', value: '#ffffff' }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var items = (p.items || []).filter(Boolean);
+      var n = items.length;
+      var group = 'cb-hsl-' + c.cls;
+      var flex = p.align === 'center' ? 'center' : 'flex-start';
+
+      var slides = items.map(function (it, i) {
+        var veil = c.rgba(p.overlayColor, c.num(it.overlay, 45) / 100);
+        return c.dedent(`
+          <div class="cb-hsl__slide" data-i="${i}" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}">
+            <div class="cb-hsl__bg" role="presentation">
+              <img src="${c.url(it.image)}" alt="${c.attr(it.alt)}" loading="${i ? 'lazy' : 'eager'}" decoding="async"
+                   style="object-position: ${c.attr(it.focal || 'center')}">
+            </div>
+            <div class="cb-hsl__veil" role="presentation" style="--cb-veil: ${veil}"></div>
+            <div class="cb-hsl__inner cb-wrap">
+              <div class="cb-hsl__content">
+                ${it.eyebrow ? '<p class="cb-hsl__eyebrow">' + c.esc(it.eyebrow) + '</p>' : ''}
+                ${it.title ? '<h2 class="cb-hsl__title">' + c.rich(it.title) + '</h2>' : ''}
+                ${it.sub ? '<p class="cb-hsl__sub">' + c.rich(it.sub) + '</p>' : ''}
+                ${(it.btnText || it.btn2Text) ? `<div class="cb-hsl__actions">
+                  ${it.btnText ? '<a class="cb-btn cb-btn--primary" href="' + c.url(it.btnUrl) + '">' + c.esc(it.btnText) + '</a>' : ''}
+                  ${it.btn2Text ? '<a class="cb-btn cb-btn--ghost" href="' + c.url(it.btn2Url) + '">' + c.esc(it.btn2Text) + '</a>' : ''}
+                </div>` : ''}
+              </div>
+            </div>
+          </div>`);
+      }).join('\n');
+
+      /* Dots are radios, so choosing a slide needs no JavaScript at all. */
+      var dots = p.dots ? c.dedent(`
+        <fieldset class="cb-hsl__dots">
+          <legend class="cb-sr">Choose a slide</legend>
+${items.map(function (it, i) {
+  return '          <label class="cb-hsl__dot"><input class="cb-hsl__radio" type="radio" name="' + c.attr(group) +
+    '" data-i="' + i + '"' + (i === 0 ? ' checked' : '') + '><span class="cb-hsl__dotMark" aria-hidden="true"></span>' +
+    '<span class="cb-sr">Slide ' + (i + 1) + (it.title ? ': ' + c.attr(String(it.title).split('\n')[0]) : '') + '</span></label>';
+}).join('\n')}
+        </fieldset>`) : '';
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-hsl" aria-roledescription="carousel" aria-label="Featured banners">
+          <div class="cb-hsl__stage" aria-live="polite">
+${c.indent(slides, 12)}
+          </div>
+          <div class="cb-hsl__controls">
+            ${p.arrows ? `<div class="cb-hsl__arrows" hidden>
+              <button type="button" class="cb-hsl__arrow cb-hsl__prev" aria-label="Previous banner"><span aria-hidden="true">&#8249;</span></button>
+              <button type="button" class="cb-hsl__arrow cb-hsl__next" aria-label="Next banner"><span aria-hidden="true">&#8250;</span></button>
+            </div>` : ''}
+            ${dots}
+            ${p.counter ? '<p class="cb-hsl__counter" aria-hidden="true"></p>' : ''}
+            ${p.autoplay ? `<button type="button" class="cb-hsl__play" hidden aria-label="Pause banner rotation" data-playing="1">
+              <span class="cb-hsl__playIcon" aria-hidden="true"></span>
+            </button>` : ''}
+          </div>
+        </section>`);
+
+      var enter = {
+        fade: 'opacity: 1; visibility: visible; transform: none;',
+        slide: 'opacity: 1; visibility: visible; transform: none;',
+        none: 'opacity: 1; visibility: visible;'
+      }[p.transition] || '';
+
+      var leave = {
+        fade: 'opacity: 0; visibility: hidden;',
+        slide: 'opacity: 0; visibility: hidden; transform: translateX(6%);',
+        none: 'opacity: 0; visibility: hidden;'
+      }[p.transition] || '';
+
+      var sel = items.map(function (it, i) {
+        return `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__slide[data-i="${i}"] { ${enter} z-index: 1; }\n        ` +
+          (p.dots ? `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__dot:nth-of-type(${i + 1}) .cb-hsl__dotMark { background: ${p.textColor}; width: 30px; }` : '');
+      }).join('\n        ');
+
+      var css = `
+        ${s}.cb-hsl {
+          position: relative; overflow: hidden; isolation: isolate;
+          min-height: ${c.num(p.height, 600)}px;
+          display: flex; flex-direction: column; justify-content: flex-end;
+          color: ${p.textColor}; background: #000;
+        }
+        ${s} .cb-hsl__stage { display: grid; position: absolute; inset: 0; }
+        ${s} .cb-hsl__slide {
+          grid-area: 1 / 1; position: relative; display: flex; align-items: center;
+          ${leave}
+          transition: opacity .7s ease, transform .7s cubic-bezier(.3,.7,.3,1), visibility .7s;
+        }
+        ${s} .cb-hsl__bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+        ${s} .cb-hsl__bg img { width: 100%; height: 100%; object-fit: cover; }
+        ${p.kenBurns ? `
+        ${s}:has(.cb-hsl__radio:checked) .cb-hsl__slide .cb-hsl__bg img { transform: scale(1); transition: transform 9s linear; }
+        ${items.map(function (it, i) {
+          return `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__slide[data-i="${i}"] .cb-hsl__bg img { transform: scale(1.09); }`;
+        }).join('\n        ')}
+        @media (prefers-reduced-motion: reduce) {
+          ${s} .cb-hsl__bg img { transition: none !important; transform: none !important; }
+        }` : ''}
+        ${s} .cb-hsl__veil {
+          position: absolute; inset: 0; z-index: 1; background: var(--cb-veil);
+          ${p.gradient ? 'background-image: linear-gradient(to bottom, transparent 40%, ' + c.rgba(p.overlayColor, 0.85) + ' 100%);' : ''}
+        }
+        ${s} .cb-hsl__inner { position: relative; z-index: 2; width: 100%; padding-block: 80px 120px; }
+        ${s} .cb-hsl__content {
+          display: flex; flex-direction: column; gap: 18px;
+          align-items: ${flex}; text-align: ${p.align};
+          max-width: ${p.align === 'center' ? '780px' : '640px'};
+          ${p.align === 'center' ? 'margin-inline: auto;' : ''}
+        }
+        ${s} .cb-hsl__eyebrow {
+          font-size: .78em; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .88;
+        }
+        ${s} .cb-hsl__title {
+          font-size: clamp(30px, 6vw, ${c.num(p.titleSize, 58)}px);
+          font-weight: 800; line-height: 1.06; letter-spacing: -.025em; text-wrap: balance;
+        }
+        ${s} .cb-hsl__sub { font-size: clamp(16px, 2.2vw, 19px); opacity: .9; max-width: 54ch; }
+        ${s} .cb-hsl__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; justify-content: ${flex}; }
+
+        ${sel}
+
+        ${s} .cb-hsl__controls {
+          position: relative; z-index: 3; width: 100%;
+          display: flex; align-items: center; justify-content: center; gap: 16px;
+          padding: 0 20px 26px; flex-wrap: wrap;
+        }
+        ${s} .cb-hsl__arrows { display: flex; gap: 8px; }
+        ${s} .cb-hsl__arrow, ${s} .cb-hsl__play {
+          width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+          background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.32);
+          color: ${p.textColor}; font-size: 22px; line-height: 1;
+          backdrop-filter: blur(6px); transition: background .2s ease;
+        }
+        ${s} .cb-hsl__arrow:hover, ${s} .cb-hsl__play:hover { background: rgba(255,255,255,.3); }
+        ${s} .cb-hsl__arrow[disabled] { opacity: .35; cursor: not-allowed; }
+        ${s} .cb-hsl__playIcon {
+          width: 11px; height: 13px; background: currentColor;
+          clip-path: polygon(0 0, 35% 0, 35% 100%, 0 100%, 0 0, 65% 0, 100% 0, 100% 100%, 65% 100%, 65% 0);
+        }
+        ${s} .cb-hsl__play[data-playing="0"] .cb-hsl__playIcon { clip-path: polygon(0 0, 100% 50%, 0 100%); width: 12px; }
+
+        ${s} .cb-hsl__dots {
+          display: flex; gap: 9px; border: 0; padding: 0; margin: 0; min-inline-size: 0;
+        }
+        ${s} .cb-hsl__dot { display: grid; place-items: center; cursor: pointer; position: relative; }
+        /* 44px target regardless of how small the dot is drawn. */
+        ${s} .cb-hsl__dot::after {
+          content: ""; position: absolute; left: 50%; top: 50%;
+          width: 44px; height: 44px; translate: -50% -50%;
+        }
+        ${s} .cb-hsl__radio { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+        ${s} .cb-hsl__dotMark {
+          display: block; width: 10px; height: 10px; border-radius: 5px;
+          background: rgba(255,255,255,.45); transition: background .25s ease, width .25s ease;
+        }
+        ${s} .cb-hsl__radio:focus-visible ~ .cb-hsl__dotMark {
+          outline: 3px solid ${p.textColor}; outline-offset: 4px;
+        }
+        ${s} .cb-hsl__counter { font-size: .85em; font-variant-numeric: tabular-nums; opacity: .75; }
+
+        ${c.pin([s + ' .cb-hsl__eyebrow', s + ' .cb-hsl__title', s + ' .cb-hsl__sub',
+                 s + ' .cb-btn--ghost', s + ' .cb-hsl__counter'], p.textColor)}
+
+        /* Nothing checked — a duplicated radio group would do this — still shows
+           the first banner rather than a black box. */
+        ${s}:not(:has(.cb-hsl__radio:checked)) .cb-hsl__slide[data-i="0"] { ${enter} z-index: 1; }
+        @supports not selector(:has(*)) {
+          ${s} .cb-hsl__slide[data-i="0"] { ${enter} z-index: 1; }
+        }
+        @media (max-width: 640px) {
+          ${s} .cb-hsl__content { align-items: flex-start; text-align: left; margin-inline: 0; }
+          ${s} .cb-hsl__actions { justify-content: flex-start; width: 100%; }
+          ${s} .cb-hsl__actions .cb-btn { flex: 1 1 auto; }
+          ${s} .cb-hsl__inner { padding-block: 60px 100px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          ${s} .cb-hsl__slide { transition: opacity .01ms, visibility .01ms; transform: none !important; }
+        }`;
+
+      var js = c.wrap(c.cls, `
+        var radios = Array.prototype.slice.call(root.querySelectorAll(".cb-hsl__radio"));
+        if (radios.length < 2) return;
+
+        /* Radio groups are document-wide, so a duplicated paste would otherwise
+           share one selection between both banners. */
+        if (copy > 0) radios.forEach(function (r) { r.name = r.name + "-" + copy; });
+
+        var arrows = root.querySelector(".cb-hsl__arrows");
+        var play = root.querySelector(".cb-hsl__play");
+        var counter = root.querySelector(".cb-hsl__counter");
+        var stage = root.querySelector(".cb-hsl__stage");
+        var loop = ${p.loop ? 'true' : 'false'};
+        var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        function index() {
+          for (var i = 0; i < radios.length; i++) if (radios[i].checked) return i;
+          return 0;
+        }
+        function go(i) {
+          if (loop) i = (i + radios.length) % radios.length;
+          else i = Math.max(0, Math.min(i, radios.length - 1));
+          radios[i].checked = true;
+          radios[i].dispatchEvent(new Event("change", { bubbles: true }));
+          sync();
+        }
+        function sync() {
+          var i = index();
+          if (counter) counter.textContent = (i + 1) + " / " + radios.length;
+          var prev = root.querySelector(".cb-hsl__prev");
+          var next = root.querySelector(".cb-hsl__next");
+          if (prev && !loop) prev.disabled = i === 0;
+          if (next && !loop) next.disabled = i === radios.length - 1;
+        }
+
+        /* Arrows are markup-hidden until scripts run, so they never sit there
+           as dead controls where JavaScript has been stripped. */
+        if (arrows) {
+          arrows.hidden = false;
+          root.querySelector(".cb-hsl__prev").addEventListener("click", function () { stop(); go(index() - 1); });
+          root.querySelector(".cb-hsl__next").addEventListener("click", function () { stop(); go(index() + 1); });
+        }
+        radios.forEach(function (r) { r.addEventListener("change", sync); });
+
+        /* ---- rotation ---- */
+        var timer = null;
+        var wanted = ${p.autoplay ? 'true' : 'false'} && !reduced;
+
+        function tick() { go(index() + 1); }
+        function start() {
+          if (!wanted || timer) return;
+          timer = setInterval(tick, ${c.num(p.interval, 6) * 1000});
+          if (play) { play.setAttribute("data-playing", "1"); play.setAttribute("aria-label", "Pause banner rotation"); }
+          if (stage) stage.setAttribute("aria-live", "off");
+        }
+        function stop() {
+          if (!timer) return;
+          clearInterval(timer); timer = null;
+          if (play) { play.setAttribute("data-playing", "0"); play.setAttribute("aria-label", "Start banner rotation"); }
+          if (stage) stage.setAttribute("aria-live", "polite");
+        }
+
+        /* Autoplay only ever appears alongside its pause control — WCAG 2.2.2
+           requires a way to stop motion that starts on its own. */
+        if (play && wanted) {
+          play.hidden = false;
+          play.addEventListener("click", function () { if (timer) { stop(); } else { start(); } });
+        }
+
+        function suspend() { if (timer) { clearInterval(timer); timer = null; } }
+        function resume() {
+          if (!wanted || timer) return;
+          if (play && play.getAttribute("data-playing") !== "1") return;
+          if (root.contains(document.activeElement)) return;
+          timer = setInterval(tick, ${c.num(p.interval, 6) * 1000});
+        }
+        root.addEventListener("mouseenter", suspend);
+        root.addEventListener("mouseleave", resume);
+        root.addEventListener("focusin", suspend);
+        root.addEventListener("focusout", function () { setTimeout(resume, 0); });
+
+        /* Pause while off-screen so a hero at the top of a long page is not
+           cycling images nobody can see. */
+        if ("IntersectionObserver" in window) {
+          new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) { if (e.isIntersecting) resume(); else suspend(); });
+          }, { threshold: 0.2 }).observe(root);
+        }
+
+        sync();
+        start();`);
+
+      return { html: html, css: css, js: js };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
   /* CTA Banner                                                             */
   /* --------------------------------------------------------------------- */
   CB.register({
