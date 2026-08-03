@@ -16,11 +16,12 @@ Double-click `index.html`. That's it — it works from `file://`.
 
 ---
 
-## The 24 components
+## The 25 components
 
 | Category | Component | Notes |
 |---|---|---|
 | **Heroes & Banners** | Parallax Banner | `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't |
+| | Hero Slider | Multiple banners that rotate. Dots work with no JS; autoplay always ships with a pause control |
 | | Video Hero | Muted looping background video, poster fallback, pause control |
 | | Split Hero | Copy + image, reversible, optional tick list |
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
@@ -94,18 +95,18 @@ If a pasted block picks up the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-24 components, 192 round-trips.
+25 components, 200 round-trips.
 
 | Insertion path | Fully working | Keeps CSS | Keeps JS |
 |---|---|---|---|
-| **Code / embed block** (verbatim) | **24/24** | yes | yes |
-| **TinyMCE**, permissive config | **24/24** | yes | yes |
-| **DOMPurify**, style+script allowed | **24/24** | yes | yes |
-| GrapesJS (page builder) | 14/24 | yes | no |
-| DOMPurify, defaults | 14/24 | yes | no |
-| TinyMCE, stock config | 4/24 | no | no |
-| `wp_kses_post` (approximated) | 4/24 | no | no |
-| Quill | 0/24 | no | no |
+| **Code / embed block** (verbatim) | **25/25** | yes | yes |
+| **TinyMCE**, permissive config | **25/25** | yes | yes |
+| **DOMPurify**, style+script allowed | **25/25** | yes | yes |
+| GrapesJS (page builder) | 14/25 | yes | no |
+| DOMPurify, defaults | 14/25 | yes | no |
+| TinyMCE, stock config | 4/25 | no | no |
+| `wp_kses_post` (approximated) | 4/25 | no | no |
+| Quill | 0/25 | no | no |
 
 The pattern is consistent and worth internalising:
 
@@ -136,6 +137,9 @@ Interactive components follow the [WAI-ARIA Authoring Practices](https://www.w3.
   and pause on hover and focus.
 - **Video Hero** — a pause control, because WCAG 2.2.2 requires one for motion
   that runs over five seconds.
+- **Hero Slider** — auto-rotation never ships without a visible pause control, for
+  the same reason. Dots are real radios, hidden banners use `visibility: hidden` so
+  their links stay out of the focus order, and any user interaction halts rotation.
 - **Countdown** — announces remaining time once a minute; a per-second live region
   is unusable with a screen reader.
 - Every component respects `prefers-reduced-motion`, and the marquee and parallax
@@ -227,7 +231,7 @@ js/inspector.js         Schema → property panel
 js/export.js            Code assembly, minifier, preview document, platform notes
 js/app.js               State, history, persistence, wiring
 js/components/
-  heroes.js             parallax-banner, video-hero, split-hero, cta-banner
+  heroes.js             parallax-banner, video-hero, split-hero, cta-banner, hero-slider
   content.js            card-grid, feature-grid, stats-counter, timeline, pricing
   interactive.js        accordion, tabs, carousel, testimonials
   media.js              before-after, gallery, logo-marquee, countdown, video-embed
@@ -307,6 +311,8 @@ Current Chrome, Edge, Firefox and Safari. Uses `:has()`, `inert`, `<dialog>`,
 `aspect-ratio`, `color-mix()`, scroll-snap and `IntersectionObserver` — all baseline
 since 2023. Components degrade rather than break on older engines: the carousel still
 scrolls, the accordion still opens, the lightbox falls back to a non-modal panel.
+
+
 
 
 

@@ -48,6 +48,57 @@ window.CBProbe = (function () {
     t.ok('scroll handler bound', root.hasAttribute('data-cb-ready'));
   });
 
+  register('hero-slider', function (root, t) {
+    var radios = qa(root, '.cb-hsl__radio');
+    var slides = qa(root, '.cb-hsl__slide');
+    t.ok('banners rendered', slides.length >= 2, slides.length + ' banners');
+    t.ok('one dot per banner', radios.length === slides.length);
+    t.ok('section marked as a carousel', root.getAttribute('aria-roledescription') === 'carousel');
+    t.ok('slides carry APG roles',
+         slides[0].getAttribute('role') === 'group' &&
+         slides[0].getAttribute('aria-roledescription') === 'slide' &&
+         /1 of/.test(slides[0].getAttribute('aria-label') || ''));
+
+    if (!CSS.supports('selector(:has(*))')) { t.skip(':has() unsupported here'); return; }
+
+    slides.forEach(function (s) { s.style.transition = 'none'; });
+    function active() {
+      return slides.findIndex(function (s) { return getComputedStyle(s).visibility === 'visible'; });
+    }
+    t.ok('first banner shown initially', active() === 0, String(active()));
+
+    radios[2] && radios[2].click();
+    t.ok('dots switch banner without JavaScript', active() === 2, String(active()));
+    t.ok('exactly one banner visible',
+         slides.filter(function (s) { return getComputedStyle(s).visibility === 'visible'; }).length === 1);
+
+    // Hidden banners must be out of the focus order, not merely transparent.
+    var hidden = slides[0];
+    var link = hidden.querySelector('a');
+    if (link) {
+      link.focus();
+      t.ok('links in hidden banners are not focusable', document.activeElement !== link);
+    } else { t.skip('no link in the hidden banner'); }
+
+    // Autoplay must never ship without its pause control (WCAG 2.2.2).
+    var play = q(root, '.cb-hsl__play');
+    if (play) {
+      t.ok('pause control is revealed alongside autoplay', play.hidden === false);
+      var before = play.getAttribute('data-playing');
+      click(play);
+      t.ok('pause control toggles state', play.getAttribute('data-playing') !== before,
+           before + ' -> ' + play.getAttribute('data-playing'));
+      t.ok('live region opens up when rotation stops',
+           q(root, '.cb-hsl__stage').getAttribute('aria-live') === 'polite');
+      click(play);
+    } else { t.skip('autoplay disabled'); }
+
+    radios.forEach(function (r) { r.checked = false; });
+    t.ok('never blank when nothing is checked', active() === 0, String(active()));
+    radios[0].checked = true;
+    slides.forEach(function (s) { s.style.transition = ''; });
+  });
+
   register('video-hero', function (root, t) {
     t.ok('poster or video present', !!q(root, '.cb-vh__media img, .cb-vh__media video'));
     t.ok('headline rendered', !!q(root, '.cb-vh__title'));
