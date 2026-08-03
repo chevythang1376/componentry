@@ -36,6 +36,11 @@ section { padding: 40px; border: 3px dashed #ff9900; }
 header { background: #000 !important; color: #fff !important;
          padding: 24px !important; border-bottom: 4px solid #ff9900 !important; }
 article { background: #222; border: 2px solid red; }
+/* Themes hang decorative underlines off headings this way. Left unreset it
+   lifts just the h2 above a fixed header while its h3 siblings scroll under
+   correctly — the confusing half-broken case reported from SmartEdit. */
+h2 { position: relative; z-index: 5; }
+span { position: relative; z-index: 6; }
 button { border: 2px groove #888; background: #ddd; padding: 12px; font-family: inherit; }
 figure, blockquote { margin: 3em; }
 video { width: 100% !important; }
@@ -287,6 +292,24 @@ video { width: 100% !important; }
     window.scrollTo(0, saved);
     check('animated block never paints over a z-indexed fixed header',
           sampled > 0 && overlaps === 0, overlaps + ' overlaps across ' + sampled + ' samples');
+
+    /* The theme positions h2 and span above. Neither may inherit that, or a
+       single heading floats over the site header while everything around it
+       behaves. */
+    var h2 = document.querySelector('#paste-a .cb-cg__title');
+    check('theme cannot position a component heading',
+          cs(h2, 'position') === 'static' && cs(h2, 'z-index') === 'auto',
+          cs(h2, 'position') + ' / ' + cs(h2, 'z-index'));
+    var anySpan = document.querySelector('#paste-a .cb-cg__meta');
+    check('theme cannot position component text spans',
+          cs(anySpan, 'position') === 'static', cs(anySpan, 'position'));
+    check('component root cannot be positioned by the theme',
+          cs(document.querySelector('#paste-a .cb-cg'), 'position') === 'static',
+          cs(document.querySelector('#paste-a .cb-cg'), 'position'));
+    /* ...while deliberate positioning inside components still works. */
+    check('component keeps its own absolute positioning',
+          cs(document.querySelector('#paste-a .cb-pr__badge'), 'position') === 'absolute',
+          cs(document.querySelector('#paste-a .cb-pr__badge'), 'position'));
     check('fixed header keeps its stacking position',
           getComputedStyle(nav).zIndex === '10', getComputedStyle(nav).zIndex);
     reveal.remove(); st.remove();
@@ -390,6 +413,8 @@ video { width: 100% !important; }
 </script>
 </body>
 </html>
+
+
 
 
 

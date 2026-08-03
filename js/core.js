@@ -248,6 +248,10 @@ window.CB = (function () {
         padding: 0;
         box-shadow: none;
         float: none;
+        /* A theme that positions the block would lift it into the same paint
+           layer as a fixed header and let it scroll over the top. */
+        position: static;
+        z-index: auto;
       }
       /* The big one: a theme rule such as header { background: #000 } for the
          site masthead paints a black box behind any heading block that uses
@@ -265,6 +269,8 @@ window.CB = (function () {
         float: none;
         width: auto;
         min-height: 0;
+        position: static;
+        z-index: auto;
       }
       /* Heading wrappers are the one place a host background is always wrong:
          a masthead rule like header{background:#000!important} paints a black
@@ -288,6 +294,13 @@ window.CB = (function () {
       ${s} span, ${s} blockquote, ${s} figcaption, ${s} strong, ${s} em, ${s} small, ${s} cite {
         font-family: inherit; color: inherit; line-height: inherit;
         letter-spacing: inherit; text-transform: none; text-indent: 0;
+        /* Themes routinely do h2 { position: relative; z-index: 2 } to hang a
+           decorative underline off a heading. Left alone, that promotes just
+           that heading above a fixed site header while its siblings scroll
+           under correctly — the confusing half-broken case. Components that
+           genuinely need a positioned heading set it on their own class, which
+           out-ranks this. */
+        position: static; z-index: auto;
       }
       ${s} ul, ${s} ol { margin: 0; padding: 0; list-style: none; }
       ${s} img, ${s} video, ${s} svg, ${s} iframe { display: block; max-width: 100%; }
