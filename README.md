@@ -80,8 +80,15 @@ is left overridable on purpose; this is used only where failure would hide conte
 
 ### If a block scrolls *over* your site header
 
-Symptom: with **Reveal on scroll** enabled, the block slides over the fixed navigation
-instead of under it.
+Two different causes, with different symptoms.
+
+**One heading floats over the header while everything around it behaves.** Themes very
+commonly write `h2 { position: relative; z-index: 2 }` to hang a decorative underline off
+a heading. That promotes only that heading into the header's paint layer. The reset now
+returns `position` and `z-index` to their defaults for headings, text and the block
+root, so this is fixed — re-export and re-paste to pick it up.
+
+**The whole block slides over the header, with Reveal on scroll enabled.**
 
 Cause is on the host side, and it is a one-line fix. Animating an element promotes it
 into the same paint layer as positioned elements. If your fixed header has no `z-index`,
@@ -360,6 +367,7 @@ Current Chrome, Edge, Firefox and Safari. Uses `:has()`, `inert`, `<dialog>`,
 `aspect-ratio`, `color-mix()`, scroll-snap and `IntersectionObserver` — all baseline
 since 2023. Components degrade rather than break on older engines: the carousel still
 scrolls, the accordion still opens, the lightbox falls back to a non-modal panel.
+
 
 
 
