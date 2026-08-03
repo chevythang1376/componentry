@@ -33,7 +33,30 @@
     { k: 'scale', t: 'range', label: 'Base size', min: 85, max: 120, step: 1, unit: '%' },
     { t: 'section', label: 'Shape' },
     { k: 'radius', t: 'range', label: 'Corner radius', min: 0, max: 32, step: 1, unit: 'px' },
-    { k: 'maxWidth', t: 'range', label: 'Content width', min: 720, max: 1600, step: 20, unit: 'px' }
+    { k: 'maxWidth', t: 'range', label: 'Content width', min: 720, max: 1600, step: 20, unit: 'px' },
+
+    { t: 'section', label: 'Buttons' },
+    {
+      k: 'btnPill', t: 'toggle', label: 'Fully rounded (pill)', value: false,
+      help: 'Overrides the corner radius below.'
+    },
+    { k: 'btnRadius', t: 'range', label: 'Button corners', min: 0, max: 32, step: 1, unit: 'px', when: { btnPill: [false] } },
+    {
+      k: 'btnSize', t: 'select', label: 'Size',
+      options: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']]
+    },
+    { k: 'btnWeight', t: 'range', label: 'Label weight', min: 400, max: 800, step: 50 },
+    { k: 'btnUpper', t: 'toggle', label: 'Uppercase labels', value: false },
+    { k: 'btnTracking', t: 'range', label: 'Letter spacing', min: -2, max: 16, step: 1, unit: '/100em' },
+    {
+      k: 'btnBorder', t: 'range', label: 'Outline thickness', min: 1, max: 4, step: 1, unit: 'px',
+      help: 'Applies to secondary / outlined buttons.'
+    },
+    {
+      k: 'btnHover', t: 'select', label: 'Hover effect',
+      options: [['lift', 'Lift'], ['darken', 'Darken'], ['none', 'None']]
+    },
+    { k: 'btnShadow', t: 'toggle', label: 'Glow under primary buttons', value: true }
   ];
 
   var PRESETS = [

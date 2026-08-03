@@ -199,6 +199,29 @@ asked for reduced motion. Delete the `animation-timeline` line and nothing disap
 Overrides are emitted with the root's full class list, so they win on specificity and
 source order — no `!important`, and you can still restyle them from your theme.
 
+### Button styling (Design tokens → Buttons)
+
+Buttons come from one shared class, so these are set once and apply to every button in
+every component:
+
+| Control | Range |
+|---|---|
+| **Fully rounded (pill)** | Overrides the corner value below |
+| **Button corners** | 0–32px |
+| **Size** | Small / Medium / Large — scales padding and label size together |
+| **Label weight** | 400–800 |
+| **Uppercase labels** | With a separate letter-spacing control, since caps usually need it |
+| **Outline thickness** | 1–4px, for secondary/outlined buttons |
+| **Hover effect** | Lift / Darken / None |
+| **Glow under primary buttons** | On/off |
+
+Shape and typography flow everywhere. Colour intent set by a component is preserved — the
+pricing table's tier button keeps its own fill and hairline border, and the CTA banner's
+white-on-gradient button stays white, while both still pick up your corner radius and
+letter-spacing.
+
+Defaults reproduce the values that were previously hard-coded, so existing projects look
+identical until you change something.
 ### Behaviour controls worth knowing
 
 - **Accordion → link to individual answers.** Each question gets a shareable `#hash`;
@@ -311,6 +334,7 @@ Current Chrome, Edge, Firefox and Safari. Uses `:has()`, `inert`, `<dialog>`,
 `aspect-ratio`, `color-mix()`, scroll-snap and `IntersectionObserver` — all baseline
 since 2023. Components degrade rather than break on older engines: the carousel still
 scrolls, the accordion still opens, the lightbox falls back to a non-modal panel.
+
 
 
 

@@ -166,13 +166,34 @@ window.CB = (function () {
     fontImport: '',
     radius: 14,
     maxWidth: 1140,
-    scale: 100
+    scale: 100,
+
+    /* Buttons. Defaults reproduce what was previously hard-coded — the old
+       radius was calc(var(--cb-radius) * .72), which is 10px at radius 14 —
+       so existing projects look unchanged until these are touched. */
+    btnRadius: 10,
+    btnPill: false,
+    btnSize: 'md',
+    btnWeight: 650,
+    btnUpper: false,
+    btnTracking: 0,
+    btnBorder: 2,
+    btnHover: 'lift',
+    btnShadow: true
+  };
+
+  var BTN_SIZES = {
+    sm: { py: '.58em', px: '1.1em', fs: '.92em' },
+    md: { py: '.78em', px: '1.5em', fs: '1em' },
+    lg: { py: '.95em', px: '1.9em', fs: '1.06em' }
   };
 
   function fontStack(t) {
     if (t.font === 'custom') return t.fontCustom || FONT_STACKS.system;
     return FONT_STACKS[t.font] || FONT_STACKS.system;
   }
+
+  function btnSize(t) { return BTN_SIZES[t.btnSize] || BTN_SIZES.md; }
 
   /* Tokens live ON the component wrapper, never on :root — so an export
      dropped into a WYSIWYG page cannot leak variables into the host site. */
@@ -191,6 +212,18 @@ window.CB = (function () {
         --cb-max: ${num(t.maxWidth, 1140)}px;
         --cb-font: ${fontStack(t)};
         --cb-fs: ${(num(t.scale, 100) / 100 * 16).toFixed(2)}px;
+
+        --cb-btn-radius: ${t.btnPill ? '999px' : num(t.btnRadius, 10) + 'px'};
+        --cb-btn-py: ${btnSize(t).py};
+        --cb-btn-px: ${btnSize(t).px};
+        --cb-btn-fs: ${btnSize(t).fs};
+        --cb-btn-weight: ${num(t.btnWeight, 650)};
+        --cb-btn-transform: ${t.btnUpper ? 'uppercase' : 'none'};
+        --cb-btn-tracking: ${(num(t.btnTracking, 0) / 100).toFixed(3)}em;
+        --cb-btn-border: ${num(t.btnBorder, 2)}px;
+        --cb-btn-lift: ${t.btnHover === 'lift' ? '-2px' : '0px'};
+        --cb-btn-filter: ${t.btnHover === 'darken' ? 'brightness(.9)' : 'none'};
+        --cb-btn-shadow: ${t.btnShadow ? '0 6px 18px -6px var(--cb-brand)' : 'none'};
       }`);
   }
 
@@ -266,18 +299,32 @@ window.CB = (function () {
       }
       ${s} a { color: inherit; text-decoration: none; }
       ${s} .cb-wrap { width: 100%; max-width: var(--cb-max); margin-inline: auto; padding-inline: clamp(16px, 5vw, 32px); }
+      /* Every button in every component reads from these, so the Buttons
+         section of the design tokens restyles the whole project at once. */
       ${s} .cb-btn {
         display: inline-flex; align-items: center; justify-content: center; gap: .5em;
-        padding: .78em 1.5em; border-radius: calc(var(--cb-radius) * .72);
-        font-weight: 650; line-height: 1.2; text-decoration: none; cursor: pointer;
-        transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+        padding: var(--cb-btn-py) var(--cb-btn-px);
+        border-radius: var(--cb-btn-radius);
+        font-size: var(--cb-btn-fs);
+        font-weight: var(--cb-btn-weight);
+        text-transform: var(--cb-btn-transform);
+        letter-spacing: var(--cb-btn-tracking);
+        line-height: 1.2; text-decoration: none; cursor: pointer;
+        transition: transform .18s ease, box-shadow .18s ease,
+                    background-color .18s ease, filter .18s ease;
       }
-      ${s} .cb-btn:hover { transform: translateY(-2px); }
+      ${s} .cb-btn:hover {
+        transform: translateY(var(--cb-btn-lift));
+        filter: var(--cb-btn-filter);
+      }
       ${s} .cb-btn:focus-visible, ${s} [class*="cb-"]:focus-visible {
         outline: 3px solid var(--cb-brand); outline-offset: 3px;
       }
-      ${s} .cb-btn--primary { background: var(--cb-brand); color: var(--cb-on-brand); box-shadow: 0 6px 18px -6px var(--cb-brand); }
-      ${s} .cb-btn--ghost { border: 2px solid currentColor; }
+      ${s} .cb-btn--primary {
+        background: var(--cb-brand); color: var(--cb-on-brand);
+        box-shadow: var(--cb-btn-shadow);
+      }
+      ${s} .cb-btn--ghost { border: var(--cb-btn-border) solid currentColor; }
       ${s} .cb-sr {
         position: absolute !important; width: 1px; height: 1px; overflow: hidden;
         clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
