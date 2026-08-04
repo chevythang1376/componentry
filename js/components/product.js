@@ -397,9 +397,9 @@
         }
         ${s} .cb-psc__stepTitle { font-size: clamp(24px, 3.4vw, 38px); font-weight: 780; letter-spacing: -.02em; line-height: 1.15; }
         ${s} .cb-psc__stepText { font-size: 1.05em; color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; }
-        /* stepIn is a flex column with its own gap, so the shared row only
-           needs to top up the spacing rather than supply all of it. */
-        ${s} .cb-psc__stepBtn { margin-top: 6px; }
+        /* stepIn is a flex column with its own gap, so the shared row adds
+           nothing of its own on top of it. */
+        ${s} .cb-psc__stepBtn { margin-top: 0; }
         ${s} .cb-psc__cta { margin-top: clamp(28px, 5vw, 56px); }
 
         @keyframes cb-psc-fade-${c.cls} {
@@ -488,8 +488,7 @@
             <p class="cb-spec__value">${c.esc(it.value)}</p>
             <p class="cb-spec__label">${c.esc(it.label)}</p>
             ${it.note ? '<p class="cb-spec__note">' + c.esc(it.note) + '</p>' : ''}
-            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
-                        { tight: true, align: p.align === 'center' ? 'center' : '' })}
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true })}
           </li>`);
       }).join('\n');
 

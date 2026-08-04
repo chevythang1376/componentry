@@ -204,9 +204,27 @@ video { width: 100% !important; }
      of building them in CSS. */
   check('bento grid laid out as a grid',
         cs(document.querySelector('#paste-a .cb-bn__grid'), 'display') === 'grid');
-  check('sticky cards actually sticky',
-        cs(document.querySelector('#paste-a .cb-stk__item'), 'position') === 'sticky',
-        cs(document.querySelector('#paste-a .cb-stk__item'), 'position'));
+  /* Pinning is a desktop behaviour — under 640px the stack deliberately falls
+     back to plain flow. Measured in a sized iframe so the result doesn't depend
+     on however wide the window running this happens to be. */
+  (function () {
+    var built = CB.build({ uid: 'stk', cls: 'cb-stk-probe', type: 'sticky-stack',
+                           props: CB.defaults(CB.get('sticky-stack')) }, CB.DEFAULT_TOKENS);
+    [[1280, 'sticky'], [480, 'static']].forEach(function (row) {
+      var f = document.createElement('iframe');
+      f.style.cssText = 'width:' + row[0] + 'px;height:800px;border:0;position:absolute;left:-99999px;';
+      document.body.appendChild(f);
+      var fd = f.contentDocument;
+      fd.open();
+      fd.write('<!doctype html><html><head><style>html,body{margin:0}' + built.css +
+               '</style></head><body>' + built.html + '</body></html>');
+      fd.close();
+      var pos = f.contentWindow.getComputedStyle(fd.querySelector('.cb-stk__item')).position;
+      check('sticky cards ' + (row[1] === 'sticky' ? 'pin on desktop' : 'release under 640px'),
+            pos === row[1], pos + ' at ' + row[0] + 'px');
+      f.remove();
+    });
+  })();
 
   /* Radio groups are document-wide, so two pasted copies sharing a name would
      fight over the selection. The block works with no JavaScript; the tiny
@@ -473,6 +491,67 @@ video { width: 100% !important; }
             host.querySelectorAll('button a').length === 0,
             host.querySelectorAll('button a').length + ' nested');
     });
+
+    /* Buttons must follow the alignment of whatever they sit in. A flex row
+       would ignore text-align, which is how a button ended up left-justified
+       inside a right-aligned timeline card. Measured in an iframe because
+       these cases are behind desktop media queries and the test page's own
+       viewport is not wide enough to trigger them. */
+    (function () {
+      var cases = [
+        // id, props, container class, where the button must sit
+        ['timeline',        { layout: 'alternating' }, 'cb-tl__card',  'right',  0],
+        ['timeline',        { layout: 'alternating' }, 'cb-tl__card',  'left',   1],
+        ['timeline',        { layout: 'left' },        'cb-tl__card',  'left',   0],
+        ['testimonials',    { variant: 'card' },       'cb-tm__item',  'center', 0],
+        ['testimonials',    { variant: 'centered' },   'cb-tm__item',  'center', 0],
+        ['feature-grid',    { itemAlign: 'left' },     'cb-fg__item',  'left',   0],
+        ['feature-grid',    { itemAlign: 'center' },   'cb-fg__item',  'center', 0],
+        ['spec-strip',      { align: 'left' },         'cb-spec__item','left',   0],
+        ['finish-switcher', { layout: 'stacked' },     'cb-fin__copy', 'center', 0],
+        ['finish-switcher', { layout: 'split' },       'cb-fin__copy', 'left',   0]
+      ];
+
+      var css = [], html = [];
+      cases.forEach(function (row, n) {
+        var props = CB.defaults(CB.get(row[0]));
+        Object.keys(row[1]).forEach(function (k) { props[k] = row[1][k]; });
+        props.btnText = 'Section CTA';
+        props.btnUrl = '#';
+        if (props.items) props.items = props.items.map(function (it) {
+          return Object.assign({}, it, { btnText: 'Item CTA', btnUrl: '#' });
+        });
+        var built = CB.build({ uid: 'al' + n, cls: 'cb-al-' + n, type: row[0], props: props },
+                             CB.DEFAULT_TOKENS);
+        css.push(built.css);
+        html.push('<div data-case="' + n + '">' + built.html + '</div>');
+      });
+
+      var f = document.createElement('iframe');
+      f.style.cssText = 'width:1280px;height:800px;border:0;position:absolute;left:-99999px;top:0;';
+      document.body.appendChild(f);
+      var fd = f.contentDocument;
+      fd.open();
+      fd.write('<!doctype html><html><head><style>html,body{margin:0}' + css.join('\n') +
+               '</style></head><body>' + html.join('\n') + '</body></html>');
+      fd.close();
+
+      cases.forEach(function (row, n) {
+        var box = fd.querySelector('[data-case="' + n + '"]');
+        var holders = box.querySelectorAll('.' + row[2]);
+        var holder = holders[row[4]];
+        var label = row[0] + ' ' + JSON.stringify(row[1]) + ' .' + row[2] + '[' + row[4] + ']';
+        if (!holder) { check(label + ' present', false, 'not found'); return; }
+        var rowEl = holder.querySelector('.cb-actions');
+        var btn = rowEl && rowEl.querySelector('.cb-btn');
+        if (!btn) { check(label + ' has a button', false, 'none'); return; }
+        var pr = rowEl.getBoundingClientRect(), br = btn.getBoundingClientRect();
+        var l = Math.round(br.left - pr.left), r = Math.round(pr.right - br.right);
+        var sits = Math.abs(l - r) < 4 ? 'center' : (l < r ? 'left' : 'right');
+        check(label + ' button sits ' + row[3], sits === row[3], 'sits ' + sits);
+      });
+      f.remove();
+    })();
 
     // A blank label must leave nothing behind — no empty row taking up space.
     var blank = CB.build({ uid: 'blank', cls: 'cb-blank', type: 'pinned-product',

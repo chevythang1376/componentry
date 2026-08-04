@@ -389,15 +389,31 @@ window.CB = (function () {
       }
       ${s} .cb-btn--ghost { border: var(--cb-btn-border) solid currentColor; }
       /* Shared CTA row. Only ever present when a button label was filled in,
-         so its margin never adds phantom space to a button-less block. */
-      ${s} .cb-actions {
-        display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px;
-      }
-      ${s} .cb-actions--center { justify-content: center; }
-      ${s} .cb-actions--end { justify-content: flex-end; }
+         so its margin never adds phantom space to a button-less block.
+
+         Deliberately a block, not a flex row. Buttons are inline-level, so
+         they follow the container's own text-align — which means a button
+         dropped into a right-aligned timeline card, or a centred quote, lands
+         correctly without the component having to restate the alignment. A
+         flex row can't do that: flex containers ignore text-align, so every
+         placement would have to pass its alignment down by hand and would
+         silently go wrong the moment the surrounding alignment changed.
+
+         The margin is split between row and button so wrapped lines keep an
+         even rhythm: 12 + 10 = the 22px the row sits below its content. */
+      ${s} .cb-actions { margin-top: 12px; }
+      /* Several item containers are flex columns with their own align-items.
+         Without this the row would be shrink-wrapped and positioned by the
+         flex axis, so text-align would never get a say. Stretching hands
+         alignment back to text-align in every context. */
+      ${s} .cb-actions { align-self: stretch; }
+      ${s} .cb-actions .cb-btn { margin-top: 10px; }
+      ${s} .cb-actions .cb-btn + .cb-btn { margin-left: 12px; }
+      ${s} .cb-actions--center { text-align: center; }
+      ${s} .cb-actions--end { text-align: right; }
       /* Inside a repeating item — a card, a milestone, an answer panel — the
          button sits closer than it would at the foot of a whole section. */
-      ${s} .cb-actions--tight { margin-top: 14px; }
+      ${s} .cb-actions--tight { margin-top: 4px; }
       ${s} .cb-sr {
         position: absolute !important; width: 1px; height: 1px; overflow: hidden;
         clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
