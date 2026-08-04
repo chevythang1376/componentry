@@ -78,6 +78,12 @@ inheritance is catastrophic: a black title inside a black box. Every place where
 text sits on a dark surface therefore declares its colour defensively. Everything else
 is left overridable on purpose; this is used only where failure would hide content.
 
+The same reasoning covers solid buttons. `a { color: #ff0000 !important }` is one of the
+commonest theme rules there is, and a button paints its own background, so an overridden
+label colour lands red-on-brand at about 1.2:1 — unreadable. Solid button labels are
+defended the same way; outlined buttons are not, because they inherit from whatever
+surface they sit on.
+
 ### If a block scrolls *over* your site header
 
 Two different causes, with different symptoms.
@@ -268,6 +274,32 @@ letter-spacing.
 
 Defaults reproduce the values that were previously hard-coded, so existing projects look
 identical until you change something.
+
+### Optional buttons
+
+Blocks that used to have no call to action now carry a **Button** section: a label and a
+link, and on some blocks an alignment choice.
+
+**Leave the label empty and no button is rendered** — no empty element, no leftover
+spacing. That's the whole toggle; there's no separate on/off switch to keep in sync.
+
+| Block | Where the button sits |
+|---|---|
+| Pinned Product Scroller | Below the last step — **plus one per step**, each independently optional |
+| Spec Strip | Below the specs (a datasheet link fits well) |
+| Finish Switcher | With the copy |
+| Feature Grid | Below the grid |
+| Stats Counter | Below the numbers |
+| Timeline | After the last milestone |
+| Testimonial Slider | Below the controls |
+| Before / After Slider | Below the comparison |
+| Gallery | Below the grid |
+| Video Embed | Below the video |
+| Accordion / FAQ | Below the questions |
+
+These use the same shared class as every other button, so they pick up the Buttons
+tokens above without any extra work.
+
 ### Behaviour controls worth knowing
 
 - **Accordion → link to individual answers.** Each question gets a shareable `#hash`;
@@ -308,8 +340,8 @@ js/components/
   product.js            finish-switcher, pinned-product, spec-strip
   diagram.js            hotspot-diagram
 test/
-  gallery.html          Renders all 18 through the real export path; reports failures
-  hostile-host.html     Pastes exports into a deliberately awful theme; 27 assertions
+  gallery.html          Renders all 25 through the real export path; reports failures
+  hostile-host.html     Pastes exports into a deliberately awful theme; 87 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         144 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,

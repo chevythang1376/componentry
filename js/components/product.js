@@ -51,6 +51,11 @@
       { k: 'swatchSize', t: 'range', label: 'Swatch size', min: 24, max: 64, step: 2, unit: 'px', value: 40 },
       { k: 'showName', t: 'toggle', label: 'Show the selected finish name', value: true },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits with the copy — “Request a sample” fits well here. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'tone', t: 'select', label: 'Tone', value: 'light', options: [['light', 'Light'], ['dark', 'Dark']] },
       { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
@@ -91,6 +96,7 @@
               ${p.eyebrow ? '<p class="cb-fin__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
               ${p.title ? '<h2 class="cb-fin__title">' + c.rich(p.title) + '</h2>' : ''}
               ${p.sub ? '<p class="cb-fin__sub">' + c.rich(p.sub) + '</p>' : ''}
+              ${c.actions([{ text: p.btnText, url: p.btnUrl }])}
             </div>
             <div class="cb-fin__main">
               <div class="cb-fin__stage">
@@ -228,13 +234,22 @@
       { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Built to last' },
       { k: 'title', t: 'text', label: 'Section title', value: 'Engineered end to end' },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the last step. Leave empty for no button — each step can also carry its own.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+      { k: 'btnAlign', t: 'select', label: 'Button alignment', value: 'start',
+        options: [['start', 'Left'], ['center', 'Centre']] },
+
       { t: 'section', label: 'Steps' },
       {
         k: 'items', t: 'list', label: 'Steps', itemLabel: 'title',
         fields: [
           { k: 'title', t: 'text', label: 'Step title', value: 'Step title' },
           { k: 'text', t: 'textarea', label: 'Step copy', value: 'One idea per step. Keep it to a sentence or two — the product is doing the talking.' },
-          { k: 'image', t: 'image', label: 'Product shot for this step', value: CB.ph(1000, 1000, '', '#96694c', '#2b241f') }
+          { k: 'image', t: 'image', label: 'Product shot for this step', value: CB.ph(1000, 1000, '', '#96694c', '#2b241f') },
+          { k: 'btnText', t: 'text', label: 'Button label', value: '', help: 'Leave empty for no button on this step.' },
+          { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' }
         ],
         value: [
           { title: 'Solid conductor', text: 'Drawn to tolerance and annealed for a consistent bend radius, pull after pull.', image: CB.ph(1000, 1000, '', '#96694c', '#2b241f') },
@@ -277,6 +292,7 @@
               <span class="cb-psc__num" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>
               <h3 class="cb-psc__stepTitle">${c.esc(it.title)}</h3>
               ${it.text ? '<p class="cb-psc__stepText">' + c.rich(it.text) + '</p>' : ''}
+              ${c.actions([{ text: it.btnText, url: it.btnUrl }], { cls: 'cb-psc__stepBtn' })}
             </div>
           </li>`);
       }).join('\n');
@@ -298,6 +314,7 @@
         ${c.indent(steps, 8)}
               </ol>
             </div>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.btnAlign === 'center' ? 'center' : '', cls: 'cb-psc__cta' })}
           </div>
         </section>`);
 
@@ -361,6 +378,10 @@
         }
         ${s} .cb-psc__stepTitle { font-size: clamp(24px, 3.4vw, 38px); font-weight: 780; letter-spacing: -.02em; line-height: 1.15; }
         ${s} .cb-psc__stepText { font-size: 1.05em; color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; }
+        /* stepIn is a flex column with its own gap, so the shared row only
+           needs to top up the spacing rather than supply all of it. */
+        ${s} .cb-psc__stepBtn { margin-top: 6px; }
+        ${s} .cb-psc__cta { margin-top: clamp(28px, 5vw, 56px); }
 
         @keyframes cb-psc-fade-${c.cls} {
           0% { opacity: 0; }
@@ -423,6 +444,11 @@
         ]
       },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the specs — a datasheet or spec-sheet link fits well here. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'align', t: 'select', label: 'Alignment', value: 'center', options: [['center', 'Center'], ['left', 'Left']] },
       { k: 'divider', t: 'toggle', label: 'Hairline dividers', value: true },
@@ -453,6 +479,7 @@
             <ul class="cb-spec__row">
         ${c.indent(cells, 6)}
             </ul>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.align === 'center' ? 'center' : '' })}
           </div>
         </section>`);
 

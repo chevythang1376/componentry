@@ -50,6 +50,11 @@
       },
       { k: 'schema', t: 'toggle', label: 'Emit FAQPage structured data', value: false, help: 'Adds JSON-LD for rich results. Only use when the content really is a FAQ.' },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the questions — “Still stuck? Talk to us” fits well here. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Variant', value: 'divided', options: [['divided', 'Divided lines'], ['cards', 'Separate cards'], ['boxed', 'Single bordered box']] },
       { k: 'marker', t: 'select', label: 'Marker', value: 'chevron', options: [['chevron', 'Chevron'], ['plus', 'Plus / minus'], ['none', 'None']] },
@@ -106,6 +111,7 @@
             <div class="cb-acc__list">
         ${c.indent(rows, 6)}
             </div>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }])}
           </div>${schema}
         </section>`);
 
@@ -773,6 +779,11 @@ ${p.deepLink ? `
       { k: 'autoplay', t: 'toggle', label: 'Auto-rotate', value: true },
       { k: 'interval', t: 'range', label: 'Interval', min: 3, max: 15, step: 1, unit: 's', value: 7, when: { autoplay: [true] } },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the controls. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Variant', value: 'centered', options: [['centered', 'Centred'], ['card', 'Card']] },
       { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
@@ -825,6 +836,7 @@ ${p.deepLink ? `
               <div class="cb-tm__dots">${dots}</div>
               <button type="button" class="cb-tm__arrow cb-tm__next" aria-label="Next testimonial"><span aria-hidden="true">&#8250;</span></button>
             </div>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: 'center' })}
           </div>
         </section>`);
 

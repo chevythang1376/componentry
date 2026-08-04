@@ -812,9 +812,9 @@ ${c.indent(slides, 12)}
         ${dark ? c.pin([s + ' .cb-cta__title', s + ' .cb-cta__sub', s + ' .cb-btn--ghost'], '#fff') : ''}
         ${s} .cb-cta__primary {
           background: ${dark ? '#fff' : 'var(--cb-brand)'};
-          color: ${dark ? 'var(--cb-ink)' : 'var(--cb-on-brand)'};
           box-shadow: 0 8px 22px -10px rgba(0,0,0,.5);
         }
+        ${c.pin([s + ' .cb-cta__primary'], dark ? 'var(--cb-ink)' : 'var(--cb-on-brand)')}
         @media (max-width: 760px) {
           ${s} .cb-cta__inner { flex-direction: column; align-items: center; text-align: center; }
           ${s} .cb-cta__actions { justify-content: center; width: 100%; }

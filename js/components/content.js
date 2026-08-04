@@ -201,6 +201,11 @@
         ]
       },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the grid. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'cols', t: 'range', label: 'Columns (desktop)', min: 2, max: 4, step: 1, value: 3 },
       { k: 'iconStyle', t: 'select', label: 'Icon treatment', value: 'tint', options: [['tint', 'Tinted circle'], ['solid', 'Solid brand'], ['square', 'Rounded square'], ['bare', 'Bare']] },
@@ -233,6 +238,7 @@
             <ul class="cb-fg__grid">
         ${c.indent(cells, 6)}
             </ul>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.align === 'center' ? 'center' : '' })}
           </div>
         </section>`);
 
@@ -310,6 +316,11 @@
         ]
       },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the numbers. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'cols', t: 'range', label: 'Columns', min: 2, max: 5, step: 1, value: 4 },
       { k: 'duration', t: 'range', label: 'Count duration', min: 400, max: 3000, step: 100, unit: 'ms', value: 1600 },
@@ -343,6 +354,7 @@
             <ul class="cb-st__grid">
         ${c.indent(cells, 6)}
             </ul>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.align === 'center' ? 'center' : '' })}
           </div>
         </section>`);
 
@@ -475,6 +487,13 @@
         ]
       },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits after the last milestone. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+      { k: 'btnAlign', t: 'select', label: 'Button alignment', value: 'center',
+        options: [['center', 'Centre'], ['start', 'Left']] },
+
       { t: 'section', label: 'Style' },
       { k: 'layout', t: 'select', label: 'Layout', value: 'alternating', options: [['alternating', 'Alternating'], ['left', 'Single column']] },
       { k: 'marker', t: 'select', label: 'Marker', value: 'dot', options: [['dot', 'Dot'], ['number', 'Number'], ['ring', 'Ring']] },
@@ -507,6 +526,7 @@
             <ol class="cb-tl__list">
         ${c.indent(rows, 6)}
             </ol>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.btnAlign === 'start' ? '' : 'center' })}
           </div>
         </section>`);
 
@@ -710,13 +730,15 @@
         ${s} .cb-pr__period { color: var(--cb-muted); font-size: .9em; margin-left: 4px; }
         ${s} .cb-pr__cta {
           margin-top: 10px; width: 100%;
-          background: var(--cb-subtle); color: var(--cb-ink); text-decoration: none;
+          background: var(--cb-subtle); text-decoration: none;
           border: 1px solid var(--cb-border);
         }
         ${s} .cb-pr__plan.is-featured .cb-pr__cta {
-          background: var(--cb-brand); color: var(--cb-on-brand); border-color: var(--cb-brand);
+          background: var(--cb-brand); border-color: var(--cb-brand);
           box-shadow: 0 8px 20px -10px var(--cb-brand);
         }
+        ${c.pin([s + ' .cb-pr__cta'], 'var(--cb-ink)')}
+        ${c.pin([s + ' .cb-pr__plan.is-featured .cb-pr__cta'], 'var(--cb-on-brand)')}
         ${s} .cb-pr__feats { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 18px; border-top: 1px solid var(--cb-border); }
         ${s} .cb-pr__feat { display: flex; align-items: flex-start; gap: 10px; font-size: .94em; }
         ${s} .cb-pr__mark { position: relative; flex: 0 0 18px; width: 18px; height: 18px; margin-top: 3px; }

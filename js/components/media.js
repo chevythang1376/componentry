@@ -32,6 +32,11 @@
       { k: 'afterLabel', t: 'text', label: 'After label', value: 'After' },
       { k: 'showLabels', t: 'toggle', label: 'Show labels', value: true },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the comparison. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'start', t: 'range', label: 'Start position', min: 0, max: 100, step: 1, unit: '%', value: 50 },
       { k: 'handleColor', t: 'color', label: 'Handle colour', value: '#ffffff' },
@@ -60,6 +65,7 @@
                      aria-valuetext="${start}% ${c.attr(p.beforeLabel)}">
               <span class="cb-ba__divider" aria-hidden="true"><span class="cb-ba__grip"></span></span>
             </div>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: 'center' })}
           </div>
         </section>`);
 
@@ -194,6 +200,11 @@
       { k: 'lightbox', t: 'toggle', label: 'Enable lightbox', value: true },
       { k: 'captions', t: 'toggle', label: 'Captions on hover', value: true },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the grid — “View the full gallery” fits well here. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
@@ -223,6 +234,7 @@
             <div class="cb-gl__grid">
         ${c.indent(tiles, 6)}
             </div>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: 'center' })}
           </div>
           ${p.lightbox ? c.dedent(`
           <dialog class="cb-gl__box" id="${base}-box" aria-label="Image viewer">
@@ -582,8 +594,9 @@
         ${p.variant === 'split' ? c.pin([s + ' .cb-cd__num'], '#fff') : ''}
         ${s} .cb-cd__btn {
           margin-top: 10px; background: ${p.onDark ? '#fff' : 'var(--cb-brand)'};
-          color: ${p.onDark ? '#141210' : 'var(--cb-on-brand)'}; text-decoration: none;
-        }`;
+          text-decoration: none;
+        }
+        ${c.pin([s + ' .cb-cd__btn'], p.onDark ? '#141210' : 'var(--cb-on-brand)')}`;
 
       var js = c.wrap(c.cls, `
         var clock = root.querySelector(".cb-cd__clock");
@@ -665,6 +678,11 @@
       { k: 'label', t: 'text', label: 'Accessible video title', value: 'Product walkthrough' },
       { k: 'ratio', t: 'select', label: 'Aspect ratio', value: '16/9', options: [['16/9', '16 : 9'], ['4/3', '4 : 3'], ['21/9', 'Ultrawide'], ['1/1', 'Square'], ['9/16', 'Vertical']] },
 
+      { t: 'section', label: 'Button' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits below the video. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
       { t: 'section', label: 'Style' },
       { k: 'maxWidth', t: 'range', label: 'Max width', min: 480, max: 1400, step: 20, unit: 'px', value: 900 },
       { k: 'playStyle', t: 'select', label: 'Play button', value: 'brand', options: [['brand', 'Brand pill'], ['youtube', 'YouTube red'], ['glass', 'Glass circle']] },
@@ -711,6 +729,7 @@
                 <span class="cb-sr">${c.esc(p.label)}</span>
               </button>
             </div>
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: 'center' })}
           </div>
         </section>`);
 
