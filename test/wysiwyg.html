@@ -236,11 +236,17 @@
                                cssKept: !!parts.css.trim(), jsKept: false, jsError: null });
     }
 
-    // Let the browser lay out and paint before interacting. Scroll containers
-    // clamp writes until layout has run, and no real user clicks inside the
-    // same task that inserted the markup.
+    // Let the browser lay out before interacting. Scroll containers clamp
+    // writes until layout has run, and no real user clicks inside the same
+    // task that inserted the markup.
+    //
+    // Deliberately not requestAnimationFrame: it never fires in a headless or
+    // background preview context, and this harness would then hang forever on
+    // its first component rather than reporting anything. Two timer ticks give
+    // the same "layout has happened, we are out of the insertion task"
+    // guarantee without depending on a paint.
     return new Promise(function (r) {
-      requestAnimationFrame(function () { setTimeout(r, 32); });
+      setTimeout(function () { setTimeout(r, 32); }, 16);
     }).then(function () {
       return CBProbe.run(compId, root);
     }).then(function (results) {
