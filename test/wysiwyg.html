@@ -236,18 +236,18 @@
                                cssKept: !!parts.css.trim(), jsKept: false, jsError: null });
     }
 
-    // Let the browser lay out before interacting. Scroll containers clamp
-    // writes until layout has run, and no real user clicks inside the same
-    // task that inserted the markup.
+    // Probes need layout to have run — scroll containers clamp writes until it
+    // has. Force it synchronously by reading a layout property, rather than
+    // waiting for a frame or a timer.
     //
-    // Deliberately not requestAnimationFrame: it never fires in a headless or
-    // background preview context, and this harness would then hang forever on
-    // its first component rather than reporting anything. Two timer ticks give
-    // the same "layout has happened, we are out of the insertion task"
-    // guarantee without depending on a paint.
-    return new Promise(function (r) {
-      setTimeout(function () { setTimeout(r, 32); }, 16);
-    }).then(function () {
+    // Neither clock is usable here. requestAnimationFrame never fires in a
+    // headless or backgrounded context, so the sweep hung forever on its first
+    // component. setTimeout does fire but a frozen background tab clamps it to
+    // roughly a minute, which turned two nested ticks into ~105s per round-trip
+    // — over four hours for the full run. Microtasks are not throttled, so the
+    // harness now completes at the same speed wherever it runs.
+    void host.offsetHeight;
+    return Promise.resolve().then(function () {
       return CBProbe.run(compId, root);
     }).then(function (results) {
       var out = { results: results, cssKept: !!parts.css.trim(), jsKept: jsRan, jsError: jsError,
