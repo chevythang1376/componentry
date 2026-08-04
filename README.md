@@ -334,6 +334,16 @@ Two of these needed care:
 All of them use the same shared class as every other button, so they pick up the Buttons
 tokens above without any extra work.
 
+**Alignment follows whatever the button sits in.** A button in a right-aligned timeline
+card goes right; one in a centred quote goes centre; the timeline's own cards flip sides
+on mobile and the buttons flip with them. Nothing to configure.
+
+This is why the row is a plain block with an inline-level button rather than a flex row:
+flex containers ignore `text-align`, so a flex row would have to be told its alignment at
+every single placement, and would silently go wrong whenever the surrounding alignment
+changed. Item containers that are flex columns get `align-self: stretch` on the row so
+`text-align` still reaches it.
+
 ### Behaviour controls worth knowing
 
 - **Accordion → link to individual answers.** Each question gets a shareable `#hash`;
@@ -375,7 +385,7 @@ js/components/
   diagram.js            hotspot-diagram
 test/
   gallery.html          Renders all 25 through the real export path; reports failures
-  hostile-host.html     Pastes exports into a deliberately awful theme; 114 assertions
+  hostile-host.html     Pastes exports into a deliberately awful theme; 125 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         144 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,

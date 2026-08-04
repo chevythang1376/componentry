@@ -819,8 +819,7 @@ ${p.deepLink ? `
                 ${it.role ? '<span class="cb-tm__role">' + c.esc(it.role) + '</span>' : ''}
               </span>
             </figcaption>
-            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
-                        { tight: true, align: p.variant === 'card' ? '' : 'center' })}
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true })}
           </figure>`);
       }).join('\n');
 

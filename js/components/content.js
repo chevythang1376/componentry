@@ -225,8 +225,7 @@
             ${it.icon ? '<span class="cb-fg__icon" aria-hidden="true">' + c.esc(it.icon) + '</span>' : ''}
             <h3 class="cb-fg__t">${c.esc(it.title)}</h3>
             ${it.text ? '<p class="cb-fg__x">' + c.rich(it.text) + '</p>' : ''}
-            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
-                        { tight: true, align: p.itemAlign === 'center' ? 'center' : '' })}
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true })}
           </li>`);
       }).join('\n');
 
@@ -346,8 +345,7 @@
             </p>
             <p class="cb-st__label">${c.esc(it.label)}</p>
             ${it.sub ? '<p class="cb-st__sub">' + c.esc(it.sub) + '</p>' : ''}
-            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
-                        { tight: true, align: p.align === 'center' ? 'center' : '' })}
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true })}
           </li>`);
       }).join('\n');
 
