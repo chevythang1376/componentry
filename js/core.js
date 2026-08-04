@@ -33,6 +33,37 @@ window.CB = (function () {
     return attr(s);
   }
 
+  /* Optional call-to-action buttons. A blank label means the button simply
+     isn't rendered — that's how every optional element in the library behaves,
+     so "no button" needs no extra toggle. Pass any number; whichever have
+     labels are emitted, and if none do the whole row disappears rather than
+     leaving an empty flex container throwing off the spacing. */
+  function actions(list, opts) {
+    opts = opts || {};
+    var live = (list || []).filter(function (b) { return b && b.text; });
+    if (!live.length) return '';
+    return '<div class="cb-actions' + (opts.align ? ' cb-actions--' + opts.align : '') +
+      (opts.cls ? ' ' + opts.cls : '') + '">' +
+      live.map(function (b, i) {
+        // First labelled button is the primary unless told otherwise, so
+        // filling in only the second field still yields a solid button.
+        var variant = b.variant || (i === 0 ? 'primary' : 'ghost');
+        return '<a class="cb-btn cb-btn--' + variant + '" href="' + url(b.url) + '">' +
+          esc(b.text) + '</a>';
+      }).join('') +
+      '</div>';
+  }
+
+  /* Field pair for a section-level CTA, spread into a component's props. */
+  function ctaFields(opts) {
+    opts = opts || {};
+    return [
+      { k: 'btnText', t: 'text', label: 'Button label', value: opts.text || '',
+        help: opts.help || 'Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: opts.url || '#' }
+    ];
+  }
+
   var idc = 0;
   function uid(prefix) {
     idc++;
@@ -347,11 +378,22 @@ window.CB = (function () {
       ${s} .cb-btn:focus-visible, ${s} [class*="cb-"]:focus-visible {
         outline: 3px solid var(--cb-brand); outline-offset: 3px;
       }
+      /* A solid button paints its own background, so losing its stated text
+         colour is the same failure as a black title in a black box — and an
+         !important link colour is one of the most common theme rules there
+         is. Defended for the same reason pin() exists. */
       ${s} .cb-btn--primary {
-        background: var(--cb-brand); color: var(--cb-on-brand);
+        background: var(--cb-brand); color: var(--cb-on-brand) !important;
         box-shadow: var(--cb-btn-shadow);
       }
       ${s} .cb-btn--ghost { border: var(--cb-btn-border) solid currentColor; }
+      /* Shared CTA row. Only ever present when a button label was filled in,
+         so its margin never adds phantom space to a button-less block. */
+      ${s} .cb-actions {
+        display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px;
+      }
+      ${s} .cb-actions--center { justify-content: center; }
+      ${s} .cb-actions--end { justify-content: flex-end; }
       ${s} .cb-sr {
         position: absolute !important; width: 1px; height: 1px; overflow: hidden;
         clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
@@ -514,7 +556,8 @@ window.CB = (function () {
     var ctx = {
       cls: cls, s: s, id: cls, tokens: tokens,
       esc: esc, attr: attr, rich: rich, url: url, num: num, clamp: clamp,
-      rgba: rgba, ph: ph, uid: uid, wrap: wrap, dedent: dedent, indent: indent, pin: pin
+      rgba: rgba, ph: ph, uid: uid, wrap: wrap, dedent: dedent, indent: indent, pin: pin,
+      actions: actions
     };
 
     var p = Object.assign({}, defaults(def), instance.props || {});
@@ -548,6 +591,7 @@ window.CB = (function () {
     register: register, get: get, all: all, defaults: defaults, build: build,
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
+    actions: actions, ctaFields: ctaFields,
     tokenCss: tokenCss, baseCss: baseCss,
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
     familyFromImport: familyFromImport

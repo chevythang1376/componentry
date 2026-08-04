@@ -395,6 +395,60 @@ video { width: 100% !important; }
     }
   });
 
+  /* Solid buttons paint their own background, so a host `a { color: … !important }`
+     rule leaves the label unreadable on top of it. This page ships exactly that
+     rule, so every solid button on the page has to survive it. Optional CTAs are
+     built on demand here because the default props leave their labels empty. */
+  (function () {
+    var probe = document.createElement('div');
+    probe.id = 'btn-probe';
+    document.getElementById('paste-a').appendChild(probe);
+
+    ['pinned-product', 'spec-strip', 'feature-grid', 'accordion', 'gallery',
+     'testimonials', 'timeline', 'before-after', 'video-embed', 'stats-counter',
+     'finish-switcher'].forEach(function (id) {
+      var props = CB.defaults(CB.get(id));
+      props.btnText = 'Talk to us';
+      props.btnUrl = '/contact';
+      var built = CB.build({ uid: 'btnp-' + id, cls: 'cb-btnp-' + id, type: id, props: props },
+                           CB.DEFAULT_TOKENS);
+      var st = document.createElement('style');
+      st.textContent = built.css;
+      document.head.appendChild(st);
+      var host = document.createElement('div');
+      host.innerHTML = built.html;
+      probe.appendChild(host);
+
+      var btn = host.querySelector('.cb-actions a.cb-btn--primary');
+      if (!btn) { check(id + ' optional CTA renders', false, 'no button'); return; }
+      var r = contrast(cs(btn, 'color'), cs(btn, 'background-color'));
+      check(id + ' CTA label readable despite host a{color:red!important}',
+            r >= 4.5, r.toFixed(2) + ':1  (' + cs(btn, 'color') + ')');
+    });
+
+    // The pre-existing solid buttons need the same guarantee.
+    [['parallax primary', '#paste-a .cb-px__actions .cb-btn--primary'],
+     ['countdown button', '#paste-a .cb-cd__btn'],
+     ['pricing featured CTA', '#paste-a .cb-pr__plan.is-featured .cb-pr__cta']
+    ].forEach(function (row) {
+      var el = document.querySelector(row[1]);
+      if (!el) { check(row[0] + ' present', false, 'not found'); return; }
+      var r = contrast(cs(el, 'color'), cs(el, 'background-color'));
+      check(row[0] + ' readable despite host a{color:red!important}',
+            r >= 4.5, r.toFixed(2) + ':1  (' + cs(el, 'color') + ')');
+    });
+
+    // A blank label must leave nothing behind — no empty row taking up space.
+    var blank = CB.build({ uid: 'blank', cls: 'cb-blank', type: 'pinned-product',
+                           props: CB.defaults(CB.get('pinned-product')) }, CB.DEFAULT_TOKENS);
+    var bd = document.createElement('div');
+    bd.innerHTML = blank.html;
+    check('blank CTA label emits no markup', !bd.querySelector('.cb-actions'),
+          bd.querySelectorAll('.cb-actions').length + ' found');
+
+    probe.remove();
+  })();
+
   var swA = document.querySelectorAll('#paste-a .cb-pr__sw');
   var amtA = document.querySelectorAll('#paste-a .cb-pr__amount');
   var amtB = document.querySelectorAll('#paste-b .cb-pr__amount');
