@@ -122,7 +122,11 @@ Two related things worth checking on a site with a fixed header:
 A host rule using `!important` on a bare element selector, for text that is *not* on a
 dark background — most commonly `a { color: red !important; }`. Only `!important` beats
 `!important`, and applying it everywhere would stop you restyling your own components.
-If a pasted block picks up the wrong link colour, add one rule to your theme:
+
+Solid buttons are the exception and *are* defended, because their label sits on the
+button's own fill and an override there is unreadable rather than merely off-brand.
+Inline links inside body copy are left inheriting on purpose. If a pasted block picks up
+the wrong link colour, add one rule to your theme:
 
 ```css
 .cb-card-grid-k3f9a a { color: inherit !important; }
@@ -283,21 +287,51 @@ link, and on some blocks an alignment choice.
 **Leave the label empty and no button is rendered** — no empty element, no leftover
 spacing. That's the whole toggle; there's no separate on/off switch to keep in sync.
 
-| Block | Where the button sits |
+Buttons come at two levels, and both are optional independently.
+
+**One per section**, at the foot of the block:
+
+| Block | Where it sits |
 |---|---|
-| Pinned Product Scroller | Below the last step — **plus one per step**, each independently optional |
+| Pinned Product Scroller | Below the last step |
 | Spec Strip | Below the specs (a datasheet link fits well) |
 | Finish Switcher | With the copy |
-| Feature Grid | Below the grid |
-| Stats Counter | Below the numbers |
+| Feature Grid · Stats Counter · Gallery | Below the grid |
 | Timeline | After the last milestone |
 | Testimonial Slider | Below the controls |
-| Before / After Slider | Below the comparison |
-| Gallery | Below the grid |
-| Video Embed | Below the video |
+| Before / After Slider · Video Embed | Below the media |
 | Accordion / FAQ | Below the questions |
 
-These use the same shared class as every other button, so they pick up the Buttons
+**One per item**, inside each entry of the repeatable list — open any item in the
+Steps / Milestones / Features list and the Button label sits with its other fields:
+
+| Block | List | Button appears |
+|---|---|---|
+| Pinned Product Scroller | Steps | Under that step's copy |
+| Timeline | Milestones | Inside that milestone's card |
+| Feature Grid | Features | Under that feature |
+| Stats Counter | Stats | Under that number |
+| Spec Strip | Specs | Under that spec |
+| Accordion / FAQ | Questions | At the end of that answer |
+| Testimonial Slider | Testimonials | Under that quote |
+| Gallery | Images | Under that image |
+| Finish Switcher | Finishes | Swaps with the selected swatch |
+
+Card Grid, Hero Slider, Pricing, Tabs, Carousel, Logo Marquee, Bento Grid, Sticky Stack
+and the Interactive Diagram already had per-item links and are unchanged.
+
+Two of these needed care:
+
+- **Gallery.** With the lightbox on, the tile itself is a `<button>`, and an `<a>` can't
+  legally nest inside one. So when any image is given a link the tile gains a wrapper and
+  the link becomes its sibling. The wrapper only appears when it's needed, so galleries
+  without links produce byte-identical markup and pixel-identical layout.
+- **Finish Switcher.** The button swaps with the selected swatch, driven by the same
+  `:has()` rule as the image crossfade — no JavaScript. Hidden buttons use `display: none`
+  rather than transparency, so they stay out of the tab order; an invisible but focusable
+  link is worse than no link.
+
+All of them use the same shared class as every other button, so they pick up the Buttons
 tokens above without any extra work.
 
 ### Behaviour controls worth knowing
@@ -341,7 +375,7 @@ js/components/
   diagram.js            hotspot-diagram
 test/
   gallery.html          Renders all 25 through the real export path; reports failures
-  hostile-host.html     Pastes exports into a deliberately awful theme; 87 assertions
+  hostile-host.html     Pastes exports into a deliberately awful theme; 114 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         144 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,

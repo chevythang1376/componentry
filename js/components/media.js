@@ -179,7 +179,9 @@
           { k: 'image', t: 'image', label: 'Image', value: CB.ph(900, 700, '', '#96694c', '#2b241f') },
           { k: 'alt', t: 'text', label: 'Alt text', value: '' },
           { k: 'caption', t: 'text', label: 'Caption', value: '' }
-        ],
+        ].concat(CB.ctaFields({
+          help: 'Sits under this image. With the lightbox on the tile itself is a button, so the link goes below it rather than inside. Leave empty for no button.'
+        })),
         value: [
           { image: CB.ph(900, 700, '', '#96694c', '#2b241f'), alt: '', caption: 'Studio, morning light' },
           { image: CB.ph(900, 1100, '', '#6f4c37', '#141210'), alt: '', caption: 'Print run' },
@@ -215,12 +217,22 @@
       var items = (p.items || []).filter(Boolean);
       var masonry = p.layout === 'masonry';
 
+      /* With the lightbox on the tile is a <button>, and an <a> can't live
+         inside one. So when any image has a link the tile gets a wrapper and
+         the link becomes its sibling. The wrapper only appears when it's
+         needed, which leaves galleries without links byte-identical. */
+      var anyCta = items.some(function (it) { return it.btnText; });
+      var cell = anyCta ? '.cb-gl__cell' : '.cb-gl__tile';
+
       var tiles = items.map(function (it, i) {
         var img = '<img src="' + c.url(it.image) + '" alt="' + c.attr(it.alt) + '" loading="' + (i < 4 ? 'eager' : 'lazy') + '" decoding="async">';
         var cap = (p.captions && it.caption) ? '<span class="cb-gl__cap">' + c.esc(it.caption) + '</span>' : '';
-        return p.lightbox
+        var tile = p.lightbox
           ? '<button type="button" class="cb-gl__tile" data-i="' + i + '" aria-label="Open image ' + (i + 1) + ' of ' + items.length + (it.caption ? ': ' + c.attr(it.caption) : '') + '">' + img + cap + '</button>'
           : '<figure class="cb-gl__tile">' + img + cap + '</figure>';
+        if (!anyCta) return tile;
+        return '<div class="cb-gl__cell">' + tile +
+          c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true }) + '</div>';
       }).join('\n');
 
       var data = items.map(function (it) {
@@ -254,13 +266,15 @@
         ${s} .cb-gl__title { font-size: clamp(26px, 3.6vw, 38px); font-weight: 800; letter-spacing: -.02em; margin-bottom: 28px; }
         ${masonry ? `
         ${s} .cb-gl__grid { columns: ${c.clamp(c.num(p.cols, 3), 2, 5)}; column-gap: ${c.num(p.gap, 14)}px; }
-        ${s} .cb-gl__tile { break-inside: avoid; margin-bottom: ${c.num(p.gap, 14)}px; width: 100%; display: block; }`
+        ${s} ${cell} { break-inside: avoid; margin-bottom: ${c.num(p.gap, 14)}px; width: 100%; display: block; }
+        ${anyCta ? `${s} .cb-gl__tile { width: 100%; display: block; }` : ''}`
         : `
         ${s} .cb-gl__grid {
           display: grid; gap: ${c.num(p.gap, 14)}px;
           grid-template-columns: repeat(${c.clamp(c.num(p.cols, 3), 2, 5)}, minmax(0, 1fr));
         }
-        ${s} .cb-gl__tile img { aspect-ratio: ${p.ratio || '1/1'}; object-fit: cover; }`}
+        ${s} .cb-gl__tile img { aspect-ratio: ${p.ratio || '1/1'}; object-fit: cover; }
+        ${anyCta ? `${s} .cb-gl__tile { display: block; width: 100%; }` : ''}`}
         ${s} .cb-gl__tile {
           position: relative; overflow: hidden; border-radius: calc(var(--cb-radius) * .8);
           padding: 0; background: var(--cb-subtle); cursor: ${p.lightbox ? 'zoom-in' : 'default'};

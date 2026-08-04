@@ -28,7 +28,7 @@
         fields: [
           { k: 'q', t: 'text', label: 'Question', value: 'New question' },
           { k: 'a', t: 'textarea', label: 'Answer', value: 'Answer copy goes here.' }
-        ],
+        ].concat(CB.ctaFields({ help: 'Shows at the end of this answer. Leave empty for no button.' })),
         value: [
           { q: 'Will this work inside my page builder?', a: 'Yes. Every block ships as a single self-contained snippet — markup, scoped styles and behaviour — so it drops into any HTML embed field without touching the rest of your theme.' },
           { q: 'Do I need a build step or a framework?', a: 'No. The output is plain HTML, CSS and vanilla JavaScript with zero dependencies. Paste it and it runs.' },
@@ -79,7 +79,10 @@
               </button>
             </h3>
             <div class="cb-acc__panel" id="${pid}" role="region" aria-labelledby="${bid}"${open ? '' : ' inert'}>
-              <div class="cb-acc__panelIn"><div class="cb-acc__a">${c.rich(it.a)}</div></div>
+              <div class="cb-acc__panelIn">
+                <div class="cb-acc__a">${c.rich(it.a)}</div>
+                ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true })}
+              </div>
             </div>
           </div>`);
       }).join('\n');
@@ -767,7 +770,7 @@ ${p.deepLink ? `
           { k: 'role', t: 'text', label: 'Role / company', value: '' },
           { k: 'avatar', t: 'image', label: 'Avatar', value: '' },
           { k: 'rating', t: 'range', label: 'Rating', min: 0, max: 5, step: 1, value: 5 }
-        ],
+        ].concat(CB.ctaFields({ help: 'Leave empty for no button on this quote.' })),
         value: [
           { quote: 'We replaced three plugins with a single pasted snippet. It loads faster and finally matches the rest of the site.', name: 'Dana Whitfield', role: 'Head of Digital, Northwind', avatar: CB.ph(200, 200, 'DW', '#96694c', '#2b241f'), rating: 5 },
           { quote: 'The accordion actually works with a keyboard. That sounds like a low bar until you audit what most builders ship.', name: 'Marcus Lee', role: 'Accessibility lead', avatar: CB.ph(200, 200, 'ML', '#6f4c37', '#141210'), rating: 5 },
@@ -816,6 +819,8 @@ ${p.deepLink ? `
                 ${it.role ? '<span class="cb-tm__role">' + c.esc(it.role) + '</span>' : ''}
               </span>
             </figcaption>
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
+                        { tight: true, align: p.variant === 'card' ? '' : 'center' })}
           </figure>`);
       }).join('\n');
 

@@ -190,7 +190,7 @@
           { k: 'icon', t: 'text', label: 'Icon (emoji or 1–2 letters)', value: '★' },
           { k: 'title', t: 'text', label: 'Title', value: 'Feature' },
           { k: 'text', t: 'textarea', label: 'Description', value: 'Description of the feature.' }
-        ],
+        ].concat(CB.ctaFields({ help: 'Leave empty for no button on this feature.' })),
         value: [
           { icon: '⚡', title: 'No dependencies', text: 'Plain HTML, CSS and vanilla JS. Nothing to install, nothing to keep updated.' },
           { icon: '🔒', title: 'Scoped by default', text: 'Every rule is namespaced to a generated class, so your theme and the component leave each other alone.' },
@@ -225,6 +225,8 @@
             ${it.icon ? '<span class="cb-fg__icon" aria-hidden="true">' + c.esc(it.icon) + '</span>' : ''}
             <h3 class="cb-fg__t">${c.esc(it.title)}</h3>
             ${it.text ? '<p class="cb-fg__x">' + c.rich(it.text) + '</p>' : ''}
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
+                        { tight: true, align: p.itemAlign === 'center' ? 'center' : '' })}
           </li>`);
       }).join('\n');
 
@@ -307,7 +309,7 @@
           { k: 'suffix', t: 'text', label: 'Suffix', value: '' },
           { k: 'label', t: 'text', label: 'Label', value: 'Label' },
           { k: 'sub', t: 'text', label: 'Sub-label', value: '' }
-        ],
+        ].concat(CB.ctaFields({ help: 'Leave empty for no button on this stat.' })),
         value: [
           { prefix: '', value: '17', suffix: '', label: 'Components', sub: 'and counting' },
           { prefix: '', value: '0', suffix: '', label: 'Dependencies', sub: 'nothing to install' },
@@ -344,6 +346,8 @@
             </p>
             <p class="cb-st__label">${c.esc(it.label)}</p>
             ${it.sub ? '<p class="cb-st__sub">' + c.esc(it.sub) + '</p>' : ''}
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
+                        { tight: true, align: p.align === 'center' ? 'center' : '' })}
           </li>`);
       }).join('\n');
 
@@ -478,7 +482,7 @@
           { k: 'date', t: 'text', label: 'Date / step', value: 'Step' },
           { k: 'title', t: 'text', label: 'Title', value: 'Milestone' },
           { k: 'text', t: 'textarea', label: 'Description', value: 'What happens at this stage.' }
-        ],
+        ].concat(CB.ctaFields({ help: 'Leave empty for no button on this milestone.' })),
         value: [
           { date: 'Week 1', title: 'Discovery', text: 'Audit what exists, agree the shape of the problem and write down what success looks like.' },
           { date: 'Week 2–3', title: 'Design system', text: 'Tokens, type scale and the first set of components, reviewed in the browser rather than a static mockup.' },
@@ -515,6 +519,7 @@
               ${it.date ? '<p class="cb-tl__date">' + c.esc(it.date) + '</p>' : ''}
               <h3 class="cb-tl__t">${c.esc(it.title)}</h3>
               ${it.text ? '<p class="cb-tl__x">' + c.rich(it.text) + '</p>' : ''}
+              ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true })}
             </div>
           </li>`);
       }).join('\n');
