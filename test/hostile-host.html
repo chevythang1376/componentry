@@ -438,6 +438,42 @@ video { width: 100% !important; }
             r >= 4.5, r.toFixed(2) + ':1  (' + cs(el, 'color') + ')');
     });
 
+    /* Per-item buttons on the repeatable lists. Labelling exactly one item must
+       produce exactly one button, on that item, still readable under the host
+       theme — and the rest of the list must stay button-free. */
+    [['timeline','items'], ['feature-grid','items'], ['stats-counter','items'],
+     ['accordion','items'], ['testimonials','items'], ['spec-strip','items'],
+     ['gallery','items'], ['finish-switcher','items'], ['pinned-product','items']
+    ].forEach(function (row) {
+      var id = row[0], key = row[1];
+      var props = CB.defaults(CB.get(id));
+      props[key] = props[key].map(function (it, i) {
+        return Object.assign({}, it, { btnText: i === 1 ? 'Read more' : '', btnUrl: '/more' });
+      });
+      var built = CB.build({ uid: 'li-' + id, cls: 'cb-li-' + id, type: id, props: props },
+                           CB.DEFAULT_TOKENS);
+      var st = document.createElement('style');
+      st.textContent = built.css;
+      document.head.appendChild(st);
+      var host = document.createElement('div');
+      host.innerHTML = built.html;
+      probe.appendChild(host);
+
+      var btns = host.querySelectorAll('a.cb-btn');
+      if (btns.length !== 1) {
+        check(id + ' one labelled item yields one button', false, btns.length + ' found');
+        return;
+      }
+      check(id + ' one labelled item yields one button', true, '1');
+      var r = contrast(cs(btns[0], 'color'), cs(btns[0], 'background-color'));
+      check(id + ' per-item button readable under host theme',
+            r >= 4.5, r.toFixed(2) + ':1');
+      // An <a> inside a <button> is invalid and breaks the gallery lightbox.
+      check(id + ' no anchor nested inside a button',
+            host.querySelectorAll('button a').length === 0,
+            host.querySelectorAll('button a').length + ' nested');
+    });
+
     // A blank label must leave nothing behind — no empty row taking up space.
     var blank = CB.build({ uid: 'blank', cls: 'cb-blank', type: 'pinned-product',
                            props: CB.defaults(CB.get('pinned-product')) }, CB.DEFAULT_TOKENS);

@@ -43,6 +43,7 @@ window.CB = (function () {
     var live = (list || []).filter(function (b) { return b && b.text; });
     if (!live.length) return '';
     return '<div class="cb-actions' + (opts.align ? ' cb-actions--' + opts.align : '') +
+      (opts.tight ? ' cb-actions--tight' : '') +
       (opts.cls ? ' ' + opts.cls : '') + '">' +
       live.map(function (b, i) {
         // First labelled button is the primary unless told otherwise, so
@@ -394,6 +395,9 @@ window.CB = (function () {
       }
       ${s} .cb-actions--center { justify-content: center; }
       ${s} .cb-actions--end { justify-content: flex-end; }
+      /* Inside a repeating item — a card, a milestone, an answer panel — the
+         button sits closer than it would at the foot of a whole section. */
+      ${s} .cb-actions--tight { margin-top: 14px; }
       ${s} .cb-sr {
         position: absolute !important; width: 1px; height: 1px; overflow: hidden;
         clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;

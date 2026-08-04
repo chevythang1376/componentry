@@ -36,7 +36,9 @@
           { k: 'image', t: 'image', label: 'Product image', value: CB.ph(1000, 800, '', '#96694c', '#2b241f') },
           { k: 'alt', t: 'text', label: 'Image alt text', value: '' },
           { k: 'note', t: 'text', label: 'Caption under the name', value: '' }
-        ],
+        ].concat(CB.ctaFields({
+          help: 'Shows only while this finish is selected, and swaps with the swatches. Leave empty for no button.'
+        })),
         value: [
           { name: 'Bare Copper', swatch: '#96694c', image: CB.ph(1000, 800, '', '#96694c', '#2b241f'), alt: '', note: 'Standard build' },
           { name: 'Tinned', swatch: '#c9c6c1', image: CB.ph(1000, 800, '', '#c9c6c1', '#4a443e'), alt: '', note: 'Corrosion resistant' },
@@ -84,6 +86,18 @@
           </label>`);
       }).join('\n');
 
+      /* One button per finish, all emitted, with the checked radio deciding
+         which is displayed. display:none rather than opacity keeps the hidden
+         ones out of the tab order — an invisible but focusable link is worse
+         than no link at all. */
+      var anyCta = items.some(function (it) { return it.btnText; });
+      var ctas = anyCta ? items.map(function (it, i) {
+        return it.btnText
+          ? '<a class="cb-btn cb-btn--primary cb-fin__cta" data-i="' + i + '" href="' +
+            c.url(it.btnUrl) + '">' + c.esc(it.btnText) + '</a>'
+          : '';
+      }).join('\n') : '';
+
       var names = p.showName ? items.map(function (it, i) {
         return '<span class="cb-fin__label" data-i="' + i + '">' + c.esc(it.name) +
           (it.note ? '<span class="cb-fin__note">' + c.esc(it.note) + '</span>' : '') + '</span>';
@@ -107,6 +121,9 @@
                 <legend class="cb-sr">Choose a finish for ${c.attr(p.title)}</legend>
         ${c.indent(swatches, 8)}
               </fieldset>
+              ${anyCta ? `<div class="cb-actions cb-actions--center cb-fin__ctas">
+        ${c.indent(ctas, 8)}
+              </div>` : ''}
             </div>
           </div>
         </section>`);
@@ -115,7 +132,8 @@
          input can sit inside its label instead of being wired up by id. */
       var rules = items.map(function (it, i) {
         return `${s}:has(.cb-fin__radio[data-i="${i}"]:checked) .cb-fin__shot[data-i="${i}"] { opacity: 1; }` +
-          (p.showName ? `\n        ${s}:has(.cb-fin__radio[data-i="${i}"]:checked) .cb-fin__label[data-i="${i}"] { opacity: 1; position: relative; }` : '');
+          (p.showName ? `\n        ${s}:has(.cb-fin__radio[data-i="${i}"]:checked) .cb-fin__label[data-i="${i}"] { opacity: 1; position: relative; }` : '') +
+          (anyCta ? `\n        ${s}:has(.cb-fin__radio[data-i="${i}"]:checked) .cb-fin__cta[data-i="${i}"] { display: inline-flex; }` : '');
       }).join('\n        ');
 
       var css = `
@@ -152,6 +170,8 @@
            first shot stacked on top of every other selection. */
         ${s}:not(:has(.cb-fin__radio:checked)) .cb-fin__shot[data-i="0"] { opacity: 1; }
         ${p.showName ? `${s}:not(:has(.cb-fin__radio:checked)) .cb-fin__label[data-i="0"] { opacity: 1; position: relative; }` : ''}
+        ${anyCta ? `${s} .cb-fin__cta { display: none; }
+        ${s}:not(:has(.cb-fin__radio:checked)) .cb-fin__cta[data-i="0"] { display: inline-flex; }` : ''}
 
         ${s} .cb-fin__names {
           position: relative; text-align: center; margin-top: 20px; min-height: 2.6em;
@@ -198,6 +218,7 @@
         @supports not selector(:has(*)) {
           ${s} .cb-fin__shot[data-i="0"] { opacity: 1; }
           ${s} .cb-fin__label[data-i="0"] { opacity: 1; position: relative; }
+          ${anyCta ? `${s} .cb-fin__cta[data-i="0"] { display: inline-flex; }` : ''}
           ${s} .cb-fin__picker::after {
             content: "Finish previews need a newer browser.";
             flex-basis: 100%; text-align: center; font-size: .8em;
@@ -247,10 +268,8 @@
         fields: [
           { k: 'title', t: 'text', label: 'Step title', value: 'Step title' },
           { k: 'text', t: 'textarea', label: 'Step copy', value: 'One idea per step. Keep it to a sentence or two — the product is doing the talking.' },
-          { k: 'image', t: 'image', label: 'Product shot for this step', value: CB.ph(1000, 1000, '', '#96694c', '#2b241f') },
-          { k: 'btnText', t: 'text', label: 'Button label', value: '', help: 'Leave empty for no button on this step.' },
-          { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' }
-        ],
+          { k: 'image', t: 'image', label: 'Product shot for this step', value: CB.ph(1000, 1000, '', '#96694c', '#2b241f') }
+        ].concat(CB.ctaFields({ help: 'Leave empty for no button on this step.' })),
         value: [
           { title: 'Solid conductor', text: 'Drawn to tolerance and annealed for a consistent bend radius, pull after pull.', image: CB.ph(1000, 1000, '', '#96694c', '#2b241f') },
           { title: 'Jacket that holds up', text: 'Rated for sunlight, abrasion and the back of a truck in February.', image: CB.ph(1000, 1000, '', '#6f4c37', '#141210') },
@@ -435,7 +454,7 @@
           { k: 'value', t: 'text', label: 'Value', value: '12 AWG' },
           { k: 'label', t: 'text', label: 'Label', value: 'Conductor' },
           { k: 'note', t: 'text', label: 'Note', value: '' }
-        ],
+        ].concat(CB.ctaFields({ help: 'Leave empty for no button on this spec.' })),
         value: [
           { value: '12 AWG', label: 'Conductor', note: 'Solid copper' },
           { value: '600 V', label: 'Rating', note: '' },
@@ -469,6 +488,8 @@
             <p class="cb-spec__value">${c.esc(it.value)}</p>
             <p class="cb-spec__label">${c.esc(it.label)}</p>
             ${it.note ? '<p class="cb-spec__note">' + c.esc(it.note) + '</p>' : ''}
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }],
+                        { tight: true, align: p.align === 'center' ? 'center' : '' })}
           </li>`);
       }).join('\n');
 
