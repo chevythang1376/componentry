@@ -553,6 +553,56 @@ video { width: 100% !important; }
       f.remove();
     })();
 
+    /* The Pinned Product Scroller has no pinned stage below 860px, so each step
+       has to carry its own shot directly above its own copy. Before this was
+       built, the single shared stage sat in the flow and every step's copy piled
+       up underneath it, so nothing sat with the product it described. */
+    (function () {
+      var built = CB.build({ uid: 'ppr', cls: 'cb-ppr', type: 'pinned-product',
+                             props: CB.defaults(CB.get('pinned-product')) }, CB.DEFAULT_TOKENS);
+      [[1280, false], [768, true], [390, true]].forEach(function (row) {
+        var W = row[0], narrow = row[1];
+        var f = document.createElement('iframe');
+        f.style.cssText = 'width:' + W + 'px;height:900px;border:0;position:absolute;left:-99999px;top:0;';
+        document.body.appendChild(f);
+        var fd = f.contentDocument;
+        fd.open();
+        fd.write('<!doctype html><html><head><style>html,body{margin:0}' + built.css +
+                 '</style></head><body>' + built.html + '</body></html>');
+        fd.close();
+        var V = f.contentWindow;
+        var media = fd.querySelector('.cb-psc__media');
+        var steps = fd.querySelectorAll('.cb-psc__step');
+
+        if (narrow) {
+          check('pinned scroller @' + W + ': shared stage dropped',
+                V.getComputedStyle(media).display === 'none',
+                V.getComputedStyle(media).display);
+          var paired = 0;
+          Array.prototype.forEach.call(steps, function (st) {
+            var img = st.querySelector('.cb-psc__stepShot');
+            var copy = st.querySelector('.cb-psc__stepIn');
+            if (!img || V.getComputedStyle(img).display === 'none') return;
+            var ir = img.getBoundingClientRect(), cr = copy.getBoundingClientRect();
+            if (ir.bottom <= cr.top + 2 && Math.abs(ir.left - cr.left) < 4) paired++;
+          });
+          check('pinned scroller @' + W + ': every step has its shot above its own copy',
+                paired === steps.length, paired + '/' + steps.length);
+        } else {
+          check('pinned scroller @' + W + ': stage still pins',
+                V.getComputedStyle(media).position === 'sticky' &&
+                V.getComputedStyle(media).display !== 'none',
+                V.getComputedStyle(media).position);
+          check('pinned scroller @' + W + ': no per-step images on desktop',
+                !Array.prototype.some.call(steps, function (st) {
+                  var i = st.querySelector('.cb-psc__stepShot');
+                  return i && V.getComputedStyle(i).display !== 'none';
+                }), 'hidden');
+        }
+        f.remove();
+      });
+    })();
+
     // A blank label must leave nothing behind — no empty row taking up space.
     var blank = CB.build({ uid: 'blank', cls: 'cb-blank', type: 'pinned-product',
                            props: CB.defaults(CB.get('pinned-product')) }, CB.DEFAULT_TOKENS);

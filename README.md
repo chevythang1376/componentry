@@ -140,6 +140,12 @@ Every component is exported, pushed through a **real editor engine**, read back,
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
 25 components, 200 round-trips.
 
+Run it in a **desktop-width window**. Several blocks deliberately drop a behaviour below a
+breakpoint — sticky pinning, multi-column spans — and the probes assert whichever branch
+the current width selects. In a narrow window those blocks are asked only to release
+cleanly, which is a lower bar, so the counts below come out flattering. The figures here
+are measured at 1280px.
+
 | Insertion path | Fully working | Keeps CSS | Keeps JS |
 |---|---|---|---|
 | **Code / embed block** (verbatim) | **25/25** | yes | yes |
@@ -148,7 +154,7 @@ and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 inserti
 | GrapesJS (page builder) | 14/25 | yes | no |
 | DOMPurify, defaults | 14/25 | yes | no |
 | TinyMCE, stock config | 4/25 | no | no |
-| `wp_kses_post` (approximated) | 5/25 | no | no |
+| `wp_kses_post` (approximated) | 4/25 | no | no |
 | Quill | 0/25 | no | no |
 
 The pattern is consistent and worth internalising:

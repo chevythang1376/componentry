@@ -307,6 +307,8 @@
       var steps = items.map(function (it, i) {
         return c.dedent(`
           <li class="cb-psc__step">
+            <img class="cb-psc__stepShot" src="${c.url(it.image)}" alt=""
+                 loading="${i ? 'lazy' : 'eager'}" decoding="async">
             <div class="cb-psc__stepIn">
               <span class="cb-psc__num" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>
               <h3 class="cb-psc__stepTitle">${c.esc(it.title)}</h3>
@@ -391,6 +393,10 @@
           display: flex; align-items: center;
         }
         ${s} .cb-psc__stepIn { display: flex; flex-direction: column; gap: 12px; max-width: 46ch; }
+        /* Each step carries its own copy of its shot, for the narrow layout
+           where there is no pinned stage to crossfade. Hidden here; the sticky
+           stage is doing that job. */
+        ${s} .cb-psc__stepShot { display: none; }
         ${s} .cb-psc__num {
           font-size: .82em; font-weight: 700; letter-spacing: .16em;
           color: var(--cb-brand); font-variant-numeric: tabular-nums;
@@ -422,12 +428,26 @@
         ${dark ? c.pin([s + ' .cb-psc__title', s + ' .cb-psc__stepTitle'], '#ffffff') : ''}
 
         @media (max-width: 860px) {
-          /* Pinning beside a single narrow column reads badly — the product
-             goes above each step instead. */
+          /* Pinning beside a single narrow column reads badly, so each step
+             gets its own shot directly above its copy instead.
+
+             The shared stage cannot do this: it holds every shot stacked in one
+             place and crossfades them from the track's scroll position. Left in
+             the flow it put a single image at the top of the section with every
+             step's copy below it, so nothing sat with the product it described.
+             The stage is dropped here and the per-step images take over. */
           ${s} .cb-psc__track { grid-template-columns: 1fr; }
-          ${s} .cb-psc__media { position: static; height: auto; order: 1; margin-bottom: 24px; }
-          ${s} .cb-psc__steps { order: 2; }
-          ${s} .cb-psc__step { min-height: 0; margin-bottom: 40px; }
+          ${s} .cb-psc__media { display: none; }
+          ${s} .cb-psc__step {
+            display: block; min-height: 0; margin-bottom: 44px;
+          }
+          ${s} .cb-psc__stepIn { max-width: none; }
+          ${s} .cb-psc__stepShot {
+            display: block; width: 100%; aspect-ratio: ${p.ratio};
+            object-fit: cover; margin-bottom: 18px;
+            border-radius: calc(var(--cb-radius) * 1.5);
+            background: ${dark ? 'rgba(255,255,255,.05)' : 'var(--cb-subtle)'};
+          }
         }`;
 
       return { html: html, css: css, js: '' };
