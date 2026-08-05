@@ -32,7 +32,7 @@ Double-click `index.html`. That's it — it works from `file://`.
 | | Pricing Table | Highlighted tier, monthly/annual switch, unavailable-feature syntax |
 | **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
-| | Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay |
+| | Image / Video Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay |
 | | Testimonial Slider | Cross-fade, ratings, height-equalised so the page doesn't jump |
 | | Interactive Diagram | Hotspots over an image with a docked detail panel, zoom-to-point and a filtering legend. Core needs no JS |
 | **Media & Utility** | Before / After Slider | Built on a real `<input type="range">` |
@@ -148,7 +148,7 @@ and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 inserti
 | GrapesJS (page builder) | 14/25 | yes | no |
 | DOMPurify, defaults | 14/25 | yes | no |
 | TinyMCE, stock config | 4/25 | no | no |
-| `wp_kses_post` (approximated) | 4/25 | no | no |
+| `wp_kses_post` (approximated) | 5/25 | no | no |
 | Quill | 0/25 | no | no |
 
 The pattern is consistent and worth internalising:

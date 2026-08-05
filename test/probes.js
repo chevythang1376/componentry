@@ -22,11 +22,34 @@ window.CBProbe = (function () {
   function q(root, sel) { return root.querySelector(sel); }
   function qa(root, sel) { return Array.prototype.slice.call(root.querySelectorAll(sel)); }
 
+  /* Several blocks deliberately drop a desktop behaviour below a breakpoint —
+     sticky pinning, multi-column spans. An assertion that assumes desktop will
+     quietly measure the mobile fallback and report it as a failure. That is not
+     hypothetical: a preview or headless viewport can report a width of 0, in
+     which case every max-width query matches and every block renders at its
+     smallest. Probes gate on the real width instead of assuming. */
+  function atLeast(px) {
+    return (window.innerWidth || document.documentElement.clientWidth || 0) >= px;
+  }
+
+  /* Anything the browser animates — smooth scrolling, CSS transitions — only
+     advances while frames are being produced. A hidden or headless context
+     produces none, so an animated result stays pinned at its start value
+     forever. Probes that would otherwise read that as a broken component check
+     this first and report honestly instead. */
+  var framesRun = false;
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(function () { framesRun = true; });
+  }
+
   /* Resolve once an element's scrollLeft has held steady for two frames, or
      after a hard cap. Keeps assertions off the clock of a CSS animation. */
   function settle(el, cap) {
     cap = cap || 1500;
     return new Promise(function (res) {
+      // Nothing to settle if the track cannot scroll at all — and waiting would
+      // cost a throttled timer tick per call for no information.
+      if (el.scrollWidth <= el.clientWidth + 1) return res(el.scrollLeft);
       var last = el.scrollLeft, stable = 0, t0 = Date.now();
       (function tick() {
         var now = el.scrollLeft;
@@ -209,10 +232,24 @@ window.CBProbe = (function () {
     // Smooth scrolling is animated, so poll until the position stops changing
     // rather than sampling at a fixed delay — that raced the animation.
     return settle(track).then(function (after) {
-      t.ok('next advances the track', after > before,
-           before + ' -> ' + Math.round(after) +
-           (scrollable ? '' : ' [track not scrollable: ' + track.scrollWidth + '/' + track.clientWidth + ']'));
       var dot = qa(root, '.cb-car__dot').findIndex(function (d) { return d.getAttribute('aria-current'); });
+
+      if (after > before) {
+        t.ok('next advances the track', true, before + ' -> ' + Math.round(after));
+      } else if (!scrollable) {
+        t.skip('track not scrollable at this width (' +
+               track.scrollWidth + '/' + track.clientWidth + ')');
+      } else if (!framesRun) {
+        // The component asks for behavior:"smooth", which the browser animates
+        // over frames. Nothing paints in a hidden or headless context, so the
+        // scroll is issued and simply never progresses. Advancing the index is
+        // the part that can be observed here; scroll position is covered
+        // wherever frames actually run.
+        t.skip('smooth scroll needs animation frames; index advanced to ' + dot);
+      } else {
+        t.ok('next advances the track', false, before + ' -> ' + Math.round(after));
+      }
+
       t.ok('dots track position', dot > 0, 'dot index ' + dot);
     });
   });
@@ -295,12 +332,18 @@ window.CBProbe = (function () {
     t.ok('grid layout applied', grid && getComputedStyle(grid).display === 'grid');
 
     var wide = tiles.filter(function (x) { return x.dataset.size === '2x1' || x.dataset.size === '2x2'; })[0];
-    if (wide) {
+    if (!wide) {
+      t.skip('no multi-column tiles configured');
+    } else if (!atLeast(561)) {
+      // Below 560px the grid is a single column and spans are turned off, so a
+      // 2-wide tile is meant to be 1-wide here.
+      t.skip('single column below 560px — spans intentionally off');
+    } else {
       t.ok('wide tiles span two columns',
            /span 2/.test(getComputedStyle(wide).gridColumnStart) ||
            getComputedStyle(wide).gridColumnEnd === 'span 2',
            getComputedStyle(wide).gridColumn);
-    } else { t.skip('no multi-column tiles configured'); }
+    }
 
     var dark = q(root, '.cb-bn__tile[data-tone="dark"] .cb-bn__title');
     if (dark) {
@@ -315,14 +358,20 @@ window.CBProbe = (function () {
     var items = qa(root, '.cb-stk__item');
     var cards = qa(root, '.cb-stk__card');
     t.ok('cards rendered', items.length >= 2, items.length + ' cards');
-    t.ok('cards are sticky', items[0] && getComputedStyle(items[0]).position === 'sticky',
-         items[0] && getComputedStyle(items[0]).position);
-
-    // Each card pins a little lower than the one before it.
-    if (items.length >= 2) {
-      var a = parseFloat(getComputedStyle(items[0]).top);
-      var b = parseFloat(getComputedStyle(items[1]).top);
-      t.ok('each card pins below the last', b > a, a + 'px -> ' + b + 'px');
+    // Below 640px the cards deliberately stop pinning and simply flow.
+    if (atLeast(641)) {
+      t.ok('cards are sticky', items[0] && getComputedStyle(items[0]).position === 'sticky',
+           items[0] && getComputedStyle(items[0]).position);
+      // Each card pins a little lower than the one before it.
+      if (items.length >= 2) {
+        var a = parseFloat(getComputedStyle(items[0]).top);
+        var b = parseFloat(getComputedStyle(items[1]).top);
+        t.ok('each card pins below the last', b > a, a + 'px -> ' + b + 'px');
+      }
+    } else {
+      t.ok('cards release to normal flow under 640px',
+           items[0] && getComputedStyle(items[0]).position === 'static',
+           items[0] && getComputedStyle(items[0]).position);
     }
 
     var dark = q(root, '.cb-stk__card[data-tone="dark"] .cb-stk__title');
@@ -381,8 +430,16 @@ window.CBProbe = (function () {
     var steps = qa(root, '.cb-psc__step');
     t.ok('steps rendered', steps.length >= 2, steps.length + ' steps');
     t.ok('one shot per step', shots.length === steps.length);
-    t.ok('product pane is sticky', media && getComputedStyle(media).position === 'sticky',
-         media && getComputedStyle(media).position);
+    // Below 860px the product stops pinning and sits above each step instead —
+    // pinning beside a single narrow column reads badly.
+    if (atLeast(861)) {
+      t.ok('product pane is sticky', media && getComputedStyle(media).position === 'sticky',
+           media && getComputedStyle(media).position);
+    } else {
+      t.ok('product pane unpins under 860px',
+           media && getComputedStyle(media).position === 'static',
+           media && getComputedStyle(media).position);
+    }
     t.ok('track declares a named view timeline',
          /cb-pin-/.test(getComputedStyle(q(root, '.cb-psc__track')).viewTimelineName || ''),
          getComputedStyle(q(root, '.cb-psc__track')).viewTimelineName);
