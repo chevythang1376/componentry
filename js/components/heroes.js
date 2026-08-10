@@ -460,7 +460,15 @@
         k: 'arrowShape', t: 'select', label: 'Arrow shape', value: 'circle', when: { arrows: [true] },
         options: [['circle', 'Circle'], ['rounded', 'Rounded square'], ['square', 'Square']]
       },
-      { k: 'arrowSize', t: 'range', label: 'Arrow size', min: 32, max: 68, step: 2, unit: 'px', value: 44, when: { arrows: [true] } },
+      {
+        k: 'arrowSize', t: 'range', label: 'Arrow size', min: 28, max: 68, step: 2, unit: 'px', value: 40,
+        when: { arrows: [true] },
+        help: 'The tap target stays at least 44px even when the visible button is smaller.'
+      },
+      {
+        k: 'arrowWeight', t: 'select', label: 'Arrow weight', value: 'thin', when: { arrows: [true] },
+        options: [['hairline', 'Hairline'], ['thin', 'Thin'], ['regular', 'Regular'], ['bold', 'Bold']]
+      },
       {
         k: 'arrowPlacement', t: 'select', label: 'Arrow position', value: 'row', when: { arrows: [true] },
         options: [['row', 'In the row with the dots'], ['sides', 'Left and right edges']]
@@ -523,6 +531,22 @@
       // Only a filled control changes what the glyph must be drawn in.
       var arrowInk = p.arrowStyle === 'solid' ? glyphOn(cc) : cc;
 
+      /* The chevron is drawn rather than typed. A text character (&#8249;) is
+         whatever weight the inherited font makes it — heavy, inconsistent
+         between fonts, and a host theme can swap the font out from under it.
+         A stroked path is the same clean shape everywhere and takes a real
+         weight control. It inherits currentColor, so the pinned button colour
+         reaches it without a span for a host rule to hijack. */
+      var strokeW = { hairline: 1.25, thin: 1.6, regular: 2.1, bold: 2.9 }[p.arrowWeight] || 1.6;
+      var chevSize = Math.round(aSize * 0.42);
+
+      function chevron(dir) {
+        var d = dir === 'prev' ? 'M15 5.5 L8.5 12 L15 18.5' : 'M9 5.5 L15.5 12 L9 18.5';
+        return '<svg class="cb-hsl__chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+          '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="' + strokeW +
+          '" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
       var dotSize = c.num(p.dotSize, 10);
       var dotBase = {
         bar: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: ' + dotSize + 'px; background: ' + c.rgba(cc, 0.45) + ';',
@@ -574,8 +598,8 @@ ${items.map(function (it, i) {
          controls where <script> has been stripped. */
       var arrowsHtml = p.arrows ? c.dedent(`
         <div class="cb-hsl__arrows" hidden>
-          <button type="button" class="cb-hsl__arrow cb-hsl__prev" aria-label="Previous banner"><span aria-hidden="true">&#8249;</span></button>
-          <button type="button" class="cb-hsl__arrow cb-hsl__next" aria-label="Next banner"><span aria-hidden="true">&#8250;</span></button>
+          <button type="button" class="cb-hsl__arrow cb-hsl__prev" aria-label="Previous banner">${chevron('prev')}</button>
+          <button type="button" class="cb-hsl__arrow cb-hsl__next" aria-label="Next banner">${chevron('next')}</button>
         </div>`) : '';
 
       var html = c.dedent(`
@@ -677,11 +701,19 @@ ${c.indent(slides, 12)}
           ${s} .cb-hsl__next { right: 8px; }
         }` : ''}
         ${s} .cb-hsl__arrow, ${s} .cb-hsl__play {
+          position: relative;
           width: ${aSize}px; height: ${aSize}px; border-radius: ${aRadius};
           display: grid; place-items: center;
-          font-size: ${Math.round(aSize * 0.5)}px; line-height: 1;
+          padding: 0; line-height: 1;
           transition: background .2s ease, filter .2s ease, opacity .2s ease;
           ${arrowSkin}
+        }
+        ${s} .cb-hsl__chev { display: block; width: ${chevSize}px; height: ${chevSize}px; }
+        /* A small control still needs a full-size target. The visible circle can
+           shrink; what the thumb has to hit does not. */
+        ${s} .cb-hsl__arrow::after, ${s} .cb-hsl__play::after {
+          content: ""; position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+          width: max(44px, 100%); height: max(44px, 100%);
         }
         ${s} .cb-hsl__arrow:hover, ${s} .cb-hsl__play:hover { ${arrowHover} }
         ${s} .cb-hsl__arrow[disabled] { opacity: .35; cursor: not-allowed; }
@@ -713,11 +745,10 @@ ${c.indent(slides, 12)}
 
         ${c.pin([s + ' .cb-hsl__eyebrow', s + ' .cb-hsl__title', s + ' .cb-hsl__sub',
                  s + ' .cb-btn--ghost', s + ' .cb-hsl__counter'], p.textColor)}
-        /* The chevrons are spans, and themes routinely ship a blanket
-           span { color: … !important }. Left to inherit, the arrows lose their
-           glyph against their own fill. */
-        ${c.pin([s + ' .cb-hsl__arrow', s + ' .cb-hsl__arrow span',
-                 s + ' .cb-hsl__play', s + ' .cb-hsl__playIcon'], arrowInk)}
+        /* The chevron strokes read currentColor off the button, so the button's
+           own colour has to be stated rather than inherited — a filled control
+           whose glyph picks up a host text colour loses it against its fill. */
+        ${c.pin([s + ' .cb-hsl__arrow', s + ' .cb-hsl__play', s + ' .cb-hsl__playIcon'], arrowInk)}
 
         /* Nothing checked — a duplicated radio group would do this — still shows
            the first banner rather than a black box. */

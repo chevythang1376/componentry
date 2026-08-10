@@ -360,13 +360,23 @@ imagery rather than on the page background:
 | **Control colour** | One colour drives arrows and dots |
 | **Arrow style** | Frosted glass · Solid fill · Outline · No background |
 | **Arrow shape** | Circle · Rounded square · Square |
-| **Arrow size** | 32–68px |
+| **Arrow size** | 28–68px |
+| **Arrow weight** | Hairline · Thin · Regular · Bold |
 | **Arrow position** | In the row with the dots, or pinned to the left and right edges |
 | **Dot style** | Expanding bar · Dot · Ring |
 | **Dot size** | 6–18px |
 
 On a **solid fill** the glyph flips to whichever of black or white reads against your
 colour, so a pale control colour doesn't produce an invisible chevron.
+
+The chevron is **drawn, not typed**. A text character (`‹`) is whatever weight the
+inherited font makes it — heavy, different in every font, and a host theme can swap the
+font out from under it. A stroked path is the same clean shape everywhere, sits at 42% of
+the button rather than 50%, and takes a real weight control. It reads `currentColor`, so
+there is no span for a host's blanket text colour to hijack.
+
+**The tap target stays at least 44px** however small the visible button is set, so a
+28px arrow is still comfortable on a phone.
 
 **Swipe on touch screens** is on by default. A horizontal drag changes banner; a vertical
 one still scrolls the page, and a drag under 45px is ignored so a tap near the edge never
@@ -415,7 +425,7 @@ js/components/
   diagram.js            hotspot-diagram
 test/
   gallery.html          Renders all 25 through the real export path; reports failures
-  hostile-host.html     Pastes exports into a deliberately awful theme; 146 assertions
+  hostile-host.html     Pastes exports into a deliberately awful theme; 150 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         144 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,
