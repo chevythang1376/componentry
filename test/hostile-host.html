@@ -635,10 +635,14 @@ video { width: 100% !important; }
           check('hero slider: solid arrow glyph contrasts its fill',
                 cs.color === 'rgb(20, 18, 16)', cs.color + ' on ' + cs.backgroundColor);
         }
-        // The host ships span { color: … !important }; the chevron is a span.
-        var glyph = m.V.getComputedStyle(a.querySelector('span')).color;
-        check('hero slider: ' + st + ' chevron survives host span colour',
-              glyph !== 'rgb(51, 51, 51)', glyph);
+        /* The chevron is a stroked path reading currentColor, so it can only be
+           right if the button's own colour survived the host theme. */
+        var path = a.querySelector('.cb-hsl__chev path');
+        var stroke = path && m.V.getComputedStyle(path).stroke;
+        check('hero slider: ' + st + ' chevron is drawn, not a text glyph',
+              !!path && !a.textContent.trim(), path ? 'svg path' : 'no path');
+        check('hero slider: ' + st + ' chevron stroke follows the control colour',
+              stroke === cs.color, stroke + ' vs ' + cs.color);
         m.f.remove();
       });
       check('hero slider: the four arrow styles are visually distinct',
