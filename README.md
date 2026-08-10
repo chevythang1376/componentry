@@ -21,7 +21,7 @@ Double-click `index.html`. That's it — it works from `file://`.
 | Category | Component | Notes |
 |---|---|---|
 | **Heroes & Banners** | Parallax Banner | `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't |
-| | Hero Slider | Multiple banners that rotate. Dots work with no JS; autoplay always ships with a pause control |
+| | Hero Slider | Multiple banners that rotate. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay always ships with a pause control |
 | | Video Hero | Muted looping background video, poster fallback, pause control |
 | | Split Hero | Copy + image, reversible, optional tick list |
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
@@ -350,6 +350,30 @@ every single placement, and would silently go wrong whenever the surrounding ali
 changed. Item containers that are flex columns get `align-self: stretch` on the row so
 `text-align` still reaches it.
 
+### Hero Slider controls (Control styling)
+
+The arrows and dots are styled independently of the page's buttons, since they sit over
+imagery rather than on the page background:
+
+| Control | Options |
+|---|---|
+| **Control colour** | One colour drives arrows and dots |
+| **Arrow style** | Frosted glass · Solid fill · Outline · No background |
+| **Arrow shape** | Circle · Rounded square · Square |
+| **Arrow size** | 32–68px |
+| **Arrow position** | In the row with the dots, or pinned to the left and right edges |
+| **Dot style** | Expanding bar · Dot · Ring |
+| **Dot size** | 6–18px |
+
+On a **solid fill** the glyph flips to whichever of black or white reads against your
+colour, so a pale control colour doesn't produce an invisible chevron.
+
+**Swipe on touch screens** is on by default. A horizontal drag changes banner; a vertical
+one still scrolls the page, and a drag under 45px is ignored so a tap near the edge never
+jumps a slide. Swiping counts as a deliberate choice, so it stops autoplay the same way
+pressing an arrow does. The listeners are passive and only attach on touch-capable
+devices; with the toggle off the code isn't emitted at all.
+
 ### Behaviour controls worth knowing
 
 - **Accordion → link to individual answers.** Each question gets a shareable `#hash`;
@@ -391,7 +415,7 @@ js/components/
   diagram.js            hotspot-diagram
 test/
   gallery.html          Renders all 25 through the real export path; reports failures
-  hostile-host.html     Pastes exports into a deliberately awful theme; 125 assertions
+  hostile-host.html     Pastes exports into a deliberately awful theme; 146 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         144 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,

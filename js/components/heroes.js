@@ -406,7 +406,7 @@
     name: 'Hero Slider',
     category: CAT,
     icon: '⧉',
-    blurb: 'Multiple banners that rotate. Dots work with no JavaScript; autoplay and arrows are added by script, and autoplay never ships without a pause control.',
+    blurb: 'Multiple banners that rotate, with styleable arrows and dots and swipe on touch screens. Dots work with no JavaScript; autoplay and arrows are added by script, and autoplay never ships without a pause control.',
     props: [
       { t: 'section', label: 'Slides' },
       {
@@ -442,6 +442,34 @@
       { k: 'dots', t: 'toggle', label: 'Dots', value: true, help: 'The only control that works without JavaScript — leave this on.' },
       { k: 'arrows', t: 'toggle', label: 'Arrows', value: true },
       { k: 'counter', t: 'toggle', label: 'Slide counter', value: false },
+      {
+        k: 'swipe', t: 'toggle', label: 'Swipe on touch screens', value: true,
+        help: 'Drag left or right to change banner. Vertical drags still scroll the page normally.'
+      },
+
+      { t: 'section', label: 'Control styling' },
+      {
+        k: 'ctrlColor', t: 'color', label: 'Control colour', value: '#ffffff',
+        help: 'Used for the arrows and dots. On a solid fill the glyph flips to whichever of black or white reads against it.'
+      },
+      {
+        k: 'arrowStyle', t: 'select', label: 'Arrow style', value: 'glass', when: { arrows: [true] },
+        options: [['glass', 'Frosted glass'], ['solid', 'Solid fill'], ['outline', 'Outline'], ['bare', 'No background']]
+      },
+      {
+        k: 'arrowShape', t: 'select', label: 'Arrow shape', value: 'circle', when: { arrows: [true] },
+        options: [['circle', 'Circle'], ['rounded', 'Rounded square'], ['square', 'Square']]
+      },
+      { k: 'arrowSize', t: 'range', label: 'Arrow size', min: 32, max: 68, step: 2, unit: 'px', value: 44, when: { arrows: [true] } },
+      {
+        k: 'arrowPlacement', t: 'select', label: 'Arrow position', value: 'row', when: { arrows: [true] },
+        options: [['row', 'In the row with the dots'], ['sides', 'Left and right edges']]
+      },
+      {
+        k: 'dotStyle', t: 'select', label: 'Dot style', value: 'bar', when: { dots: [true] },
+        options: [['bar', 'Expanding bar'], ['dot', 'Dot'], ['ring', 'Ring']]
+      },
+      { k: 'dotSize', t: 'range', label: 'Dot size', min: 6, max: 18, step: 1, unit: 'px', value: 10, when: { dots: [true] } },
 
       { t: 'section', label: 'Layout' },
       { k: 'height', t: 'range', label: 'Height', min: 320, max: 900, step: 10, unit: 'px', value: 600 },
@@ -460,6 +488,53 @@
       var n = items.length;
       var group = 'cb-hsl-' + c.cls;
       var flex = p.align === 'center' ? 'center' : 'flex-start';
+
+      /* A solid control is a filled shape, so its glyph has to be stated
+         against the fill rather than inherited — the same reasoning as pin(). */
+      function glyphOn(hex) {
+        var h = String(hex || '#ffffff').replace('#', '');
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        var v = parseInt(h, 16);
+        if (isNaN(v)) return '#141210';
+        var lum = (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255;
+        return lum > 0.55 ? '#141210' : '#ffffff';
+      }
+
+      var cc = p.ctrlColor || p.textColor || '#ffffff';
+      var aSize = c.num(p.arrowSize, 44);
+      var aRadius = p.arrowShape === 'square' ? '0'
+                  : p.arrowShape === 'rounded' ? 'calc(var(--cb-radius) * .6)' : '50%';
+      var sideArrows = p.arrowPlacement === 'sides';
+
+      var arrowSkin = {
+        glass: 'background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.32); backdrop-filter: blur(6px);',
+        solid: 'background: ' + cc + '; border: 1px solid ' + cc + ';',
+        outline: 'background: transparent; border: 2px solid ' + cc + ';',
+        bare: 'background: transparent; border: 0;'
+      }[p.arrowStyle] || 'background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.32); backdrop-filter: blur(6px);';
+
+      var arrowHover = {
+        glass: 'background: rgba(255,255,255,.3);',
+        solid: 'filter: brightness(.88);',
+        outline: 'background: ' + c.rgba(cc, 0.18) + ';',
+        bare: 'opacity: .65;'
+      }[p.arrowStyle] || 'background: rgba(255,255,255,.3);';
+
+      // Only a filled control changes what the glyph must be drawn in.
+      var arrowInk = p.arrowStyle === 'solid' ? glyphOn(cc) : cc;
+
+      var dotSize = c.num(p.dotSize, 10);
+      var dotBase = {
+        bar: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: ' + dotSize + 'px; background: ' + c.rgba(cc, 0.45) + ';',
+        dot: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: 50%; background: ' + c.rgba(cc, 0.4) + ';',
+        ring: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: 50%; background: transparent; border: 2px solid ' + c.rgba(cc, 0.6) + ';'
+      }[p.dotStyle] || 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: ' + dotSize + 'px; background: ' + c.rgba(cc, 0.45) + ';';
+
+      var dotActive = {
+        bar: 'background: ' + cc + '; width: ' + Math.round(dotSize * 3) + 'px;',
+        dot: 'background: ' + cc + ';',
+        ring: 'background: ' + cc + '; border-color: ' + cc + ';'
+      }[p.dotStyle] || 'background: ' + cc + '; width: ' + Math.round(dotSize * 3) + 'px;';
 
       var slides = items.map(function (it, i) {
         var veil = c.rgba(p.overlayColor, c.num(it.overlay, 45) / 100);
@@ -495,16 +570,22 @@ ${items.map(function (it, i) {
 }).join('\n')}
         </fieldset>`) : '';
 
+      /* Hidden in the markup until scripts run, so they never sit there as dead
+         controls where <script> has been stripped. */
+      var arrowsHtml = p.arrows ? c.dedent(`
+        <div class="cb-hsl__arrows" hidden>
+          <button type="button" class="cb-hsl__arrow cb-hsl__prev" aria-label="Previous banner"><span aria-hidden="true">&#8249;</span></button>
+          <button type="button" class="cb-hsl__arrow cb-hsl__next" aria-label="Next banner"><span aria-hidden="true">&#8250;</span></button>
+        </div>`) : '';
+
       var html = c.dedent(`
         <section class="${c.cls} cb-hsl" aria-roledescription="carousel" aria-label="Featured banners">
           <div class="cb-hsl__stage" aria-live="polite">
 ${c.indent(slides, 12)}
           </div>
+          ${sideArrows ? c.indent(arrowsHtml, 10).trim() : ''}
           <div class="cb-hsl__controls">
-            ${p.arrows ? `<div class="cb-hsl__arrows" hidden>
-              <button type="button" class="cb-hsl__arrow cb-hsl__prev" aria-label="Previous banner"><span aria-hidden="true">&#8249;</span></button>
-              <button type="button" class="cb-hsl__arrow cb-hsl__next" aria-label="Next banner"><span aria-hidden="true">&#8250;</span></button>
-            </div>` : ''}
+            ${sideArrows ? '' : c.indent(arrowsHtml, 12).trim()}
             ${dots}
             ${p.counter ? '<p class="cb-hsl__counter" aria-hidden="true"></p>' : ''}
             ${p.autoplay ? `<button type="button" class="cb-hsl__play" hidden aria-label="Pause banner rotation" data-playing="1">
@@ -527,7 +608,7 @@ ${c.indent(slides, 12)}
 
       var sel = items.map(function (it, i) {
         return `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__slide[data-i="${i}"] { ${enter} z-index: 1; }\n        ` +
-          (p.dots ? `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__dot:nth-of-type(${i + 1}) .cb-hsl__dotMark { background: ${p.textColor}; width: 30px; }` : '');
+          (p.dots ? `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__dot:nth-of-type(${i + 1}) .cb-hsl__dotMark { ${dotActive} }` : '');
       }).join('\n        ');
 
       var css = `
@@ -582,13 +663,27 @@ ${c.indent(slides, 12)}
           padding: 0 20px 26px; flex-wrap: wrap;
         }
         ${s} .cb-hsl__arrows { display: flex; gap: 8px; }
-        ${s} .cb-hsl__arrow, ${s} .cb-hsl__play {
-          width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
-          background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.32);
-          color: ${p.textColor}; font-size: 22px; line-height: 1;
-          backdrop-filter: blur(6px); transition: background .2s ease;
+        ${sideArrows ? `
+        /* Pinned to the section's own edges rather than the control row. The
+           wrapper stays click-through so it never covers the banner's links. */
+        ${s} .cb-hsl__arrows {
+          position: absolute; inset: 0; z-index: 3; display: block; pointer-events: none;
         }
-        ${s} .cb-hsl__arrow:hover, ${s} .cb-hsl__play:hover { background: rgba(255,255,255,.3); }
+        ${s} .cb-hsl__arrow { position: absolute; top: 50%; translate: 0 -50%; pointer-events: auto; }
+        ${s} .cb-hsl__prev { left: 18px; }
+        ${s} .cb-hsl__next { right: 18px; }
+        @media (max-width: 640px) {
+          ${s} .cb-hsl__prev { left: 8px; }
+          ${s} .cb-hsl__next { right: 8px; }
+        }` : ''}
+        ${s} .cb-hsl__arrow, ${s} .cb-hsl__play {
+          width: ${aSize}px; height: ${aSize}px; border-radius: ${aRadius};
+          display: grid; place-items: center;
+          font-size: ${Math.round(aSize * 0.5)}px; line-height: 1;
+          transition: background .2s ease, filter .2s ease, opacity .2s ease;
+          ${arrowSkin}
+        }
+        ${s} .cb-hsl__arrow:hover, ${s} .cb-hsl__play:hover { ${arrowHover} }
         ${s} .cb-hsl__arrow[disabled] { opacity: .35; cursor: not-allowed; }
         ${s} .cb-hsl__playIcon {
           width: 11px; height: 13px; background: currentColor;
@@ -607,22 +702,30 @@ ${c.indent(slides, 12)}
         }
         ${s} .cb-hsl__radio { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
         ${s} .cb-hsl__dotMark {
-          display: block; width: 10px; height: 10px; border-radius: 5px;
-          background: rgba(255,255,255,.45); transition: background .25s ease, width .25s ease;
+          display: block;
+          transition: background .25s ease, width .25s ease, border-color .25s ease;
+          ${dotBase}
         }
         ${s} .cb-hsl__radio:focus-visible ~ .cb-hsl__dotMark {
-          outline: 3px solid ${p.textColor}; outline-offset: 4px;
+          outline: 3px solid ${cc}; outline-offset: 4px;
         }
         ${s} .cb-hsl__counter { font-size: .85em; font-variant-numeric: tabular-nums; opacity: .75; }
 
         ${c.pin([s + ' .cb-hsl__eyebrow', s + ' .cb-hsl__title', s + ' .cb-hsl__sub',
                  s + ' .cb-btn--ghost', s + ' .cb-hsl__counter'], p.textColor)}
+        /* The chevrons are spans, and themes routinely ship a blanket
+           span { color: … !important }. Left to inherit, the arrows lose their
+           glyph against their own fill. */
+        ${c.pin([s + ' .cb-hsl__arrow', s + ' .cb-hsl__arrow span',
+                 s + ' .cb-hsl__play', s + ' .cb-hsl__playIcon'], arrowInk)}
 
         /* Nothing checked — a duplicated radio group would do this — still shows
            the first banner rather than a black box. */
         ${s}:not(:has(.cb-hsl__radio:checked)) .cb-hsl__slide[data-i="0"] { ${enter} z-index: 1; }
+        ${p.dots ? `${s}:not(:has(.cb-hsl__radio:checked)) .cb-hsl__dot:nth-of-type(1) .cb-hsl__dotMark { ${dotActive} }` : ''}
         @supports not selector(:has(*)) {
           ${s} .cb-hsl__slide[data-i="0"] { ${enter} z-index: 1; }
+          ${p.dots ? `${s} .cb-hsl__dot:nth-of-type(1) .cb-hsl__dotMark { ${dotActive} }` : ''}
         }
         @media (max-width: 640px) {
           ${s} .cb-hsl__content { align-items: flex-start; text-align: left; margin-inline: 0; }
@@ -714,6 +817,30 @@ ${c.indent(slides, 12)}
         root.addEventListener("mouseleave", resume);
         root.addEventListener("focusin", suspend);
         root.addEventListener("focusout", function () { setTimeout(resume, 0); });
+
+        ${p.swipe ? `
+        /* Swipe. Listeners are passive and nothing is preventDefault-ed, so a
+           vertical drag still scrolls the page — only a clearly horizontal one
+           changes banner. Treated as a deliberate choice, like the arrows, so
+           it stops autoplay rather than fighting the user. */
+        if (stage && "ontouchstart" in window) {
+          var sx = 0, sy = 0, swiping = false;
+          stage.addEventListener("touchstart", function (e) {
+            swiping = e.touches.length === 1;
+            if (!swiping) return;
+            sx = e.touches[0].clientX;
+            sy = e.touches[0].clientY;
+          }, { passive: true });
+          stage.addEventListener("touchend", function (e) {
+            if (!swiping) return;
+            swiping = false;
+            var t = e.changedTouches[0];
+            var dx = t.clientX - sx, dy = t.clientY - sy;
+            if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+            stop();
+            go(index() + (dx < 0 ? 1 : -1));
+          }, { passive: true });
+        }` : ''}
 
         /* Pause while off-screen so a hero at the top of a long page is not
            cycling images nobody can see. */

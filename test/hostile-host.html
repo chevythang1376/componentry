@@ -603,6 +603,99 @@ video { width: 100% !important; }
       });
     })();
 
+    /* Hero slider control styling and swipe. */
+    (function () {
+      function mount(over, W) {
+        var props = CB.defaults(CB.get('hero-slider'));
+        Object.keys(over || {}).forEach(function (k) { props[k] = over[k]; });
+        var built = CB.build({ uid: 'hs', cls: 'cb-hs-' + Math.random().toString(36).slice(2, 7),
+                               type: 'hero-slider', props: props }, CB.DEFAULT_TOKENS);
+        var f = document.createElement('iframe');
+        f.style.cssText = 'width:' + W + 'px;height:800px;border:0;position:absolute;left:-99999px;top:0;';
+        document.body.appendChild(f);
+        var fd = f.contentDocument;
+        fd.open();
+        fd.write('<!doctype html><html><head><style>html,body{margin:0}' + built.css +
+                 '</style></head><body>' + built.html + '</body></html>');
+        fd.close();
+        f.contentWindow.ontouchstart = null;   // make the swipe branch attach
+        try { f.contentWindow.eval(built.js); } catch (e) {}
+        return { f: f, d: fd, V: f.contentWindow };
+      }
+
+      // Each arrow style has to actually look different from the others.
+      var seen = {};
+      ['glass', 'solid', 'outline', 'bare'].forEach(function (st) {
+        var m = mount({ arrowStyle: st, ctrlColor: '#ffcc00' }, 1280);
+        var a = m.d.querySelector('.cb-hsl__arrow');
+        var cs = m.V.getComputedStyle(a);
+        seen[st] = cs.backgroundColor + '|' + cs.borderTopWidth + '|' + cs.color;
+        // A filled control must state its glyph colour against the fill.
+        if (st === 'solid') {
+          check('hero slider: solid arrow glyph contrasts its fill',
+                cs.color === 'rgb(20, 18, 16)', cs.color + ' on ' + cs.backgroundColor);
+        }
+        // The host ships span { color: … !important }; the chevron is a span.
+        var glyph = m.V.getComputedStyle(a.querySelector('span')).color;
+        check('hero slider: ' + st + ' chevron survives host span colour',
+              glyph !== 'rgb(51, 51, 51)', glyph);
+        m.f.remove();
+      });
+      check('hero slider: the four arrow styles are visually distinct',
+            new Set(Object.keys(seen).map(function (k) { return seen[k]; })).size === 4,
+            Object.keys(seen).length + ' styles');
+
+      // Side placement must leave the control row and hug the section edges.
+      var side = mount({ arrowPlacement: 'sides' }, 1280);
+      var prev = side.d.querySelector('.cb-hsl__prev');
+      var sec = side.d.querySelector('.cb-hsl');
+      var pr = prev.getBoundingClientRect(), sr = sec.getBoundingClientRect();
+      check('hero slider: side arrows leave the control row',
+            !prev.closest('.cb-hsl__controls'), 'ok');
+      check('hero slider: side arrows sit at the section edge',
+            Math.round(pr.left - sr.left) < 40, Math.round(pr.left - sr.left) + 'px in');
+      check('hero slider: side arrows are vertically centred',
+            Math.abs((pr.top + pr.height / 2) - (sr.top + sr.height / 2)) < 40, 'centred');
+      side.f.remove();
+
+      // Swipe: horizontal changes banner, vertical must not.
+      var sw = mount({}, 390);
+      function active(d) {
+        var rs = d.querySelectorAll('.cb-hsl__radio');
+        for (var i = 0; i < rs.length; i++) if (rs[i].checked) return i;
+        return -1;
+      }
+      function drag(m, dx, dy) {
+        var stage = m.d.querySelector('.cb-hsl__stage');
+        var a = new m.V.Event('touchstart', { bubbles: true });
+        a.touches = [{ clientX: 300, clientY: 400 }];
+        stage.dispatchEvent(a);
+        var b = new m.V.Event('touchend', { bubbles: true });
+        b.changedTouches = [{ clientX: 300 + dx, clientY: 400 + dy }];
+        stage.dispatchEvent(b);
+      }
+      var from = active(sw.d);
+      drag(sw, -120, 5);
+      check('hero slider: swipe left advances', active(sw.d) === from + 1, from + ' -> ' + active(sw.d));
+      drag(sw, 120, 5);
+      check('hero slider: swipe right goes back', active(sw.d) === from, 'back to ' + active(sw.d));
+      var held = active(sw.d);
+      drag(sw, 0, -160);
+      check('hero slider: vertical drag does not change banner', active(sw.d) === held, 'stayed ' + active(sw.d));
+      drag(sw, 20, 0);
+      check('hero slider: a nudge under the threshold is ignored', active(sw.d) === held, 'stayed ' + active(sw.d));
+      var play = sw.d.querySelector('.cb-hsl__play');
+      check('hero slider: swiping stops autoplay',
+            !play || play.getAttribute('data-playing') === '0',
+            play ? play.getAttribute('data-playing') : 'no control');
+      sw.f.remove();
+
+      check('hero slider: swipe code omitted when the toggle is off',
+            !/touchstart/.test(CB.build({ uid: 'nsw', cls: 'cb-nsw', type: 'hero-slider',
+              props: Object.assign(CB.defaults(CB.get('hero-slider')), { swipe: false }) },
+              CB.DEFAULT_TOKENS).js), 'absent');
+    })();
+
     // A blank label must leave nothing behind — no empty row taking up space.
     var blank = CB.build({ uid: 'blank', cls: 'cb-blank', type: 'pinned-product',
                            props: CB.defaults(CB.get('pinned-product')) }, CB.DEFAULT_TOKENS);
