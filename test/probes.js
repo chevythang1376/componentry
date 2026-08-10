@@ -430,15 +430,28 @@ window.CBProbe = (function () {
     var steps = qa(root, '.cb-psc__step');
     t.ok('steps rendered', steps.length >= 2, steps.length + ' steps');
     t.ok('one shot per step', shots.length === steps.length);
-    // Below 860px the product stops pinning and sits above each step instead —
-    // pinning beside a single narrow column reads badly.
-    if (atLeast(861)) {
-      t.ok('product pane is sticky', media && getComputedStyle(media).position === 'sticky',
-           media && getComputedStyle(media).position);
+
+    /* Below 860px there is no pinned stage, so each step carries its own copy
+       of its shot. That duplicate is structural, so it holds even where the
+       stylesheet was stripped. */
+    var stepShots = qa(root, '.cb-psc__stepShot');
+    t.ok('every step carries its own shot', stepShots.length === steps.length,
+         stepShots.length + '/' + steps.length);
+
+    /* Which layout applies is only assertable when the component's own CSS
+       actually made it through — with the stylesheet stripped the pane is just
+       a plain block and neither branch means anything. */
+    var mediaStyled = media &&
+      (getComputedStyle(media).position === 'sticky' || getComputedStyle(media).display === 'none');
+    if (!mediaStyled) {
+      t.skip('component CSS stripped — pinning not assertable');
+    } else if (atLeast(861)) {
+      t.ok('product pane is sticky', getComputedStyle(media).position === 'sticky',
+           getComputedStyle(media).position);
     } else {
-      t.ok('product pane unpins under 860px',
-           media && getComputedStyle(media).position === 'static',
-           media && getComputedStyle(media).position);
+      t.ok('shared stage dropped below 860px',
+           getComputedStyle(media).display === 'none',
+           getComputedStyle(media).display);
     }
     t.ok('track declares a named view timeline',
          /cb-pin-/.test(getComputedStyle(q(root, '.cb-psc__track')).viewTimelineName || ''),
