@@ -138,7 +138,12 @@
 
         ${s} .cb-bn__tile[data-tone="surface"] { background: var(--cb-surface); border: 1px solid var(--cb-border); }
         ${s} .cb-bn__tile[data-tone="subtle"]  { background: var(--cb-subtle); }
-        ${s} .cb-bn__tile[data-tone="brand"]   { background: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
+        /* Solid colour and gradient stated separately, not as a shorthand.
+           Sanitisers that drop gradient values otherwise leave this tile with
+           no background at all, and its white text lands on the page's own
+           white at 1:1. The gradient is opaque, so the solid never shows while
+           it works. */
+        ${s} .cb-bn__tile[data-tone="brand"]   { background: var(--cb-brand); background-image: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
         ${s} .cb-bn__tile[data-tone="dark"]    { background: var(--cb-ink); }
         ${s} .cb-bn__tile[data-tone="image"]   { background: var(--cb-ink); }
         ${s} .cb-bn__media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -312,7 +317,7 @@
         }
         ${s} .cb-stk__card[data-tone="surface"] { background: var(--cb-surface); border: 1px solid var(--cb-border); }
         ${s} .cb-stk__card[data-tone="subtle"]  { background: var(--cb-subtle); border: 1px solid var(--cb-border); }
-        ${s} .cb-stk__card[data-tone="brand"]   { background: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
+        ${s} .cb-stk__card[data-tone="brand"]   { background: var(--cb-brand); background-image: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
         ${s} .cb-stk__card[data-tone="dark"]    { background: var(--cb-ink); }
 
         ${s} .cb-stk__copy { display: flex; flex-direction: column; gap: 12px; ${p.layout === 'text' ? 'max-width: 62ch;' : ''} }
