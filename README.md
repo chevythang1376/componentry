@@ -210,6 +210,32 @@ Platform notes cover the real gotchas: Webflow's 50 kB embed cap, Squarespace no
 running scripts in edit mode, the WordPress Visual tab stripping `<script>`, Wix
 embeds being sandboxed iframes that can't self-size.
 
+### Sharing the reset
+
+Every block needs the same ~7 kB of defensive reset and design tokens. Stating it inside
+each one meant a page of five blocks spent **half its CSS on the same rules repeated five
+times** — and cleared Webflow's 50 kB cap on its own.
+
+With more than one block, that base is now stated once for the page against a shared
+`cb-scope` class that every component root already carries:
+
+| Page | Reset per block | Reset shared | |
+|---|---|---|---|
+| 5 blocks | 54.7 kB CSS | **21.7 kB** | −60% |
+| All 25 | 286 kB CSS | **90.3 kB** | −68% |
+
+That five-block page now exports at 36 kB all-in, comfortably inside Webflow's cap.
+
+The markup is **byte-identical either way** — switching modes never means re-pasting your
+HTML — and a single block is unchanged, since it has nothing to share with. Rendering is
+identical too: the shared rules are emitted ahead of the component rules, so source order
+resolves ties exactly as before.
+
+**Turn it off if you're pasting blocks into separate embeds.** Shared mode assumes the
+whole export lands in one place. If each block goes into its own embed field, each one has
+to stand on its own, and the toggle in the export dialog puts the reset back inside every
+block.
+
 ---
 
 ## Using the editor
