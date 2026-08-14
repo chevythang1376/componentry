@@ -106,12 +106,27 @@
         return 'var(--cb-brand)';
       }
 
+      /* A selected pin fills with its category colour and draws its number on
+         top, so the number cannot be a fixed white — a pale category would put
+         white on pale yellow. Categories are user-chosen, so the readable ink
+         is worked out per pin at build time and handed to the CSS as a
+         variable. Falls back to white when the colour is a var() we cannot
+         resolve here. */
+      function pinInk(color) {
+        var h = String(color || '').trim().replace('#', '');
+        if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(h)) return '#ffffff';
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        var v = parseInt(h, 16);
+        var l = (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255;
+        return l > 0.55 ? '#141210' : '#ffffff';
+      }
+
       /* One node per hotspot: the radio, the visible pin, and its accessible
          name. No parallel text list to keep in sync. */
       var pins = items.map(function (it, i) {
         return c.dedent(`
           <label class="cb-hs__pin" data-i="${i}" data-cat="${c.attr(it.cat)}"
-                 style="--cb-x: ${c.clamp(c.num(it.x, 50), 0, 100)}%; --cb-y: ${c.clamp(c.num(it.y, 50), 0, 100)}%; --cb-pc: ${c.attr(catColor(it.cat))}">
+                 style="--cb-x: ${c.clamp(c.num(it.x, 50), 0, 100)}%; --cb-y: ${c.clamp(c.num(it.y, 50), 0, 100)}%; --cb-pc: ${c.attr(catColor(it.cat))}; --cb-pi: ${c.attr(pinInk(catColor(it.cat)))}">
             <input class="cb-hs__radio" type="radio" name="${c.attr(group)}" data-i="${i}"${i === 0 ? ' checked' : ''}>
             <span class="cb-hs__dot" aria-hidden="true">${p.pin === 'number' ? (i + 1) : ''}</span>
             <span class="cb-sr">${i + 1}. ${c.esc(it.title)}</span>
@@ -121,7 +136,7 @@
       var panels = items.map(function (it, i) {
         return c.dedent(`
           <article class="cb-hs__detail" data-i="${i}">
-            <span class="cb-hs__badge" style="--cb-pc: ${c.attr(catColor(it.cat))}">${i + 1}</span>
+            <span class="cb-hs__badge" style="--cb-pc: ${c.attr(catColor(it.cat))}; --cb-pi: ${c.attr(pinInk(catColor(it.cat)))}">${i + 1}</span>
             ${it.meta ? '<p class="cb-hs__meta">' + c.esc(it.meta) + '</p>' : ''}
             <h3 class="cb-hs__dTitle">${c.esc(it.title)}</h3>
             ${it.text ? '<p class="cb-hs__dText">' + c.rich(it.text) + '</p>' : ''}
@@ -180,7 +195,7 @@ ${c.indent(panels, 16)}
           ${s}:has(.cb-hs__radio[data-i="${i}"]:checked) .cb-hs__detail[data-i="${i}"] { display: flex; }
           ${s}:has(.cb-hs__radio[data-i="${i}"]:checked) .cb-hs__pin[data-i="${i}"] { z-index: 3; }
           ${s}:has(.cb-hs__radio[data-i="${i}"]:checked) .cb-hs__pin[data-i="${i}"] .cb-hs__dot {
-            background: var(--cb-pc); color: #fff; scale: calc(1.18 / var(--cb-z));
+            background: var(--cb-pc); color: var(--cb-pi); scale: calc(1.18 / var(--cb-z));
           }` + (zoom > 1 ? `
           ${s}:has(.cb-hs__radio[data-i="${i}"]:checked) .cb-hs__frame {
             --cb-z: ${zoom}; transform-origin: ${x}% ${y}%;
@@ -243,10 +258,17 @@ ${c.indent(panels, 16)}
           translate: -50% -50%; border-radius: 50%;
         }
         ${s} .cb-hs__radio { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+        /* The number reads in ink, not in the category colour. An unselected
+           pin is a white disc, so drawing its number in the category colour
+           made contrast depend on whichever colour was picked — the default
+           amber landed at 1.9:1, and any pale colour a user chooses would do
+           the same. The 2px ring carries the category instead, which it can do
+           at any colour, and the legend carries the name. Selecting a pin
+           fills it and flips the number to white, as before. */
         ${s} .cb-hs__dot {
           display: grid; place-items: center;
           width: ${c.num(p.pinSize, 28)}px; height: ${c.num(p.pinSize, 28)}px;
-          border-radius: 50%; background: #fff; color: var(--cb-pc);
+          border-radius: 50%; background: #fff; color: var(--cb-ink);
           border: 2px solid var(--cb-pc);
           font-size: ${Math.round(c.num(p.pinSize, 28) * 0.44)}px; font-weight: 800; line-height: 1;
           font-variant-numeric: tabular-nums;
@@ -254,7 +276,7 @@ ${c.indent(panels, 16)}
           scale: calc(1 / var(--cb-z));
           transition: background .25s ease, color .25s ease, scale .35s ease;
         }
-        ${s} .cb-hs__pin:hover .cb-hs__dot { background: var(--cb-pc); color: #fff; }
+        ${s} .cb-hs__pin:hover .cb-hs__dot { background: var(--cb-pc); color: var(--cb-pi); }
         ${s} .cb-hs__radio:focus-visible ~ .cb-hs__dot {
           outline: 3px solid var(--cb-brand); outline-offset: 3px;
         }
@@ -293,7 +315,7 @@ ${c.indent(panels, 16)}
         ${s} .cb-hs__detail { display: none; flex-direction: column; gap: 10px; }
         ${s} .cb-hs__badge {
           display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
-          background: var(--cb-pc); color: #fff; font-size: .82em; font-weight: 800;
+          background: var(--cb-pc); color: var(--cb-pi); font-size: .82em; font-weight: 800;
           font-variant-numeric: tabular-nums; margin-bottom: 2px;
         }
         ${s} .cb-hs__meta {

@@ -527,6 +527,47 @@
     return state.instances;
   }
 
+  /* Checks the project as configured, not the component defaults — see
+     js/preflight.js. Collapsed to a single line when there is nothing wrong,
+     so a clean project does not make you read a report. */
+  function renderPreflight(insts) {
+    var host = $('#preflight');
+    var found;
+    try {
+      found = CB.Preflight.run(insts, state.tokens, {
+        platform: exportState.platform,
+        shared: exportState.shared
+      });
+    } catch (e) {
+      host.innerHTML = '<p class="pf__clean">Preflight could not run: ' + CB.esc(e.message) + '</p>';
+      return;
+    }
+
+    var errors = found.filter(function (f) { return f.level === 'error'; }).length;
+    var warns = found.filter(function (f) { return f.level === 'warn'; }).length;
+
+    if (!found.length) {
+      host.innerHTML = '<p class="pf__clean">Preflight found nothing to fix.</p>';
+      return;
+    }
+
+    var summary = errors ? errors + ' to fix' : warns ? warns + ' worth a look' : 'A note before you paste';
+    var open = errors > 0;
+
+    host.innerHTML =
+      '<details class="pf"' + (open ? ' open' : '') + '>' +
+      '<summary class="pf__sum pf__sum--' + (errors ? 'error' : warns ? 'warn' : 'info') + '">' +
+      CB.esc(summary) + '</summary><ul class="pf__list">' +
+      found.map(function (f) {
+        return '<li class="pf__item pf__item--' + f.level + '">' +
+          '<span class="pf__title">' + CB.esc(f.title) +
+          (f.block ? ' <span class="pf__block">' + CB.esc(f.block) + '</span>' : '') + '</span>' +
+          '<span class="pf__detail">' + CB.esc(f.detail) + '</span>' +
+          '<span class="pf__fix">' + CB.esc(f.fix) + '</span></li>';
+      }).join('') +
+      '</ul></details>';
+  }
+
   function renderExport() {
     var insts = currentExportInstances();
     var p = CB.Export.parts(insts, state.tokens, { shared: exportState.shared });
@@ -552,6 +593,7 @@
     }
 
     $('#platformNote').innerHTML = plat.note;
+    renderPreflight(insts);
 
     $$('#exportModal [data-format]').forEach(function (b) {
       b.classList.toggle('is-active', b.dataset.format === exportState.format);
