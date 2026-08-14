@@ -254,6 +254,33 @@ image used twice or blocks reordered can't mis-map. That brings the cost to **12
 Switch it off with **Re-editable** if you'd rather ship the smallest possible code. Split
 files mode puts the comment on the HTML pane, since that's the part you'd paste back.
 
+### Preflight
+
+The export dialog checks the project **as you configured it**, not at component defaults,
+and answers one question: if this were pasted right now, what would go wrong?
+
+| Check | Catches |
+|---|---|
+| **Contrast** | Text under 3:1 against its own background, judged on the rendered block |
+| **Alt text** | Images where the schema asks for alt and it's blank |
+| **Empty blocks** | A list component with no items — exports as a dead band |
+| **Heavy images** | Uploads over ~180 kB, which cost twice: export *and* browser storage |
+| **Embed cap** | Total over the target platform's limit, with the way out |
+| **Needs JavaScript** | Which blocks stop responding in a rich-text field |
+
+Findings name the block they came from and say what to do. A clean project collapses to a
+single line rather than making you read a report.
+
+The contrast check deliberately **skips what it can't resolve**. Text over a photo, or
+anything positioned out of normal flow, has no knowable backdrop — guessing white there is
+how a checker invents failures nobody can act on. Ordinary flowed text inside a block with
+its own background is exactly the black-title-in-a-black-box case, and that is still judged.
+
+It earned its keep immediately: it found the Interactive Diagram's pin numbers drawn in
+the category colour on a white disc, which put the shipped amber at **1.9:1**. Pins and
+badges now take a readable ink worked out per category, so any colour you pick stays
+legible — including the ones I'd never have thought to test.
+
 ---
 
 ## Using the editor
@@ -469,7 +496,7 @@ js/components/
   diagram.js            hotspot-diagram
 test/
   gallery.html          Renders all 25 through the real export path; reports failures
-  hostile-host.html     Pastes exports into a deliberately awful theme; 150 assertions
+  hostile-host.html     Pastes exports into a deliberately awful theme; 165 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         144 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,
