@@ -146,13 +146,37 @@
 
   /* ------------------------------------------------------- persistence */
 
+  /* Uploaded images are stored inline as data URIs, so a few photos can walk a
+     project up to the browser's per-origin storage limit. That limit is around
+     5 MB and hitting it means autosave simply stops — a single toast you can
+     easily miss, with the work still only in memory. The budget is shown
+     before that happens rather than reported after. */
+  var STORAGE_BUDGET = 4000000;
+
+  function updateBudget() {
+    var el = $('#budget');
+    if (!el) return;
+    var used = snapshot().length;
+    var pct = used / STORAGE_BUDGET;
+    if (pct < 0.5) { el.hidden = true; return; }
+    el.hidden = false;
+    el.textContent = Math.round(pct * 100) + '% of browser storage';
+    el.className = 'budget' + (pct > 0.85 ? ' is-full' : pct > 0.7 ? ' is-warn' : '');
+    el.title = (used / 1048576).toFixed(1) + ' MB used, mostly embedded images. ' +
+      'Past this browser\'s limit autosave stops. Use Save file to keep a copy, ' +
+      'or point image fields at URLs instead of uploading.';
+  }
+
   function save(silent) {
     try {
       localStorage.setItem(STORAGE_KEY, snapshot());
       dirty = false;
+      updateBudget();
       if (!silent) toast('Saved to this browser');
     } catch (e) {
-      toast('Could not save — storage may be full', true);
+      updateBudget();
+      toast('Too big for browser storage — use Save file to keep a copy, ' +
+            'and shrink or unlink the largest images', true);
     }
   }
 
@@ -237,10 +261,72 @@
 
   /* ---------------------------------------------------------- library */
 
+  /* Starting from an empty canvas means knowing which of 25 blocks go together
+     before you have seen any of them. These are the arrangements people
+     actually build, dropped in ready to edit — the fastest way to a real page
+     is to start from one and delete what you don't want. */
+  var TEMPLATES = [
+    {
+      name: 'Landing page',
+      blurb: 'Hero, proof, features, questions, close',
+      blocks: ['hero-slider', 'stats-counter', 'feature-grid', 'testimonials', 'accordion', 'cta-banner']
+    },
+    {
+      name: 'Product page',
+      blurb: 'Pinned scroller, finishes, specs, enquiry',
+      blocks: ['parallax-banner', 'pinned-product', 'finish-switcher', 'spec-strip', 'cta-banner']
+    },
+    {
+      name: 'Capability page',
+      blurb: 'Diagram-led, for a system or a service',
+      blocks: ['split-hero', 'hotspot-diagram', 'feature-grid', 'timeline', 'cta-banner']
+    },
+    {
+      name: 'Support page',
+      blurb: 'Answers first, then a way to reach someone',
+      blocks: ['split-hero', 'accordion', 'video-embed', 'cta-banner']
+    }
+  ];
+
+  function applyTemplate(t) {
+    pushHistory();
+    t.blocks.forEach(function (id) { if (CB.get(id)) addComponent(id); });
+    toast(t.name + ' added — ' + t.blocks.length + ' blocks');
+  }
+
+  function renderTemplates(host, filter) {
+    var matches = TEMPLATES.filter(function (t) {
+      if (!filter) return true;
+      return (t.name + ' ' + t.blurb).toLowerCase().indexOf(filter) > -1;
+    });
+    if (!matches.length) return;
+
+    var h = document.createElement('div');
+    h.className = 'rail__group';
+    h.textContent = 'Start from a page';
+    host.appendChild(h);
+
+    matches.forEach(function (t) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lib lib--tpl';
+      b.title = t.blocks.map(function (id) { return (CB.get(id) || {}).name || id; }).join(' → ');
+      b.innerHTML =
+        '<span class="lib__icon" aria-hidden="true">▤</span>' +
+        '<span class="lib__text"><span class="lib__name">' + CB.esc(t.name) + '</span>' +
+        '<span class="lib__blurb">' + CB.esc(t.blurb) + '</span></span>' +
+        '<span class="lib__add" aria-hidden="true">' + t.blocks.length + '</span>';
+      b.addEventListener('click', function () { applyTemplate(t); });
+      host.appendChild(b);
+    });
+  }
+
   function renderLibrary(filter) {
     var host = $('#library');
     host.innerHTML = '';
     filter = (filter || '').trim().toLowerCase();
+
+    renderTemplates(host, filter);
 
     var groups = {};
     var order = [];
@@ -252,7 +338,11 @@
     });
 
     if (!order.length) {
-      host.innerHTML = '<p class="rail__empty">No components match “' + CB.esc(filter) + '”.</p>';
+      // Append, never replace — a filter can match a template and no component,
+      // and wiping the panel would hide the thing that did match.
+      if (!host.children.length) {
+        host.innerHTML = '<p class="rail__empty">Nothing matches “' + CB.esc(filter) + '”.</p>';
+      }
       return;
     }
 
@@ -403,6 +493,42 @@
     labelTimer = setTimeout(renderLayers, 400);
   }
 
+  /* Live contrast on the pairs the palette actually puts together. A colour
+     picker will happily hand you an unreadable combination and say nothing —
+     twice now that has shipped as a bug — so the ratio is shown while you
+     choose rather than found later. */
+  var CONTRAST_PAIRS = [
+    ['Body text', 'ink', 'surface'],
+    ['Muted text', 'muted', 'surface'],
+    ['Muted on fill', 'muted', 'subtle'],
+    ['Button label', 'onBrand', 'brand'],
+    ['Brand on surface', 'brand', 'surface']
+  ];
+
+  function paintContrast(host) {
+    var rows = CONTRAST_PAIRS.map(function (p) {
+      var fg = state.tokens[p[1]], bg = state.tokens[p[2]];
+      var r;
+      try { r = CB.Preflight.ratio(hexToRgb(fg), hexToRgb(bg)); } catch (e) { return ''; }
+      // 4.5 is the WCAG AA bar for body text, 3 the bar for large text.
+      var grade = r >= 7 ? 'AAA' : r >= 4.5 ? 'AA' : r >= 3 ? 'Large only' : 'Fails';
+      var cls = r >= 4.5 ? 'ok' : r >= 3 ? 'warn' : 'bad';
+      return '<li class="ctr__row">' +
+        '<span class="ctr__chip" style="background:' + CB.attr(bg) + ';color:' + CB.attr(fg) + '">Aa</span>' +
+        '<span class="ctr__name">' + CB.esc(p[0]) + '</span>' +
+        '<span class="ctr__val ctr__val--' + cls + '">' + r.toFixed(1) + ':1 ' + grade + '</span></li>';
+    }).join('');
+    host.innerHTML = '<div class="insp__section">Contrast</div><ul class="ctr__list">' + rows + '</ul>';
+  }
+
+  function hexToRgb(hex) {
+    var h = String(hex || '').trim().replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var v = parseInt(h, 16);
+    if (isNaN(v)) throw new Error('not a hex colour');
+    return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
+  }
+
   function renderTokens() {
     var host = $('#tokens');
     host.innerHTML = '';
@@ -436,11 +562,18 @@
 
     var fieldHost = document.createElement('div');
     host.appendChild(fieldHost);
+
+    var contrast = document.createElement('div');
+    contrast.className = 'ctr';
+    host.appendChild(contrast);
+
     CB.Inspector.render(fieldHost, { props: TOKEN_FIELDS }, state.tokens, function () {
       dirty = true;
       pushHistoryDebounced();
       refreshPreview();
+      paintContrast(contrast);
     });
+    paintContrast(contrast);
 
     var reset = document.createElement('button');
     reset.className = 'btn btn--ghost btn--block';
@@ -764,6 +897,7 @@
     buildPreview();
     $('#projectName').value = state.name;
     updateHistoryButtons();
+    updateBudget();
   }
 
   /* ------------------------------------------------------------- import */

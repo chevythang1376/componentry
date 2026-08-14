@@ -11,8 +11,10 @@ editor. Pick a pattern, edit it live, and export self-contained HTML + CSS + Jav
 
 Double-click `index.html`. That's it — it works from `file://`.
 
-> If you edit the source and a reload seems to show the old version, your browser has
-> cached the `js/*.js` files. Hard-reload with **Ctrl+Shift+R**.
+**If you're editing the source**, run `./bump.sh` before committing. Assets carry a
+`?v=` version and there's no build step to update it, so without a bump a browser will
+keep serving yesterday's `js/*.js` after a deploy and the page looks unchanged. Same day
+twice? `./bump.sh b`.
 
 ---
 
@@ -454,6 +456,27 @@ one still scrolls the page, and a drag under 45px is ignored so a tap near the e
 jumps a slide. Swiping counts as a deliberate choice, so it stops autoplay the same way
 pressing an arrow does. The listeners are passive and only attach on touch-capable
 devices; with the toggle off the code isn't emitted at all.
+
+### Starting from a page
+
+Four starters sit above the component list, each dropping a ready arrangement you can
+edit down: **Landing page**, **Product page**, **Capability page**, **Support page**.
+Search finds them by name too. Quicker than deciding which of 25 blocks belong together
+before you've seen any of them.
+
+### Contrast, while you choose
+
+The Design tokens panel shows a live ratio and WCAG grade for the pairs the palette
+actually puts together — body text on surface, muted text, button labels on the brand
+fill. A colour picker will happily hand you an unreadable combination and say nothing;
+twice that shipped here as a bug before this existed.
+
+### Storage budget
+
+Uploaded images are stored inline, so a few photos can walk a project toward the
+browser's ~5 MB per-origin limit. Past it, autosave simply stops. A badge appears in the
+top bar once you're over halfway and turns red near the edge — use **Save file** to keep
+a copy, or point image fields at URLs instead of uploading.
 
 ### Behaviour controls worth knowing
 
