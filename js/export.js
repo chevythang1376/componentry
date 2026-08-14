@@ -45,6 +45,95 @@ CB.Export = (function () {
     };
   }
 
+  /* ------------------------------------------------------ editable copy */
+  /* Exported code is a one-way trip unless the project file survives. Losing
+     it means rebuilding a block by hand, so the export can carry the settings
+     that produced it and be pasted straight back into the editor.
+
+     It rides in an HTML comment: browsers ignore it, and base64 keeps "--" out
+     of the payload, which a comment cannot contain. Images are the reason this
+     is not simply the project JSON — they are data URIs already sitting in the
+     markup, and repeating them made the payload 30% of the export with nearly
+     60% of that being bytes we had just written. Any value already present in
+     the HTML is replaced by a hash of itself and resolved from the markup on
+     the way back in, keyed by content rather than position so reordering or an
+     image used twice cannot mis-map. */
+
+  var TAG = 'cb-project';
+
+  function fnv(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(36);
+  }
+  function b64(s) { return btoa(unescape(encodeURIComponent(s))); }
+  function unb64(s) { return decodeURIComponent(escape(atob(s))); }
+
+  /* Every data: URI the markup already carries, keyed by content hash. */
+  function assetMap(html) {
+    var map = {};
+    var doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+    Array.prototype.forEach.call(doc.querySelectorAll('*'), function (el) {
+      Array.prototype.forEach.call(el.attributes || [], function (a) {
+        if (a.value && a.value.indexOf('data:') === 0) map[fnv(a.value)] = a.value;
+      });
+    });
+    // Images can also arrive through CSS, so sweep any style text too.
+    Array.prototype.forEach.call(doc.querySelectorAll('style'), function (st) {
+      (st.textContent.match(/data:[^"')\s]+/g) || []).forEach(function (u) { map[fnv(u)] = u; });
+    });
+    return map;
+  }
+
+  function walk(v, fn) {
+    if (Array.isArray(v)) return v.map(function (x) { return walk(x, fn); });
+    if (v && typeof v === 'object') {
+      var o = {};
+      Object.keys(v).forEach(function (k) { o[k] = walk(v[k], fn); });
+      return o;
+    }
+    return fn(v);
+  }
+
+  function payload(instances, tokens, html, name) {
+    var assets = assetMap(html);
+    var data = {
+      v: 1,
+      name: name || '',
+      tokens: tokens,
+      instances: instances.map(function (i) {
+        return {
+          uid: i.uid, cls: i.cls, type: i.type,
+          props: walk(i.props, function (v) {
+            if (typeof v === 'string' && v.indexOf('data:') === 0) {
+              var h = fnv(v);
+              if (assets[h]) return 'cb-asset:' + h;   // recoverable from the markup
+            }
+            return v;
+          })
+        };
+      })
+    };
+    return '<!--' + TAG + ' ' + b64(JSON.stringify(data)) + '-->';
+  }
+
+  function readPayload(html) {
+    var m = String(html || '').match(new RegExp('<!--' + TAG + '\\s+([A-Za-z0-9+/=]+)\\s*-->'));
+    if (!m) return null;
+    var data;
+    try { data = JSON.parse(unb64(m[1])); } catch (e) { return null; }
+    if (!data || !Array.isArray(data.instances)) return null;
+    var assets = assetMap(html);
+    data.instances = data.instances.map(function (i) {
+      i.props = walk(i.props, function (v) {
+        if (typeof v === 'string' && v.indexOf('cb-asset:') === 0) return assets[v.slice(9)] || '';
+        return v;
+      });
+      return i;
+    });
+    return data;
+  }
+
   /* -------------------------------------------------------------- minify */
   /* Deliberately conservative: strips comments and collapses runs of
      whitespace, but never touches the inside of a quoted string. */
@@ -289,6 +378,8 @@ CB.Export = (function () {
 
   return {
     parts: parts,
+    payload: payload,
+    readPayload: readPayload,
     embed: embed,
     fullDocument: fullDocument,
     previewDoc: previewDoc,
