@@ -241,6 +241,21 @@ window.CB = (function () {
 
   function btnSize(t) { return BTN_SIZES[t.btnSize] || BTN_SIZES.md; }
 
+  /* Shared scope class, carried by every component root alongside its own
+     generated class. It exists so the reset and the tokens can be stated once
+     for a whole page instead of repeated per block — that block is ~7kB, and
+     on a five-block page repeating it accounted for half the exported CSS.
+     Deliberately not a short name like "cb": this lands in host pages that
+     have their own class vocabulary. */
+  var SCOPE = 'cb-scope';
+
+  /* The reset and tokens, stated once against the shared scope. Emitted ahead
+     of every component's own rules, which keeps source order — and therefore
+     which rule wins — exactly as it is when each block carries its own copy. */
+  function sharedCss(tokens) {
+    return [tokenCss('.' + SCOPE, tokens), baseCss('.' + SCOPE)].join('\n\n').trim();
+  }
+
   /* Tokens live ON the component wrapper, never on :root — so an export
      dropped into a WYSIWYG page cannot leak variables into the host site. */
   function tokenCss(s, t) {
@@ -567,7 +582,8 @@ window.CB = (function () {
 
   /* ------------------------------------------------------------- rendering */
 
-  function build(instance, tokens) {
+  function build(instance, tokens, opts) {
+    opts = opts || {};
     var def = get(instance.type);
     if (!def) return { html: '', css: '', js: '' };
 
@@ -595,13 +611,19 @@ window.CB = (function () {
 
     var html = (out.html || '').trim();
     html = shiftHeadings(html, clamp(num(p._heading, 2), 2, 4) - 2);
-    html = patchRoot(html, (p._anchor || '').trim().replace(/\s+/g, '-'), (p._class || '').trim());
+    /* Every root carries the shared scope class as well as its own, so the
+       markup is byte-identical whether the reset is emitted per block or once
+       for the page. Switching modes never means re-pasting the HTML. */
+    html = patchRoot(html, (p._anchor || '').trim().replace(/\s+/g, '-'),
+                     (SCOPE + ' ' + (p._class || '').trim()).trim());
 
     var sel = rootSelector(html, s);
 
     return {
       html: html,
-      css: [tokenCss(s, tokens), baseCss(s), dedent(out.css || ''), advancedCss(sel, s, p)]
+      css: [opts.omitBase ? '' : tokenCss(s, tokens),
+            opts.omitBase ? '' : baseCss(s),
+            dedent(out.css || ''), advancedCss(sel, s, p)]
              .filter(function (x) { return x && x.trim(); }).join('\n\n').trim(),
       js: (out.js || '').trim()
     };
@@ -612,7 +634,7 @@ window.CB = (function () {
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
     actions: actions, ctaFields: ctaFields,
-    tokenCss: tokenCss, baseCss: baseCss,
+    tokenCss: tokenCss, baseCss: baseCss, sharedCss: sharedCss, SCOPE: SCOPE,
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
     familyFromImport: familyFromImport
   };

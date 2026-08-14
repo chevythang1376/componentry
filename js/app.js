@@ -511,7 +511,7 @@
 
   /* ------------------------------------------------------------ export */
 
-  var exportState = { format: 'embed', platform: 'generic', scope: 'all', minify: false };
+  var exportState = { format: 'embed', platform: 'generic', scope: 'all', minify: false, shared: true };
 
   function openExport() {
     if (!state.instances.length) { toast('Add a component first', true); return; }
@@ -529,8 +529,27 @@
 
   function renderExport() {
     var insts = currentExportInstances();
-    var p = CB.Export.parts(insts, state.tokens);
+    var p = CB.Export.parts(insts, state.tokens, { shared: exportState.shared });
     var plat = CB.Export.PLATFORMS[exportState.platform];
+
+    /* Only meaningful with more than one block — a single block has nothing to
+       share the reset with. Show what it is actually saving rather than an
+       unexplained switch. */
+    var sharedLine = $('#sharedLine');
+    if (insts.length > 1) {
+      sharedLine.hidden = false;
+      $('#sharedToggle').checked = exportState.shared;
+      var full = CB.Export.parts(insts, state.tokens, { shared: false });
+      var saved = full.css.length - p.css.length;
+      sharedLine.querySelector('span').textContent = exportState.shared
+        ? 'Reset shared — saving ' + (saved / 1024).toFixed(1) + ' kB'
+        : 'Share the reset across blocks';
+      sharedLine.title = 'States the reset and tokens once for the page instead of inside every block. ' +
+        'Turn it off only if you are pasting these blocks into separate embeds, ' +
+        'where each one has to stand on its own.';
+    } else {
+      sharedLine.hidden = true;
+    }
 
     $('#platformNote').innerHTML = plat.note;
 
@@ -795,6 +814,10 @@
     });
     $('#minifyToggle').addEventListener('change', function (e) {
       exportState.minify = e.target.checked;
+      renderExport();
+    });
+    $('#sharedToggle').addEventListener('change', function (e) {
+      exportState.shared = e.target.checked;
       renderExport();
     });
 

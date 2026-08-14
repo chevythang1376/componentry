@@ -9,10 +9,25 @@ CB.Export = (function () {
 
   /* ------------------------------------------------------------ assemble */
 
-  function parts(instances, tokens) {
+  /* With more than one block on the page, the reset and tokens are stated once
+     against the shared scope class instead of being repeated inside every
+     block. The saving is large — roughly half the CSS on a five-block page —
+     and the markup is unchanged either way, because every root already carries
+     the scope class.
+
+     It is emitted first, so source order still resolves ties the same way as
+     when each block carried its own copy. The one situation that needs the
+     per-block copies is pasting blocks into separate embeds on the same page:
+     then each embed has to be self-contained, and shared:false is the answer. */
+  function parts(instances, tokens, opts) {
+    opts = opts || {};
+    var shared = opts.shared !== false && instances.length > 1;
     var html = [], css = [], js = [];
+
+    if (shared) css.push('/* Shared reset and design tokens — once for the page */\n' + CB.sharedCss(tokens));
+
     instances.forEach(function (inst) {
-      var out = CB.build(inst, tokens);
+      var out = CB.build(inst, tokens, { omitBase: shared });
       if (out.html) html.push(out.html);
       if (out.css) css.push('/* ' + (CB.get(inst.type) || {}).name + ' */\n' + out.css);
       if (out.js) js.push(out.js);
@@ -132,8 +147,13 @@ CB.Export = (function () {
     var html = [], css = [], js = [];
 
     var names = opts.names || {};
+    // Mirror the export's sharing decision so the canvas exercises the same
+    // stylesheet the user will actually paste.
+    var shared = instances.length > 1;
+    if (shared) css.push(CB.sharedCss(tokens));
+
     instances.forEach(function (inst) {
-      var out = CB.build(inst, tokens);
+      var out = CB.build(inst, tokens, { omitBase: shared });
       // A plain block wrapper: layout-neutral, but gives the preview something
       // to hit-test against so clicking a block selects it in the editor.
       html.push('<div class="cb-pv" data-uid="' + CB.attr(inst.uid) + '"' +
