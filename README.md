@@ -236,6 +236,24 @@ whole export lands in one place. If each block goes into its own embed field, ea
 to stand on its own, and the toggle in the export dialog puts the reset back inside every
 block.
 
+### Getting back in
+
+Exported code carries the settings that produced it, in an HTML comment browsers ignore.
+Paste it back with **Paste code** — or open an exported `.html` file — and you have an
+editable project again, even if the `.componentry.json` is long gone.
+
+Round-tripping is exact: re-exporting a recovered project reproduces the original code
+byte for byte, including design tokens, per-block settings and uploaded images.
+
+Images are the reason this isn't simply the project JSON in a comment. They're data URIs
+already sitting in the markup, and repeating them made the payload **30% of the export**,
+nearly 60% of that being bytes just written. Any value already in the HTML is stored as a
+hash of itself and resolved from the markup on the way back — keyed by content, so an
+image used twice or blocks reordered can't mis-map. That brings the cost to **12%**.
+
+Switch it off with **Re-editable** if you'd rather ship the smallest possible code. Split
+files mode puts the comment on the HTML pane, since that's the part you'd paste back.
+
 ---
 
 ## Using the editor

@@ -511,7 +511,7 @@
 
   /* ------------------------------------------------------------ export */
 
-  var exportState = { format: 'embed', platform: 'generic', scope: 'all', minify: false, shared: true };
+  var exportState = { format: 'embed', platform: 'generic', scope: 'all', minify: false, shared: true, editable: true };
 
   function openExport() {
     if (!state.instances.length) { toast('Add a component first', true); return; }
@@ -600,15 +600,24 @@
 
     var downloadName, downloadBody, downloadType = 'text/html';
 
+    /* An editable copy of the settings, so this code can be pasted back into
+       the editor later. Only rides on the formats that keep the markup whole —
+       in split-files mode the HTML pane is what you would paste back, and it
+       carries the comment there instead. */
+    function withPayload(code, html) {
+      if (!exportState.editable) return code;
+      return code + '\n\n' + CB.Export.payload(insts, state.tokens, html || code, state.name);
+    }
+
     if (exportState.format === 'embed') {
       downloadBody = pane('Paste this one block',
-        CB.Export.embed(p, { minify: exportState.minify }), 'html',
+        withPayload(CB.Export.embed(p, { minify: exportState.minify })), 'html',
         'Markup, styles and behaviour in a single snippet — the usual choice for an HTML embed field.');
       downloadName = 'component-embed.html';
     } else if (exportState.format === 'separate') {
       var css = exportState.minify ? CB.Export.minifyCss(p.css) : p.css;
       var js = exportState.minify ? CB.Export.minifyJs(p.js) : p.js;
-      pane('HTML', p.html, 'html', 'Goes in the embed / rich-text module.');
+      pane('HTML', withPayload(p.html, CB.Export.embed(p, {})), 'html', 'Goes in the embed / rich-text module.');
       pane('CSS', css, 'css', 'Goes in your theme stylesheet or the page’s head custom code.');
       pane('JavaScript', js || '/* This selection needs no JavaScript. */', 'js',
         'Goes before &lt;/body&gt;. Safe to run more than once — it guards against double-initialisation.');
@@ -616,7 +625,7 @@
       downloadName = 'component-embed.html';
     } else {
       downloadBody = pane('Full HTML document',
-        CB.Export.fullDocument(p, { minify: exportState.minify, title: state.name }), 'html',
+        withPayload(CB.Export.fullDocument(p, { minify: exportState.minify, title: state.name })), 'html',
         'A complete page — use this for iframe-based embeds, or to hand off a standalone file.');
       downloadName = 'component-page.html';
     }
@@ -729,23 +738,40 @@
     toast('Project file downloaded');
   }
 
+  /* Accepts either a project file or exported code — the export carries the
+     same settings in a comment, so both roads lead back to an editable
+     project. Returns a reason on failure rather than a bare false, because
+     "that file could not be read" is not much help on its own. */
+  function adoptProject(text, label) {
+    var data = null;
+    try { data = JSON.parse(text); } catch (e) { /* not JSON — try it as code */ }
+    if (!data || !Array.isArray(data.instances)) data = CB.Export.readPayload(text);
+
+    if (!data || !Array.isArray(data.instances)) {
+      return /<[a-z]/i.test(text)
+        ? 'That code has no editable copy in it. Only exports made with “Re-editable” on can come back.'
+        : 'That is not a Componentry project or export.';
+    }
+    var unknown = data.instances.filter(function (i) { return !CB.get(i.type); });
+    if (unknown.length === data.instances.length) return 'None of those components exist in this build.';
+
+    pushHistory();
+    state.name = data.name || label || 'Imported project';
+    state.tokens = Object.assign({}, CB.DEFAULT_TOKENS, data.tokens || {});
+    state.instances = data.instances.filter(function (i) { return CB.get(i.type); });
+    state.selected = state.instances.length ? state.instances[0].uid : null;
+    renderAll();
+    renderTokens();
+    toast('Loaded ' + state.instances.length + ' component' + (state.instances.length === 1 ? '' : 's') +
+          (unknown.length ? ' — skipped ' + unknown.length + ' this build does not have' : ''));
+    return null;
+  }
+
   function importProject(file) {
     var reader = new FileReader();
     reader.onload = function () {
-      try {
-        var data = JSON.parse(reader.result);
-        if (!data || !Array.isArray(data.instances)) throw new Error('Not a Componentry project file');
-        pushHistory();
-        state.name = data.name || 'Imported project';
-        state.tokens = Object.assign({}, CB.DEFAULT_TOKENS, data.tokens || {});
-        state.instances = data.instances;
-        state.selected = data.instances.length ? data.instances[0].uid : null;
-        renderAll();
-        renderTokens();
-        toast('Imported ' + state.instances.length + ' component' + (state.instances.length === 1 ? '' : 's'));
-      } catch (e) {
-        toast('That file could not be read', true);
-      }
+      var err = adoptProject(String(reader.result), file.name.replace(/\.[^.]+$/, ''));
+      if (err) toast(err, true);
     };
     reader.readAsText(file);
   }
@@ -819,6 +845,25 @@
     $('#sharedToggle').addEventListener('change', function (e) {
       exportState.shared = e.target.checked;
       renderExport();
+    });
+    $('#editableToggle').addEventListener('change', function (e) {
+      exportState.editable = e.target.checked;
+      renderExport();
+    });
+
+    $('#pasteCodeBtn').addEventListener('click', function () {
+      $('#pasteInput').value = '';
+      $('#pasteNote').textContent = '';
+      $('#pasteModal').showModal();
+      $('#pasteInput').focus();
+    });
+    $('#closePaste').addEventListener('click', function () { $('#pasteModal').close(); });
+    $('#pasteImport').addEventListener('click', function () {
+      var text = $('#pasteInput').value.trim();
+      if (!text) { $('#pasteNote').textContent = 'Paste the code first.'; return; }
+      var err = adoptProject(text, 'Pasted project');
+      if (err) { $('#pasteNote').textContent = err; return; }
+      $('#pasteModal').close();
     });
 
     document.addEventListener('keydown', function (e) {

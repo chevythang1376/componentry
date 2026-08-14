@@ -33,9 +33,10 @@
     </div>
     <div class="btngroup">
       <button id="newBtn" class="btn btn--ghost btn--sm" type="button" title="Start a new project">New</button>
-      <button id="importProjectBtn" class="btn btn--ghost btn--sm" type="button" title="Open a .componentry.json file">Open</button>
+      <button id="importProjectBtn" class="btn btn--ghost btn--sm" type="button" title="Open a .componentry.json project, or an exported .html file">Open</button>
+      <button id="pasteCodeBtn" class="btn btn--ghost btn--sm" type="button" title="Paste exported code back in to keep editing it">Paste code</button>
       <button id="exportProjectBtn" class="btn btn--ghost btn--sm" type="button" title="Download this project as JSON">Save file</button>
-      <input id="importFile" type="file" accept=".json,application/json" hidden>
+      <input id="importFile" type="file" accept=".json,.html,.htm,application/json,text/html" hidden>
     </div>
     <button id="saveBtn" class="btn btn--ghost btn--sm" type="button" title="Save to this browser (Ctrl+S)">Save</button>
     <button id="exportBtn" class="btn btn--primary" type="button" title="Get the code (Ctrl+E)">
@@ -123,6 +124,26 @@
   </aside>
 </main>
 
+<!-- ------------------------------------------------------- paste back in -->
+<dialog id="pasteModal" class="modal modal--narrow" aria-labelledby="pasteTitle">
+  <header class="modal__head">
+    <div>
+      <h2 id="pasteTitle">Paste exported code</h2>
+      <p>Exported code carries its own settings, so it can come back in and keep being edited.</p>
+    </div>
+    <button id="closePaste" class="icon" type="button" aria-label="Close">&times;</button>
+  </header>
+  <div class="modal__body">
+    <label class="sr" for="pasteInput">Exported code</label>
+    <textarea id="pasteInput" class="ctl ctl--area" rows="10" spellcheck="false"
+              placeholder="Paste the code you exported earlier…"></textarea>
+    <p id="pasteNote" class="modal__note"></p>
+  </div>
+  <footer class="modal__foot">
+    <button id="pasteImport" class="btn btn--primary" type="button">Load it</button>
+  </footer>
+</dialog>
+
 <!-- ------------------------------------------------------------ export -->
 <dialog id="exportModal" class="modal" aria-labelledby="exportTitle">
   <header class="modal__head">
@@ -169,6 +190,9 @@
     </label>
     <label class="checkline" id="sharedLine" hidden>
       <input id="sharedToggle" type="checkbox" checked> <span>Share the reset</span>
+    </label>
+    <label class="checkline" title="Adds a comment carrying this project's settings, so the code can be pasted back into the editor later. Browsers ignore it.">
+      <input id="editableToggle" type="checkbox" checked> <span>Re-editable</span>
     </label>
   </div>
 

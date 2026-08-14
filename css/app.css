@@ -433,6 +433,7 @@ input, select, textarea { font: inherit; color: inherit; }
   background: var(--panel); color: var(--text);
   box-shadow: 0 40px 90px -30px rgba(0,0,0,.9);
 }
+.modal--narrow { width: min(620px, 94vw); }
 .modal::backdrop { background: rgba(4,6,11,.78); backdrop-filter: blur(3px); }
 .modal[open] { display: flex; flex-direction: column; }
 
