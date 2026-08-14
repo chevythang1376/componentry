@@ -334,6 +334,18 @@ asked for reduced motion. Delete the `animation-timeline` line and nothing disap
 Overrides are emitted with the root's full class list, so they win on specificity and
 source order — no `!important`, and you can still restyle them from your theme.
 
+### Gradients degrade to a solid
+
+Anywhere a gradient sits behind text, the solid colour is stated as `background-color`
+and the gradient as `background-image`, never together in the `background` shorthand.
+Some sanitisers drop gradient values they don't recognise, and as a shorthand that leaves
+the surface with **no background at all** — white text on the page's own white, at 1:1.
+Stated separately, the gradient can vanish and the surface is merely flat.
+
+This affects the CTA banner's gradient style (its default), and the brand tone on Bento
+Grid tiles and Sticky Stacking Cards. The gradients are fully opaque, so the solid
+underneath is never visible while the gradient works.
+
 ### Button styling (Design tokens → Buttons)
 
 Buttons come from one shared class, so these are set once and apply to every button in
@@ -521,10 +533,13 @@ test/
   gallery.html          Renders all 25 through the real export path; reports failures
   hostile-host.html     Pastes exports into a deliberately awful theme; 165 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
-                        144 round-trips, then functionally probes what survives
+                        200 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,
-                        gradients, clip-path, backdrop-filter, images) and reports
-                        any text that becomes unreadable
+                        gradients, clip-path, backdrop-filter, images, scroll
+                        timelines) and reports text that becomes unreadable.
+                        Shares preflight's backdrop resolver — 0 findings,
+                        and it means it: 82% of text is judged, the rest
+                        genuinely sits over imagery
   probes.js             Per-component functional assertions, shared by the harnesses
 ```
 

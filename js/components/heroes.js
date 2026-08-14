@@ -921,11 +921,19 @@ ${c.indent(slides, 12)}
     render: function (p, c) {
       var s = c.s;
       var dark = p.style !== 'soft';
+      /* The gradient goes in background-image over a solid background-color,
+         rather than in the background shorthand. Some sanitisers drop
+         gradient values they don't recognise, and as a shorthand that left the
+         strip with no background at all — white text on the page's own white,
+         at 1:1. With the colour stated separately the gradient can vanish and
+         the strip is merely flat. The gradient is fully opaque, so the solid
+         underneath is never seen while it works. */
       var bg;
-      if (p.style === 'gradient') bg = 'linear-gradient(120deg, var(--cb-brand) 0%, var(--cb-brand-2) 100%)';
-      else if (p.style === 'solid') bg = p.solid;
-      else if (p.style === 'soft') bg = 'var(--cb-subtle)';
-      else bg = 'transparent';
+      if (p.style === 'gradient') {
+        bg = 'background: var(--cb-brand); background-image: linear-gradient(120deg, var(--cb-brand) 0%, var(--cb-brand-2) 100%);';
+      } else if (p.style === 'solid') bg = 'background: ' + p.solid + ';';
+      else if (p.style === 'soft') bg = 'background: var(--cb-subtle);';
+      else bg = 'background: transparent;';
 
       var html = c.dedent(`
         <section class="${c.cls} cb-cta">
@@ -948,7 +956,7 @@ ${c.indent(slides, 12)}
         ${s}.cb-cta { ${p.radius ? 'padding: 24px;' : ''} }
         ${s} .cb-cta__shell {
           position: relative; overflow: hidden; isolation: isolate;
-          background: ${bg};
+          ${bg}
           color: ${dark ? '#fff' : 'var(--cb-ink)'};
           padding-block: ${c.num(p.pad, 72)}px;
           ${p.radius ? 'border-radius: calc(var(--cb-radius) * 1.6);' : ''}

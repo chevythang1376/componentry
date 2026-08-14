@@ -46,6 +46,7 @@
 <script src="../js/components/product.js"></script>
 <script src="../js/components/diagram.js"></script>
 <script src="../js/export.js"></script>
+<script src="../js/preflight.js"></script>
 <script>
 (function () {
   'use strict';
@@ -92,31 +93,13 @@
     }
   ];
 
-  function parseColor(c) {
-    var m = c.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/);
-    return m ? { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] } : null;
-  }
-  function lum(c) {
-    var v = [c.r, c.g, c.b].map(function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
-    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
-  }
-  function ratio(f, b) { var l1 = lum(f), l2 = lum(b); if (l2 > l1) { var t = l1; l1 = l2; l2 = t; } return (l1 + 0.05) / (l2 + 0.05); }
-
-  /* Effective painted backdrop: nearest ancestor with an opaque colour, but if
-     any ancestor in between paints a gradient/image we can't resolve it, so we
-     report it separately instead of guessing. */
-  function backdrop(el, root) {
-    var n = el;
-    while (n && n !== document.body) {
-      var cs = getComputedStyle(n);
-      if (cs.backgroundImage && cs.backgroundImage !== 'none') return { unknown: true };
-      var c = parseColor(cs.backgroundColor);
-      if (c && c.a > 0.95) return { color: c };
-      if (n === root) break;
-      n = n.parentElement;
-    }
-    return { color: { r: 255, g: 255, b: 255, a: 1 } };
-  }
+  /* Colour maths and backdrop resolution come from js/preflight.js. This file
+     used to carry its own copy that guessed white once it ran out of ancestors,
+     which turned every caption over a photo into a failure: 79 of them, none
+     actionable, drowning anything real. Sharing one implementation also means
+     the two cannot drift apart again. */
+  var parseColor = CB.Preflight.parse;
+  var ratio = CB.Preflight.ratio;
 
   function audit(root) {
     var problems = [];
@@ -125,14 +108,16 @@
         return n.nodeType === 3 && n.textContent.trim();
       }).map(function (n) { return n.textContent.trim(); }).join(' ');
       if (!text) return;
-      var cs = getComputedStyle(el);
-      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return;
+      if (!CB.Preflight.visible(el, window)) return;
 
+      var cs = getComputedStyle(el);
       var fg = parseColor(cs.color);
       var fill = cs.webkitTextFillColor ? parseColor(cs.webkitTextFillColor) : null;
       var effective = (fill && fill.a === 0) ? fill : fg;
 
-      // Invisible text: fully transparent fill with no working background-clip.
+      /* Invisible text: a fully transparent fill with no working
+         background-clip. This one needs no backdrop — the text is gone
+         whatever is behind it — so it is judged even where contrast cannot be. */
       if (effective && effective.a < 0.05) {
         var clip = cs.backgroundClip || cs.webkitBackgroundClip;
         if (clip !== 'text') {
@@ -143,9 +128,11 @@
       }
       if (!effective || effective.a < 0.05) return;
 
-      var bd = backdrop(el, root);
-      if (bd.unknown) return;               // painted over an image; can't judge statically
-      var r = ratio(effective, bd.color);
+      // null means unknowable — over imagery, or out of normal flow. Not judged.
+      var bg = CB.Preflight.backdrop(el, root, window);
+      if (!bg) return;
+
+      var r = ratio(effective, bg);
       if (r < 1.6) {
         problems.push({ sel: el.className || el.tagName, text: text.slice(0, 34),
                         why: 'contrast ' + r.toFixed(2) + ':1 against its own background' });

@@ -50,10 +50,18 @@ CB.Preflight = (function () {
     var n = el;
     while (n && n !== root.parentElement) {
       var cs = win.getComputedStyle(n);
+      // An image paints over whatever colour is under it, so nothing below
+      // this point can be known.
       if (cs.backgroundImage && cs.backgroundImage !== 'none') return null;
-      if (cs.position !== 'static') return null;
+      // An opaque colour settles it, wherever the element sits. Checked before
+      // position on purpose: a sticky pane or a positioned card that paints its
+      // own background is perfectly knowable, and bailing on it skipped half the
+      // text in the library for no reason.
       var c = parse(cs.backgroundColor);
       if (c && c.a > 0.95) return c;
+      // Displaced from the flow with nothing opaque behind it: whatever it
+      // overlaps is a sibling we cannot see by walking ancestors.
+      if (displaced(cs)) return null;
       n = n.parentElement;
     }
     return null;
@@ -74,6 +82,34 @@ CB.Preflight = (function () {
     return f;
   }
 
+  /* Nothing that isn't actually laid out. getComputedStyle reports an element's
+     own display, so a closed <dialog>'s children look visible when only their
+     ancestor is display:none — the gallery lightbox reported three phantom
+     failures before this. Client rects settle the whole ancestor chain at once. */
+  function visible(el, win) {
+    var rects = el.getClientRects();
+    if (!rects.length) return false;
+    // Screen-reader-only text is a clipped 1x1 box. It is on the page and has a
+    // colour, but there is nothing visual about it to judge.
+    if (rects[0].width <= 1 || rects[0].height <= 1) return false;
+    var cs = win.getComputedStyle(el);
+    return cs.visibility !== 'hidden' && +cs.opacity >= 0.1;
+  }
+
+  /* Has this element actually left the place the flow put it? position:relative
+     with no offsets occupies its normal box and overlaps nothing, so treating it
+     as unknowable threw away every timeline milestone and marquee logo — both
+     of which sit on a perfectly ordinary opaque section. */
+  function displaced(cs) {
+    if (cs.position === 'absolute' || cs.position === 'fixed') return true;
+    if (cs.position === 'static') return false;
+    if (cs.transform && cs.transform !== 'none') return true;
+    return ['top', 'left', 'right', 'bottom'].some(function (side) {
+      var v = cs[side];
+      return v && v !== 'auto' && parseFloat(v) !== 0;
+    });
+  }
+
   /* One finding per block, not one per element. A bad palette fails every
      heading and paragraph in a block at once; thirteen identical rows say
      nothing the first one didn't. */
@@ -86,17 +122,9 @@ CB.Preflight = (function () {
         return n.nodeType === 3 && n.textContent.trim();
       }).map(function (n) { return n.textContent.trim(); }).join(' ');
       if (!text) return;
-
-      /* Nothing that isn't actually laid out. getComputedStyle reports an
-         element's own display, so a closed <dialog>'s children look visible
-         when only their ancestor is display:none — the lightbox reported three
-         phantom failures before this. Client rects settle it for the whole
-         ancestor chain at once. */
-      if (!el.getClientRects().length) return;
+      if (!visible(el, win)) return;
 
       var cs = win.getComputedStyle(el);
-      if (cs.visibility === 'hidden' || +cs.opacity < 0.1) return;
-
       var fg = parse(cs.color);
       if (!fg || fg.a < 0.1) return;
       var bg = backdrop(el, root, win);
@@ -234,5 +262,9 @@ CB.Preflight = (function () {
     return out.sort(function (a, b) { return order[a.level] - order[b.level]; });
   }
 
-  return { run: run, ratio: ratio };
+  /* backdrop/parse/ratio are shared with test/degrade.html. That harness used to
+     carry its own copy which guessed white when it ran out of ancestors, and
+     every piece of text over an image came back as a failure — 79 of them,
+     none actionable. One implementation, so the two cannot drift again. */
+  return { run: run, ratio: ratio, backdrop: backdrop, parse: parse, visible: visible };
 })();
