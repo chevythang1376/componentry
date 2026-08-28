@@ -526,7 +526,7 @@
       var css = `
         ${s}.cb-spec { background: ${p.bg}; padding-block: ${c.num(p.pad, 56)}px; ${dark ? 'color: #fff;' : ''} }
         ${s} .cb-spec__title {
-          font-size: calc(clamp(20px, 2.6vw, 26px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 750); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
+          font-size: calc(clamp(20px, 2.6vw, 26px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 750); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
           text-align: ${p.align}; margin-bottom: 28px;
         }
         ${s} .cb-spec__row {

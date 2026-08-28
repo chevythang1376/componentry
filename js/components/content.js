@@ -144,7 +144,7 @@
         }
         ${s} .cb-cg__body { display: flex; flex-direction: column; gap: 10px; padding: 22px; flex: 1 1 auto; }
         ${s} .cb-cg__tag {
-          align-self: flex-start; font-size: .72em; font-weight: 700; letter-spacing: .1em;
+          align-self: flex-start; font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; color: ${overlay ? '#fff' : 'var(--cb-brand)'};
           ${overlay ? 'background: rgba(255,255,255,.16); padding: 4px 9px; border-radius: 999px;' : ''}
         }
@@ -372,7 +372,7 @@
 
       var css = `
         ${s}.cb-st { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
-        ${s} .cb-st__title { font-size: calc(clamp(24px, 3.2vw, 34px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-align: ${p.align}; margin-bottom: 34px; }
+        ${s} .cb-st__title { font-size: calc(clamp(24px, 3.2vw, 34px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-align: ${p.align}; margin-bottom: 34px; }
         ${s} .cb-st__grid {
           display: grid; gap: clamp(20px, 3vw, 32px);
           grid-template-columns: repeat(${c.clamp(c.num(p.cols, 4), 2, 5)}, minmax(0, 1fr));
@@ -541,7 +541,7 @@
 
       var css = `
         ${s}.cb-tl { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
-        ${s} .cb-tl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 44px; ${alt ? 'text-align: center;' : ''} }
+        ${s} .cb-tl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 44px; ${alt ? 'text-align: center;' : ''} }
         ${s} .cb-tl__list { position: relative; display: flex; flex-direction: column; gap: 34px; }
         ${s} .cb-tl__list::before {
           content: ""; position: absolute; top: 6px; bottom: 6px; width: 2px;

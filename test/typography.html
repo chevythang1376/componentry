@@ -125,6 +125,48 @@ window.addEventListener('load', function () {
   db = render(B, 'card-grid', {}, { _hScale: 1, _hTrack: 0, _bodyScale: 1 });
   check('per-block defaults emit nothing', px(db, wb, '.cb-cg__title', 'fontSize'), '38px');
 
+  // --- per-block body size must reach em-sized body copy, not just px ------
+  da = render(A, 'card-grid', {});
+  db = render(B, 'card-grid', {}, { _bodyScale: 1.25 });
+  changed('per-block body size reaches em body copy',
+          px(da, wa, '.cb-cg__body', 'fontSize'), px(db, wb, '.cb-cg__body', 'fontSize'));
+
+  // --- eyebrows that the first pass missed --------------------------------
+  [['card-grid', '.cb-cg__tag'], ['logo-marquee', '.cb-mq__kicker'],
+   ['bento-grid', '.cb-bn__eyebrow'], ['sticky-stack', '.cb-stk__eyebrow']].forEach(function (pair) {
+    var d0 = render(A, pair[0], {});
+    var d1 = render(B, pair[0], { eyebrowScale: 1.4 });
+    changed('eyebrow reaches ' + pair[1], px(d0, wa, pair[1], 'fontSize'), px(d1, wb, pair[1], 'fontSize'));
+  });
+
+  // --- headings that used to inherit body leading -------------------------
+  [['carousel', '.cb-car__title', {}], ['timeline', '.cb-tl__title', {}],
+   ['tabs', '.cb-tabs__title', {}],
+   ['spec-strip', '.cb-spec__title', { title: 'Specifications' }]].forEach(function (pair) {
+    var d0 = render(A, pair[0], {}, pair[2]);
+    var d1 = render(B, pair[0], { hLeading: 30 }, pair[2]);
+    changed('heading leading reaches ' + pair[1],
+            px(d0, wa, pair[1], 'lineHeight'), px(d1, wb, pair[1], 'lineHeight'));
+  });
+
+  // --- a logo is not a heading --------------------------------------------
+  da = render(A, 'logo-marquee', {});
+  db = render(B, 'logo-marquee', { hTrack: 10, hScale: 1.4 });
+  check('heading controls leave logo wordmarks alone',
+        px(db, wb, '.cb-mq__word', 'letterSpacing'), px(da, wa, '.cb-mq__word', 'letterSpacing'));
+
+  // --- controls that cannot do anything are not offered -------------------
+  check('logo-marquee hides per-block heading size',
+        CB.fields(CB.get('logo-marquee')).some(function (f) { return f.k === '_hScale'; }), false);
+  check('card-grid keeps per-block heading size',
+        CB.fields(CB.get('card-grid')).some(function (f) { return f.k === '_hScale'; }), true);
+  check('filtering never drops a non-typography control',
+        CB.fields(CB.get('logo-marquee')).filter(function (f) { return f.k && f.k.charAt(0) === '_'; })
+          .map(function (f) { return f.k; }).join(',') ===
+        CB.get('logo-marquee').props.filter(function (f) { return f.k && f.k.charAt(0) === '_' && f.k !== '_hScale' && f.k !== '_hTrack'; })
+          .map(function (f) { return f.k; }).join(','), true);
+
+
   document.getElementById('out').textContent =
     pass + ' passed, ' + fail + ' failed\n\n' + log.join('\n');
   document.title = fail ? 'EFFECT FAIL ' + fail : 'EFFECT OK ' + pass;

@@ -314,6 +314,12 @@ Applied centrally, so they behave identically on all 25 blocks:
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
 | **Reveal on scroll** | Fade, fade-up or scale as the block enters the viewport |
 
+The three type controls only appear where they can do something. Logo Marquee
+has a kicker and logos but no heading, so it is not offered heading size or
+heading letter spacing; every other block is. A control that cannot change
+anything is just noise, and Advanced repeats on all 25 blocks.
+
+
 ### Typography (Design tokens → Typography)
 
 Every component's text is adjustable without opening the CSS. Eleven controls,
@@ -349,6 +355,15 @@ control above about 930px.
 Two of these you already had under other names. **Body size** is the old *Base
 size*, renamed for symmetry; it now also reaches text that happens to be
 clamped in px, like a hero subtitle, which it previously skipped.
+
+Coverage is measured, not assumed. Each control is moved and the elements whose
+computed style changes are counted, per component. Body size, letter spacing and
+line height reach all 25 blocks; heading controls reach 24 (all but Logo
+Marquee); eyebrow controls reach the 15 blocks that have an eyebrow. That check
+found four eyebrows the first pass had missed — including two literally named
+`__eyebrow` — twelve headings that were inheriting body line height instead of
+heading line height, and a logo wordmark that was wrongly being tracked as a
+heading. All fixed.
 
 Any of heading size, heading letter spacing and body size can be overridden for
 a single block under **Advanced** — those compose with the project values, so
@@ -585,7 +600,8 @@ test/
                         genuinely sits over imagery
   typography.html       Moves each type control and asserts the specific element
                         it is meant to reach, so the tokens cannot quietly go
-                        inert; 18 assertions
+                        inert, and that a control a component cannot use
+                        is not offered at all; 31 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 ```
 
