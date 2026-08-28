@@ -72,7 +72,7 @@
       var css = `
         ${s}.cb-ba { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-ba__head { margin-bottom: 28px; max-width: 620px; }
-        ${s} .cb-ba__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
+        ${s} .cb-ba__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-ba__sub { color: var(--cb-muted); margin-top: 10px; }
         ${s} .cb-ba__frame {
           position: relative; overflow: hidden; border-radius: var(--cb-radius);
@@ -263,7 +263,7 @@
 
       var css = `
         ${s}.cb-gl { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
-        ${s} .cb-gl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
+        ${s} .cb-gl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
         ${masonry ? `
         ${s} .cb-gl__grid { columns: ${c.clamp(c.num(p.cols, 3), 2, 5)}; column-gap: ${c.num(p.gap, 14)}px; }
         ${s} ${cell} { break-inside: avoid; margin-bottom: ${c.num(p.gap, 14)}px; width: 100%; display: block; }
@@ -453,7 +453,7 @@
       var css = `
         ${s}.cb-mq { background: ${p.bg}; padding-block: ${c.num(p.pad, 48)}px; overflow: hidden; }
         ${s} .cb-mq__kicker {
-          text-align: center; font-size: .78em; font-weight: 700; letter-spacing: .14em;
+          text-align: center; font-size: calc(.78em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; color: var(--cb-muted); margin-bottom: 28px;
         }
         ${s} .cb-mq__viewport {
@@ -478,7 +478,7 @@
         ${p.grayscale ? `${s} .cb-mq__item:hover img { filter: none; opacity: 1; }` : ''}
         ${s} .cb-mq__word {
           font-size: ${Math.round(c.num(p.height, 34) * 0.62)}px; font-weight: 750;
-          letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); white-space: nowrap;
+          letter-spacing: -.02em; white-space: nowrap;
           color: ${p.grayscale ? 'var(--cb-muted)' : 'var(--cb-ink)'};
           transition: color .3s ease;
         }
@@ -593,7 +593,7 @@
       var css = `
         ${s}.cb-cd { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; color: ${ink}; }
         ${s} .cb-cd__inner { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
-        ${s} .cb-cd__title { font-size: calc(clamp(26px, 3.8vw, 40px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance; }
+        ${s} .cb-cd__title { font-size: calc(clamp(26px, 3.8vw, 40px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance; }
         ${s} .cb-cd__sub { color: ${muted}; max-width: 54ch; }
         ${s} .cb-cd__clock { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
         ${s} .cb-cd__unit { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -756,7 +756,7 @@
       var css = `
         ${s}.cb-ve { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-ve__head { text-align: center; max-width: 620px; margin: 0 auto 28px; }
-        ${s} .cb-ve__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
+        ${s} .cb-ve__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-ve__sub { color: var(--cb-muted); margin-top: 10px; }
         ${s} .cb-ve__frame {
           position: relative; overflow: hidden; background: #000;

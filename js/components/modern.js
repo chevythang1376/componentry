@@ -154,7 +154,7 @@
 
         ${s} .cb-bn__body { display: flex; flex-direction: column; gap: 8px; padding: 22px; }
         ${s} .cb-bn__eyebrow {
-          font-size: .7em; font-weight: 700; letter-spacing: .12em;
+          font-size: calc(.7em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; opacity: .72;
         }
         ${s} .cb-bn__title { font-size: 1.12em; font-weight: var(--cb-h-weight, 730); line-height: calc(1.25 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em)); }
@@ -322,7 +322,7 @@
 
         ${s} .cb-stk__copy { display: flex; flex-direction: column; gap: 12px; ${p.layout === 'text' ? 'max-width: 62ch;' : ''} }
         ${s} .cb-stk__eyebrow {
-          font-size: .72em; font-weight: 700; letter-spacing: .12em;
+          font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; color: var(--cb-brand);
         }
         ${s} .cb-stk__title { font-size: calc(clamp(20px, 2.8vw, 30px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 780); line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); }

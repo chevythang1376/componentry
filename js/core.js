@@ -623,7 +623,10 @@ window.CB = (function () {
     var typ = [];
     if (hs !== 1) typ.push('--cb-h-scale: ' + (num(tokens.hScale, 1) * hs).toFixed(3));
     if (ht) typ.push('--cb-h-track: ' + ((num(tokens.hTrack, 0) + ht) / 100).toFixed(3) + 'em');
-    if (bs !== 1) typ.push('--cb-body-scale: ' + (num(tokens.scale, 100) / 100 * bs).toFixed(3));
+    if (bs !== 1) {
+      typ.push('--cb-fs: ' + (num(tokens.scale, 100) / 100 * 16 * bs).toFixed(2) + 'px');
+      typ.push('--cb-body-scale: ' + (num(tokens.scale, 100) / 100 * bs).toFixed(3));
+    }
     if (typ.length) out.push(sel + ' { ' + typ.join('; ') + '; }');
 
 
@@ -632,6 +635,39 @@ window.CB = (function () {
 
     return out.length ? '\n/* Advanced overrides */\n' + out.join('\n') : '';
   }
+  /* A slider that cannot change anything is just noise in the panel, and the
+     Advanced section repeats on all 25 blocks. Build each component once and
+     look at which type tokens its CSS actually reads, then offer only those.
+     Logo Marquee, for instance, has a kicker and logos but no heading. */
+  var tokenUseCache = new Map();
+  function tokenUse(id) {
+    if (tokenUseCache.has(id)) return tokenUseCache.get(id);
+    var use = { h: true };
+    var def = defs.get(id);
+    if (def) {
+      var css = '';
+      try {
+        css = build({ type: id, cls: 'cb-probe-' + id, props: defaults(def) },
+                    DEFAULT_TOKENS, { omitBase: true }).css;
+      } catch (e) { css = ''; }
+      if (css) {
+        use = { h: css.indexOf('--cb-h-') >= 0 };
+      }
+    }
+    tokenUseCache.set(id, use);
+    return use;
+  }
+
+  /* The schema the inspector should draw for one component. */
+  function fields(def) {
+    if (!def) return [];
+    if (tokenUse(def.id).h) return def.props || [];
+    return (def.props || []).filter(function (f) {
+      return f.k !== '_hScale' && f.k !== '_hTrack';
+    });
+  }
+
+
   function get(id) { return defs.get(id); }
   function all() { return order.map(function (id) { return defs.get(id); }); }
 
@@ -697,6 +733,7 @@ window.CB = (function () {
 
   return {
     register: register, get: get, all: all, defaults: defaults, build: build,
+    fields: fields,
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
     actions: actions, ctaFields: ctaFields,

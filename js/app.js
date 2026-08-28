@@ -504,7 +504,7 @@
     // Backfill any props added since this instance was created.
     inst.props = Object.assign(CB.defaults(def), inst.props);
 
-    CB.Inspector.render(host, def, inst.props, function () {
+    CB.Inspector.render(host, { props: CB.fields(def) }, inst.props, function () {
       dirty = true;
       pushHistoryDebounced();
       refreshPreview();
