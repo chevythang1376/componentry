@@ -147,10 +147,10 @@
           display: flex; flex-direction: column; gap: 10px;
         }
         ${s} .cb-fin__eyebrow {
-          font-size: .76em; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+          font-size: calc(.76em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
           color: var(--cb-brand);
         }
-        ${s} .cb-fin__title { font-size: clamp(30px, 5vw, 54px); font-weight: 800; letter-spacing: -.025em; line-height: 1.05; text-wrap: balance; }
+        ${s} .cb-fin__title { font-size: calc(clamp(30px, 5vw, 54px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.025em + var(--cb-h-track, 0em)); line-height: calc(1.05 + var(--cb-h-leading, 0)); text-wrap: balance; }
         ${s} .cb-fin__sub { color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; font-size: 1.05em; }
 
         ${s} .cb-fin__stage {
@@ -356,10 +356,10 @@
         ${s}.cb-psc { background: ${p.bg}; padding-block: ${c.num(p.pad, 110)}px; ${dark ? 'color: #fff;' : ''} }
         ${s} .cb-psc__head { max-width: 640px; margin-bottom: clamp(32px, 6vw, 72px); }
         ${s} .cb-psc__eyebrow {
-          font-size: .76em; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+          font-size: calc(.76em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
           color: var(--cb-brand); margin-bottom: 10px;
         }
-        ${s} .cb-psc__title { font-size: clamp(32px, 5.5vw, 60px); font-weight: 800; letter-spacing: -.025em; line-height: 1.04; text-wrap: balance; }
+        ${s} .cb-psc__title { font-size: calc(clamp(32px, 5.5vw, 60px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.025em + var(--cb-h-track, 0em)); line-height: calc(1.04 + var(--cb-h-leading, 0)); text-wrap: balance; }
 
         ${s} .cb-psc__track {
           display: grid; gap: clamp(24px, 5vw, 72px); align-items: start;
@@ -401,7 +401,7 @@
           font-size: .82em; font-weight: 700; letter-spacing: .16em;
           color: var(--cb-brand); font-variant-numeric: tabular-nums;
         }
-        ${s} .cb-psc__stepTitle { font-size: clamp(24px, 3.4vw, 38px); font-weight: 780; letter-spacing: -.02em; line-height: 1.15; }
+        ${s} .cb-psc__stepTitle { font-size: calc(clamp(24px, 3.4vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 780); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-psc__stepText { font-size: 1.05em; color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; }
         /* stepIn is a flex column with its own gap, so the shared row adds
            nothing of its own on top of it. */
@@ -526,7 +526,7 @@
       var css = `
         ${s}.cb-spec { background: ${p.bg}; padding-block: ${c.num(p.pad, 56)}px; ${dark ? 'color: #fff;' : ''} }
         ${s} .cb-spec__title {
-          font-size: clamp(20px, 2.6vw, 26px); font-weight: 750; letter-spacing: -.015em;
+          font-size: calc(clamp(20px, 2.6vw, 26px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 750); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
           text-align: ${p.align}; margin-bottom: 28px;
         }
         ${s} .cb-spec__row {
@@ -545,11 +545,11 @@
           border-left: 1px solid ${dark ? 'rgba(255,255,255,.18)' : 'var(--cb-border)'};
         }` : ''}
         ${s} .cb-spec__value {
-          font-size: ${c.num(p.valueSize, 34)}px; font-weight: 780; line-height: 1.1;
-          letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+          font-size: calc(${c.num(p.valueSize, 34)}px * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 780); line-height: calc(1.1 + var(--cb-h-leading, 0));
+          letter-spacing: calc(-.03em + var(--cb-h-track, 0em)); font-variant-numeric: tabular-nums;
         }
         ${s} .cb-spec__label {
-          font-size: .8em; font-weight: 650; letter-spacing: .1em; text-transform: uppercase;
+          font-size: calc(.8em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 650); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
           color: ${dark ? 'rgba(255,255,255,.6)' : 'var(--cb-muted)'}; margin-top: 6px;
         }
         ${s} .cb-spec__note { font-size: .85em; color: ${dark ? 'rgba(255,255,255,.5)' : 'var(--cb-muted)'}; }

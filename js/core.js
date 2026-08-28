@@ -211,7 +211,27 @@ window.CB = (function () {
     btnTracking: 0,
     btnBorder: 2,
     btnHover: 'lift',
-    btnShadow: true
+    btnShadow: true,
+
+    /* Typography, expressed as adjustments rather than absolute values.
+       Components do not all want the same numbers — a hero headline is set
+       tighter than a card title on purpose — so replacing every literal with
+       one shared token would quietly redesign half the library. Sizes take a
+       multiplier and tracking takes a delta, which keeps each component's own
+       proportions and only moves them together. Weight and line height have no
+       sensible relative form, so those override outright and fall back to
+       whatever the component already set.
+
+       At 1 and 0 the output is identical to before any of this existed. */
+    hScale: 1,        // headings
+    hTrack: 0,        // in hundredths of an em
+    hWeight: 0,       // 0 = leave each component's own weight alone
+    hLeading: 0,      // 0 = leave alone
+    bodyTrack: 0,
+    bodyLeading: 0,
+    eyebrowScale: 1,  // small uppercase labels
+    eyebrowTrack: 0,
+    eyebrowWeight: 0
   };
 
   var BTN_SIZES = {
@@ -285,6 +305,23 @@ window.CB = (function () {
         --cb-btn-lift: ${t.btnHover === 'lift' ? '-2px' : '0px'};
         --cb-btn-filter: ${t.btnHover === 'darken' ? 'brightness(.9)' : 'none'};
         --cb-btn-shadow: ${t.btnShadow ? '0 6px 18px -6px var(--cb-brand)' : 'none'};
+
+        /* Sizes multiply, tracking and leading add. Both are no-ops at the
+           defaults, so each component's own type scale survives untouched until
+           someone actually moves a slider: a hero headline stays tighter than a
+           card title instead of being flattened to one shared value. */
+        --cb-h-scale: ${num(t.hScale, 1)};
+        --cb-h-track: ${(num(t.hTrack, 0) / 100).toFixed(3)}em;
+        --cb-h-leading: ${(num(t.hLeading, 0) / 100).toFixed(2)};
+        /* Body px sizes follow the same slider that sets --cb-fs, so text that
+           happens to be clamped in px scales with the em text around it. */
+        --cb-body-scale: ${(num(t.scale, 100) / 100).toFixed(3)};
+        --cb-body-track: ${(num(t.bodyTrack, 0) / 100).toFixed(3)}em;
+        --cb-body-leading: ${(num(t.bodyLeading, 0) / 100).toFixed(2)};
+        --cb-eyebrow-scale: ${num(t.eyebrowScale, 1)};
+        --cb-eyebrow-track: ${(num(t.eyebrowTrack, 0) / 100).toFixed(3)}em;
+        ${num(t.hWeight, 0) ? '--cb-h-weight: ' + num(t.hWeight, 0) + ';' : ''}
+        ${num(t.eyebrowWeight, 0) ? '--cb-eyebrow-weight: ' + num(t.eyebrowWeight, 0) + ';' : ''}
       }`);
   }
 
@@ -297,7 +334,8 @@ window.CB = (function () {
         box-sizing: border-box;
         font-family: var(--cb-font);
         font-size: var(--cb-fs);
-        line-height: 1.6;
+        line-height: calc(1.6 + var(--cb-body-leading, 0));
+        letter-spacing: var(--cb-body-track, 0em);
         color: var(--cb-ink);
         -webkit-font-smoothing: antialiased;
         text-align: left;
@@ -468,6 +506,20 @@ window.CB = (function () {
     { k: '_padTop', t: 'range', label: 'Top padding', min: -4, max: 200, step: 4, unit: 'px', value: -4, auto: -4 },
     { k: '_padBottom', t: 'range', label: 'Bottom padding', min: -4, max: 200, step: 4, unit: 'px', value: -4, auto: -4 },
     {
+      k: '_hScale', t: 'range', label: 'Heading size', min: 0.6, max: 1.6, step: 0.05,
+      unit: '\u00d7', value: 1,
+      help: 'Multiplies the project heading size for this block only. 1\u00d7 leaves it alone.'
+    },
+    {
+      k: '_hTrack', t: 'range', label: 'Heading letter spacing', min: -6, max: 10, step: 1,
+      unit: '/100em', value: 0, help: 'Added on top of the project value.'
+    },
+    {
+      k: '_bodyScale', t: 'range', label: 'Body size', min: 0.8, max: 1.4, step: 0.05,
+      unit: '\u00d7', value: 1
+    },
+
+    {
       k: '_hide', t: 'select', label: 'Visibility', value: 'all',
       options: [['all', 'Always visible'], ['mobile', 'Hide on mobile (≤640px)'], ['desktop', 'Hide on desktop (>640px)']]
     },
@@ -550,8 +602,9 @@ window.CB = (function () {
       }`);
   }
 
-  function advancedCss(sel, s, p) {
+  function advancedCss(sel, s, p, tokens) {
     var out = [];
+    tokens = tokens || {};
     var pt = num(p._padTop, -4), pb = num(p._padBottom, -4), mw = num(p._maxWidth, 0);
     var box = [];
     if (pt >= 0) box.push('padding-top: ' + pt + 'px');
@@ -560,6 +613,19 @@ window.CB = (function () {
     if (mw > 0) out.push(s + ' .cb-wrap { max-width: ' + mw + 'px; }');
     if (p._hide === 'mobile') out.push('@media (max-width: 640px) { ' + sel + ' { display: none !important; } }');
     if (p._hide === 'desktop') out.push('@media (min-width: 641px) { ' + sel + ' { display: none !important; } }');
+
+    /* Per-block type. These compose with the project values instead of
+       replacing them, so 1x and 0 always mean "same as the rest of the page"
+       and there is no sentinel to explain. Redeclaring the tokens on the block
+       root is enough: every component already reads them, so nothing needs
+       per-component wiring. */
+    var hs = num(p._hScale, 1), ht = num(p._hTrack, 0), bs = num(p._bodyScale, 1);
+    var typ = [];
+    if (hs !== 1) typ.push('--cb-h-scale: ' + (num(tokens.hScale, 1) * hs).toFixed(3));
+    if (ht) typ.push('--cb-h-track: ' + ((num(tokens.hTrack, 0) + ht) / 100).toFixed(3) + 'em');
+    if (bs !== 1) typ.push('--cb-body-scale: ' + (num(tokens.scale, 100) / 100 * bs).toFixed(3));
+    if (typ.length) out.push(sel + ' { ' + typ.join('; ') + '; }');
+
 
     var reveal = revealCss(sel, s.replace(/^\./, ''), p);
     if (reveal) out.push(reveal);
@@ -623,7 +689,7 @@ window.CB = (function () {
       html: html,
       css: [opts.omitBase ? '' : tokenCss(s, tokens),
             opts.omitBase ? '' : baseCss(s),
-            dedent(out.css || ''), advancedCss(sel, s, p)]
+            dedent(out.css || ''), advancedCss(sel, s, p, tokens)]
              .filter(function (x) { return x && x.trim(); }).join('\n\n').trim(),
       js: (out.js || '').trim()
     };

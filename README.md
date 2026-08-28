@@ -299,7 +299,7 @@ Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
 
 ### Advanced controls (every component)
 
-Applied centrally, so they behave identically on all 18 blocks:
+Applied centrally, so they behave identically on all 25 blocks:
 
 | Control | Why it's there |
 |---|---|
@@ -308,8 +308,51 @@ Applied centrally, so they behave identically on all 18 blocks:
 | **Heading level** | Shifts every heading together (H2→H3→H4) to keep the page outline valid when a block sits under an existing heading |
 | **Content width** | Overrides the project token for one block |
 | **Top / bottom padding** | Independent overrides; read `auto` until you change them |
+| **Heading size** | Multiplies the project heading size for this block only; `1×` leaves it alone |
+| **Heading letter spacing** | Added on top of the project value |
+| **Body size** | Same idea for the body copy in this block |
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
 | **Reveal on scroll** | Fade, fade-up or scale as the block enters the viewport |
+
+### Typography (Design tokens → Typography)
+
+Every component's text is adjustable without opening the CSS. Eleven controls,
+split by the role the text plays:
+
+| | Size | Letter spacing | Line height | Weight |
+|---|---|---|---|---|
+| **Body** | ✓ | ✓ | ✓ | — |
+| **Heading** | ✓ | ✓ | ✓ | ✓ |
+| **Eyebrow** | ✓ | ✓ | — | ✓ |
+
+"Eyebrow" is the small uppercase line above a heading — `PERFORMANCE`,
+`NEW FOR 2026`.
+
+**These adjust rather than replace.** Sizes multiply, spacing and line height
+add. That matters because the library does not use one type scale: a hero
+headline is deliberately set tighter (`-.025em`) than a card title (`-.01em`),
+and a 60px hero is not a 26px section title. Flattening those to shared values
+would redesign every block the first time you touched a slider. Instead,
+"heading letter spacing +5" moves *both* by the same amount and keeps the
+hero tighter than the card, which is what you meant.
+
+At `1×` and `0` the output is byte-identical to having no controls at all —
+verified by comparing computed styles element-for-element against the previous
+release, at two viewport widths.
+
+Sizes scale the entire responsive curve, not just its ceiling. A headline set
+as `clamp(30px, 6vw, 56px)` becomes `calc(clamp(30px, 6vw, 56px) * 1.35)`, so
+the slider keeps working on a wide screen where the `6vw` term is what's
+actually in force. Scaling only the `56px` would have looked like a dead
+control above about 930px.
+
+Two of these you already had under other names. **Body size** is the old *Base
+size*, renamed for symmetry; it now also reaches text that happens to be
+clamped in px, like a hero subtitle, which it previously skipped.
+
+Any of heading size, heading letter spacing and body size can be overridden for
+a single block under **Advanced** — those compose with the project values, so
+`1×` and `0` there always mean "same as the rest of the page".
 
 ### Using a webfont
 
@@ -540,12 +583,15 @@ test/
                         Shares preflight's backdrop resolver — 0 findings,
                         and it means it: 82% of text is judged, the rest
                         genuinely sits over imagery
+  typography.html       Moves each type control and asserts the specific element
+                        it is meant to reach, so the tokens cannot quietly go
+                        inert; 18 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 ```
 
 Open the files in `test/` in a browser — each prints a pass/fail banner at the top.
 `wysiwyg.html` loads the editor engines from a CDN, so it needs a network connection;
-the other two are fully offline.
+the others are fully offline.
 
 ---
 
