@@ -35,7 +35,32 @@
       k: 'fontImport', t: 'url', label: 'Webfont @import URL', ph: 'https://fonts.googleapis.com/css2?family=…',
       help: 'Paste a Google Fonts (or similar) URL, then set Font stack above to “The webfont imported below”. The family name is read from the URL.'
     },
-    { k: 'scale', t: 'range', label: 'Base size', min: 85, max: 120, step: 1, unit: '%' },
+    { k: 'scale', t: 'range', label: 'Body size', min: 85, max: 120, step: 1, unit: '%' },
+    { k: 'bodyTrack', t: 'range', label: 'Body letter spacing', min: -3, max: 12, step: 1, unit: '/100em' },
+    {
+      k: 'bodyLeading', t: 'range', label: 'Body line height', min: -30, max: 50, step: 5, unit: '/100',
+      help: 'Nudges every component up or down from its own line height rather than replacing it.'
+    },
+    { k: 'hScale', t: 'range', label: 'Heading size', min: 0.7, max: 1.4, step: 0.05, unit: '\u00d7' },
+    { k: 'hTrack', t: 'range', label: 'Heading letter spacing', min: -6, max: 10, step: 1, unit: '/100em' },
+    { k: 'hLeading', t: 'range', label: 'Heading line height', min: -20, max: 40, step: 5, unit: '/100' },
+    {
+      k: 'hWeight', t: 'select', label: 'Heading weight', options: [
+        ['0', 'Per component'], ['400', 'Regular'], ['500', 'Medium'], ['600', 'Semibold'],
+        ['700', 'Bold'], ['800', 'Extrabold'], ['900', 'Black']
+      ],
+      help: '\u201cPer component\u201d keeps the weight each block was designed with.'
+    },
+    {
+      k: 'eyebrowScale', t: 'range', label: 'Eyebrow size', min: 0.7, max: 1.5, step: 0.05, unit: '\u00d7',
+      help: 'The small uppercase line above a heading — “PERFORMANCE”, “NEW FOR 2026”.'
+    },
+    { k: 'eyebrowTrack', t: 'range', label: 'Eyebrow letter spacing', min: -6, max: 16, step: 1, unit: '/100em' },
+    {
+      k: 'eyebrowWeight', t: 'select', label: 'Eyebrow weight', options: [
+        ['0', 'Per component'], ['500', 'Medium'], ['600', 'Semibold'], ['700', 'Bold'], ['800', 'Extrabold']
+      ]
+    },
     { t: 'section', label: 'Shape' },
     { k: 'radius', t: 'range', label: 'Corner radius', min: 0, max: 32, step: 1, unit: 'px' },
     { k: 'maxWidth', t: 'range', label: 'Content width', min: 720, max: 1600, step: 20, unit: 'px' },

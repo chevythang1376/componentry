@@ -1,0 +1,132 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Typography effect</title>
+<style>
+  body { font: 14px/1.5 system-ui; margin: 24px; }
+  #out { white-space: pre-wrap; }
+  .frames { position: absolute; left: -20000px; top: 0; }
+  iframe { width: 1280px; height: 900px; border: 0; }
+</style>
+<h1>Typography effect — do the controls actually move anything?</h1>
+<div id="out">running…</div>
+<div class="frames"><iframe id="a"></iframe><iframe id="b"></iframe></div>
+<script src="../js/core.js?v=20260828"></script>
+<script src="../js/components/content.js?v=20260828"></script>
+<script src="../js/components/heroes.js?v=20260828"></script>
+<script src="../js/components/interactive.js?v=20260828"></script>
+<script src="../js/components/media.js?v=20260828"></script>
+<script src="../js/components/modern.js?v=20260828"></script>
+<script src="../js/components/product.js?v=20260828"></script>
+<script src="../js/components/diagram.js?v=20260828"></script>
+<script>
+/* A parity test alone would pass if the tokens were inert. Each case below
+   moves one control and asserts the specific element it is meant to reach. */
+var log = [], pass = 0, fail = 0;
+
+function render(frame, type, tokens, props) {
+  var def = CB.get(type);
+  var inst = { type: type, cls: 'cb-' + type + '-t',
+               props: Object.assign(CB.defaults(def), props || {}) };
+  var r = CB.build(inst, Object.assign({}, CB.DEFAULT_TOKENS, tokens));
+  var d = frame.contentDocument;
+  d.open();
+  d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style>' +
+          '<style>' + r.css + '</style>' + r.html);
+  d.close();
+  return d;
+}
+
+function px(doc, win, sel, prop) {
+  var el = doc.querySelector(sel);
+  if (!el) return null;
+  return win.getComputedStyle(el)[prop];
+}
+
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '  got ' + got + (ok ? '' : '  want ' + want));
+}
+function changed(name, base, now) {
+  var ok = base !== now && base != null && now != null;
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '  ' + base + ' -> ' + now);
+}
+
+window.addEventListener('load', function () {
+  var A = document.getElementById('a'), B = document.getElementById('b');
+  var wa = A.contentWindow, wb = B.contentWindow;
+
+  // --- heading size -------------------------------------------------------
+  var da = render(A, 'card-grid', {});
+  var db = render(B, 'card-grid', { hScale: 1.5 });
+  var s0 = parseFloat(px(da, wa, '.cb-cg__title', 'fontSize'));
+  var s1 = parseFloat(px(db, wb, '.cb-cg__title', 'fontSize'));
+  check('heading size 1.5x (clamp resolves 38px, x1.5 -> 57px)', s1, 57);
+  check('heading size baseline unchanged', s0, 38);
+
+  // --- heading kerning ----------------------------------------------------
+  db = render(B, 'card-grid', { hTrack: 5 });
+  // -.02em + .05em = .03em at 38px = 1.14px
+  check('heading kerning +5/100em', px(db, wb, '.cb-cg__title', 'letterSpacing'), '1.14px');
+
+  // --- heading leading ----------------------------------------------------
+  db = render(B, 'card-grid', { hLeading: 25 });
+  // 1.15 + .25 = 1.4 at 38px = 53.2px
+  check('heading leading +25/100', px(db, wb, '.cb-cg__title', 'lineHeight'), '53.2px');
+
+  // --- heading weight -----------------------------------------------------
+  db = render(B, 'card-grid', { hWeight: 500 });
+  check('heading weight 500', px(db, wb, '.cb-cg__title', 'fontWeight'), '500');
+  check('heading weight reaches card titles too', px(db, wb, '.cb-cg__t', 'fontWeight'), '500');
+
+  // --- eyebrow ------------------------------------------------------------
+  da = render(A, 'timeline', {});
+  db = render(B, 'timeline', { eyebrowScale: 1.5, eyebrowTrack: 6, eyebrowWeight: 500 });
+  changed('eyebrow size', px(da, wa, '.cb-tl__date', 'fontSize'), px(db, wb, '.cb-tl__date', 'fontSize'));
+  changed('eyebrow kerning', px(da, wa, '.cb-tl__date', 'letterSpacing'), px(db, wb, '.cb-tl__date', 'letterSpacing'));
+  check('eyebrow weight 500', px(db, wb, '.cb-tl__date', 'fontWeight'), '500');
+  check('eyebrow scale leaves the heading alone',
+        px(da, wa, '.cb-tl__title', 'fontSize'), px(db, wb, '.cb-tl__title', 'fontSize'));
+
+  // --- body ---------------------------------------------------------------
+  da = render(A, 'parallax-banner', {});
+  db = render(B, 'parallax-banner', { scale: 120 });
+  changed('body size reaches the px-clamped hero lede',
+          px(da, wa, '.cb-px__sub', 'fontSize'), px(db, wb, '.cb-px__sub', 'fontSize'));
+
+  db = render(B, 'parallax-banner', { bodyTrack: 8 });
+  check('body kerning +8/100em on the block root',
+        px(db, wb, '.cb-parallax-banner-t', 'letterSpacing'), '1.28px');
+
+  db = render(B, 'parallax-banner', { bodyLeading: 40 });
+  // 1.6 + .4 = 2.0 at 16px = 32px
+  check('body leading +40/100', px(db, wb, '.cb-parallax-banner-t', 'lineHeight'), '32px');
+
+  // --- the component the user named --------------------------------------
+  da = render(A, 'parallax-banner', {});
+  db = render(B, 'parallax-banner', { hScale: 1.3, hTrack: 4 });
+  changed('parallax headline size', px(da, wa, '.cb-px__title', 'fontSize'),
+          px(db, wb, '.cb-px__title', 'fontSize'));
+  changed('parallax headline kerning', px(da, wa, '.cb-px__title', 'letterSpacing'),
+          px(db, wb, '.cb-px__title', 'letterSpacing'));
+
+  // --- per-block override composes with the project value -----------------
+  db = render(B, 'card-grid', { hScale: 1.2 }, { _hScale: 1.5 });
+  // clamp resolves to 38px at 1280px, then 38 * 1.2 * 1.5 = 68.4
+  check('per-block heading size multiplies the project value',
+        px(db, wb, '.cb-cg__title', 'fontSize'), '68.4px');
+
+  db = render(B, 'card-grid', { hTrack: 3 }, { _hTrack: 4 });
+  // -.02em + .07em = .05em at 38px = 1.9px
+  check('per-block kerning adds to the project value',
+        px(db, wb, '.cb-cg__title', 'letterSpacing'), '1.9px');
+
+  db = render(B, 'card-grid', {}, { _hScale: 1, _hTrack: 0, _bodyScale: 1 });
+  check('per-block defaults emit nothing', px(db, wb, '.cb-cg__title', 'fontSize'), '38px');
+
+  document.getElementById('out').textContent =
+    pass + ' passed, ' + fail + ' failed\n\n' + log.join('\n');
+  document.title = fail ? 'EFFECT FAIL ' + fail : 'EFFECT OK ' + pass;
+});
+</script>
