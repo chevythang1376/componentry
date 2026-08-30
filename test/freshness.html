@@ -1,0 +1,105 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — build freshness</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 68ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+  iframe { position: absolute; left: -20000px; width: 800px; height: 400px; border: 0; }
+</style>
+<h1>Build freshness</h1>
+<p class="sub">GitHub Pages sends <code>max-age=600</code> on every file and gives no way to
+change it, so a returning browser can hold the previous index.html — and with it the
+previous <code>?v=</code> asset URLs — for ten minutes after a deploy. This asserts the app
+notices and corrects itself, and just as importantly that it does not bounce anyone
+through a reload when it shouldn't.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<iframe id="stale"></iframe>
+<script src="../js/freshness.js?v=t1"></script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+
+var D = CBFresh.decide;
+
+// --- when to move ----------------------------------------------------------
+check('a stale document is sent to the live build', D('old', 'new', ''), '?b=new');
+check('the live build stays put', D('new', 'new', ''), null);
+check('other query params survive the move', D('old', 'new', '?tab=layers'), '?tab=layers&b=new');
+check('an existing b= is replaced, not appended', D('old', 'new', '?b=older'), '?b=new');
+
+// --- when not to move ------------------------------------------------------
+check('never loops on the build it already tried', D('old', 'new', '?b=new'), null);
+check('a missing version.txt changes nothing', D('old', null, ''), null);
+check('an empty version.txt changes nothing', D('old', '', ''), null);
+check('an unversioned document is left alone', D(null, 'new', ''), null);
+
+// --- reading the build id out of the document ------------------------------
+var doc = new DOMParser().parseFromString(
+  '<link rel="stylesheet" href="css/app.css?v=20260830c">' +
+  '<script src="js/core.js?v=20260830c"><\/script>', 'text/html');
+check('reads the build id from the asset URLs', CBFresh.built(doc), '20260830c');
+check('no version on the assets reads as unknown',
+      CBFresh.built(new DOMParser().parseFromString('<link rel="stylesheet" href="css/app.css">', 'text/html')), null);
+
+// --- contexts where it must not act at all ---------------------------------
+// The app is meant to run from file:// too, where there is no cache to fight
+// and no server to ask.
+var fetched = 0;
+var fakeWin = { fetch: function () { fetched++; return Promise.resolve({ ok: true, text: function () { return Promise.resolve('new'); } }); } };
+CBFresh.check({ window: fakeWin, location: { protocol: 'file:', pathname: '/x', search: '', hash: '', replace: function () {} } });
+check('does nothing on file://', fetched, 0);
+
+CBFresh.check({ window: {}, location: { protocol: 'https:', pathname: '/x', search: '', hash: '', replace: function () {} } });
+check('does nothing without fetch', fetched, 0);
+
+
+// A dead network must leave the app alone rather than surface an error.
+var threw = false, moved = false;
+try {
+  CBFresh.check({
+    window: { fetch: function () { return Promise.reject(new Error('offline')); } },
+    location: { protocol: 'https:', pathname: '/x', search: '', hash: '',
+                replace: function () { moved = true; } }
+  });
+} catch (e) { threw = true; }
+check('a failed fetch does not throw', threw, false);
+
+
+// --- end to end ------------------------------------------------------------
+// A real stale document, the real fetch, the real version.txt.
+var settled = false;
+window.addEventListener('message', function (e) {
+  if (!e.data || typeof e.data.cbfresh !== 'string' || settled) return;
+  settled = true;
+  fetch('../version.txt', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (v) {
+    check('a genuinely stale page redirects to the live build',
+          e.data.cbfresh, '/componentry/index.html?b=' + v.trim());
+    finish();
+  });
+});
+setTimeout(function () {
+  if (settled) return;
+  settled = true;
+  check('a genuinely stale page redirects to the live build', 'no redirect within 4s', 'a redirect');
+  finish();
+}, 4000);
+
+function finish() {
+  document.getElementById('out').textContent = log.join('\n');
+  var bar = document.getElementById('bar');
+  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed') : (pass + '/' + pass + ' passed');
+  document.title = fail ? 'FRESHNESS FAIL ' + fail : 'FRESHNESS OK ' + pass;
+}
+document.getElementById('stale').src = 'freshness-fixture.html';
+</script>

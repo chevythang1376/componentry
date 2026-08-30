@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>stale fixture</title>
+<!-- Stands in for an index.html the browser cached before the last deploy: the
+     asset URL still carries the previous build id. freshness.html loads this in
+     an iframe and watches for the redirect it should provoke. location.replace
+     is intercepted so the assertion can see the URL without navigating. -->
+<link rel="stylesheet" href="../css/app.css?v=00000000-old">
+<script src="../js/freshness.js"></script>
+<script>
+CBFresh.check({
+  url: '../version.txt',
+  location: {
+    protocol: location.protocol,
+    pathname: '/componentry/index.html',
+    search: '',
+    hash: '',
+    replace: function (url) { parent.postMessage({ cbfresh: url }, '*'); }
+  }
+});
+</script>
+<p>stale fixture</p>

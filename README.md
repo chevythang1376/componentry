@@ -16,6 +16,31 @@ Double-click `index.html`. That's it — it works from `file://`.
 keep serving yesterday's `js/*.js` after a deploy and the page looks unchanged. Same day
 twice? `./bump.sh b`.
 
+### The half a version bump can't fix
+
+Versioned asset URLs only work if the browser has the HTML that names them. GitHub Pages
+sends `Cache-Control: max-age=600` on every file and offers no way to change it — no
+`_headers`, no `.htaccess`, no setting — so for ten minutes after a deploy a returning
+browser can still hold the previous `index.html`, go on requesting the previous `?v=`
+URLs, and sit a whole build behind. It looks exactly like a deploy that failed. That
+happened twice while this was being written, and both times the deploy was fine.
+
+`bump.sh` now writes the build id to `version.txt` as well as onto the asset URLs, and
+fails loudly if the two ever disagree. `js/freshness.js` fetches that file with
+`cache: 'no-store'`, so it always comes from the network; if it disagrees with the id
+baked into the page, the page is the stale one and it reloads through `?b=<id>` — a URL
+the cache has no entry for. A plain `location.reload()` would not do, since it can be
+answered from the very same cache entry.
+
+Three things it deliberately won't do. It won't reload twice for the same build, so a
+half-propagated deploy can't bounce anyone in a loop. It won't reload at all if the check
+took more than five seconds, because by then someone may be mid-edit and the ten-minute
+cache heals it anyway. And it does nothing on `file://`, where there is no server to ask
+and no cache to fight.
+
+One honest limit: this protects a visitor whose cached `index.html` already contains it,
+so the deploy that introduces it is the last one that can go stale.
+
 ---
 
 ## The 25 components
@@ -589,6 +614,8 @@ js/core.js              Registry, scoping, escaping, tokens, defensive reset
 js/inspector.js         Schema → property panel
 js/export.js            Code assembly, minifier, preview document, platform notes
 js/app.js               State, history, persistence, wiring
+js/freshness.js         Notices when the browser is holding a stale index.html
+version.txt             Build id, written by bump.sh; what freshness.js compares against
 js/components/
   heroes.js             parallax-banner, video-hero, split-hero, cta-banner, hero-slider
   content.js            card-grid, feature-grid, stats-counter, timeline, pricing
@@ -615,6 +642,8 @@ test/
   preflight.html        Asserts the findings are actionable: nothing fires on an
                         untouched project, everything fires once a real image
                         goes in undescribed; 13 assertions
+  freshness.html        Asserts the build check corrects a genuinely stale page and,
+                        just as importantly, leaves every other case alone; 14 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 ```
 
