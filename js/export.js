@@ -33,10 +33,10 @@ CB.Export = (function () {
       if (out.js) js.push(out.js);
     });
 
-    var imports = '';
-    if (tokens.fontImport && /^https?:\/\//i.test(tokens.fontImport.trim())) {
-      imports = '@import url("' + tokens.fontImport.trim().replace(/"/g, '') + '");\n\n';
-    }
+    var urls = CB.fontImports(tokens);
+    var imports = urls.length
+      ? urls.map(function (u) { return '@import url("' + u.replace(/"/g, '') + '");'; }).join('\n') + '\n\n'
+      : '';
 
     return {
       html: html.join('\n\n'),
@@ -252,9 +252,9 @@ CB.Export = (function () {
       if (out.js) js.push(out.js);
     });
 
-    if (tokens.fontImport && /^https?:\/\//i.test(tokens.fontImport.trim())) {
-      css.unshift('@import url("' + tokens.fontImport.trim().replace(/"/g, '') + '");');
-    }
+    CB.fontImports(tokens).slice().reverse().forEach(function (u) {
+      css.unshift('@import url("' + u.replace(/"/g, '') + '");');
+    });
 
     var chrome = `
       html, body { margin: 0; padding: 0; }

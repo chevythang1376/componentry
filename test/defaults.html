@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — shipped defaults</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 70ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+</style>
+<h1>Shipped defaults</h1>
+<p class="sub">What a brand new project looks like before anyone touches a control. These
+are deliberate choices rather than accidents of the code, so they are pinned here — a
+default that quietly reverts is not something you would notice until an export was
+already out the door.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<script src="../js/core.js?v=d1"></script>
+<script src="../js/components/content.js?v=d1"></script>
+<script src="../js/components/heroes.js?v=d1"></script>
+<script src="../js/components/interactive.js?v=d1"></script>
+<script src="../js/components/media.js?v=d1"></script>
+<script src="../js/components/modern.js?v=d1"></script>
+<script src="../js/components/product.js?v=d1"></script>
+<script src="../js/components/diagram.js?v=d1"></script>
+<script src="../js/export.js?v=d1"></script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+function tok(over) { return Object.assign({}, CB.DEFAULT_TOKENS, over || {}); }
+function css(over) {
+  var def = CB.get('card-grid');
+  return CB.Export.parts([{ uid: 'u', type: 'card-grid', cls: 'cb-cg-d', props: CB.defaults(def) }],
+                         tok(over), {}).css;
+}
+
+var INTER = 'https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap';
+
+// --- the three defaults --------------------------------------------------
+check('font stack is Inter with a real fallback',
+      CB.fontStack(tok()), '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif');
+check('button corners are 1px', (css().match(/--cb-btn-radius:[^;]*/) || [''])[0], '--cb-btn-radius: 1px');
+check('the corner radius token is untouched', (css().match(/--cb-radius:[^;]*/) || [''])[0], '--cb-radius: 14px');
+
+// --- Inter has to actually arrive, not just be named ---------------------
+check('Inter is imported, not merely hoped for', CB.fontImports(tok()).join('|'), INTER);
+check('the import is the first rule, which is the only place it is honoured',
+      css().indexOf('@import') === 0, true);
+check('the weights cover what the components ask for (500-800)', /wght@400\.\.800/.test(INTER), true);
+
+// --- and the other stacks stay local -------------------------------------
+check('System UI imports nothing', CB.fontImports(tok({ font: 'system' })).length, 0);
+check('grotesk is the local-only twin, still no import',
+      CB.fontImports(tok({ font: 'grotesk' })).length, 0);
+check('grotesk names the same family', CB.fontStack(tok({ font: 'grotesk' })), CB.fontStack(tok()));
+
+// --- a custom import still behaves as documented -------------------------
+var custom = 'https://fonts.googleapis.com/css2?family=Fraunces&display=swap';
+check('a custom import is emitted alongside the built-in',
+      CB.fontImports(tok({ fontImport: custom })).join('|'), INTER + '|' + custom);
+check('choosing the custom import switches the family',
+      CB.fontStack(tok({ font: 'import', fontImport: custom })).indexOf('"Fraunces"'), 0);
+check('a custom import is not emitted twice',
+      CB.fontImports(tok({ font: 'import', fontImport: INTER })).join('|'), INTER);
+check('junk in the import field is ignored',
+      CB.fontImports(tok({ font: 'system', fontImport: 'not a url' })).length, 0);
+
+// --- exports must survive the font never loading -------------------------
+check('the stack falls back to something real if the import is stripped',
+      /Helvetica Neue|Helvetica|Arial|sans-serif/.test(CB.fontStack(tok())), true);
+
+document.getElementById('out').textContent = log.join('\n');
+var bar = document.getElementById('bar');
+bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed') : (pass + '/' + pass + ' passed');
+document.title = fail ? 'DEFAULTS FAIL ' + fail : 'DEFAULTS OK ' + pass;
+</script>
