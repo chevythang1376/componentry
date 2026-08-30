@@ -264,7 +264,7 @@ and answers one question: if this were pasted right now, what would go wrong?
 | Check | Catches |
 |---|---|
 | **Contrast** | Text under 3:1 against its own background, judged on the rendered block |
-| **Alt text** | Images where the schema asks for alt and it's blank |
+| **Alt text** | Images you have replaced but not described |
 | **Empty blocks** | A list component with no items — exports as a dead band |
 | **Heavy images** | Uploads over ~180 kB, which cost twice: export *and* browser storage |
 | **Embed cap** | Total over the target platform's limit, with the way out |
@@ -272,6 +272,16 @@ and answers one question: if this were pasted right now, what would go wrong?
 
 Findings name the block they came from and say what to do. A clean project collapses to a
 single line rather than making you read a report.
+
+The alt check ignores placeholders. Every image field ships a generated placeholder, so
+checking for a blank alt regardless meant six warnings about twenty-two images that did
+not exist yet — 86% of everything preflight said on a fresh project. A warning that fires
+before you have done anything is how the findings that matter get scrolled past. It now
+waits until a real image is in and still has nothing describing it.
+
+Filling those alts in as a default would have been worse: canned text ships into the
+export looking like a description somebody wrote.
+
 
 The contrast check deliberately **skips what it can't resolve**. Text over a photo, or
 anything positioned out of normal flow, has no knowable backdrop — guessing white there is
@@ -602,6 +612,9 @@ test/
                         it is meant to reach, so the tokens cannot quietly go
                         inert, and that a control a component cannot use
                         is not offered at all; 31 assertions
+  preflight.html        Asserts the findings are actionable: nothing fires on an
+                        untouched project, everything fires once a real image
+                        goes in undescribed; 13 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 ```
 

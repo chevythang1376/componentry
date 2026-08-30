@@ -200,10 +200,17 @@ CB.Preflight = (function () {
       (function () {
         var missing = 0;
         function check(fields, obj) {
+          // Which field in this object holds the image the alt describes.
+          var imgKey = null;
+          (fields || []).forEach(function (f) { if (f.t === 'image') imgKey = f.k; });
           (fields || []).forEach(function (f) {
             if (f.t === 'list') {
               (obj[f.k] || []).forEach(function (item) { check(f.fields, item); });
             } else if (f.k === 'alt' && !String(obj[f.k] || '').trim()) {
+              // A placeholder nobody has replaced is not a missing description;
+              // there is no image yet to describe. Warning about all 22 of them
+              // on a fresh project buried the two findings that were real.
+              if (imgKey && CB.isPlaceholder(obj[imgKey])) return;
               missing++;
             }
           });
