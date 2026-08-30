@@ -116,6 +116,16 @@ window.CB = (function () {
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
 
+  /* Recognises anything ph() produced, whatever size or colours it was given.
+     Preflight uses it to stay quiet about a placeholder nobody has replaced:
+     an image the user has not chosen yet cannot have alt text they meant. */
+  var PH_MARK = encodeURIComponent('<linearGradient id="g"');
+  function isPlaceholder(src) {
+    return typeof src === 'string' &&
+           src.indexOf('data:image/svg+xml,') === 0 &&
+           src.indexOf(PH_MARK) > 0;
+  }
+
   /* Wrap generated JS so pasting the same snippet twice is harmless.
 
      Two guards live here:
@@ -735,6 +745,7 @@ window.CB = (function () {
     register: register, get: get, all: all, defaults: defaults, build: build,
     fields: fields,
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
+    isPlaceholder: isPlaceholder,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
     actions: actions, ctaFields: ctaFields,
     tokenCss: tokenCss, baseCss: baseCss, sharedCss: sharedCss, SCOPE: SCOPE,

@@ -227,12 +227,19 @@ window.CBProbe = (function () {
 
     var before = track.scrollLeft;
     var scrollable = track.scrollWidth > track.clientWidth + 1;
+    function activeDot() {
+      return qa(root, '.cb-car__dot').findIndex(function (d) { return d.getAttribute('aria-current'); });
+    }
     click(q(root, '.cb-car__next'));
+
+    // goTo() advances the index and repaints the dots synchronously, before any
+    // scrolling happens, so this reading does not depend on frames running.
+    var dotOnClick = activeDot();
 
     // Smooth scrolling is animated, so poll until the position stops changing
     // rather than sampling at a fixed delay — that raced the animation.
     return settle(track).then(function (after) {
-      var dot = qa(root, '.cb-car__dot').findIndex(function (d) { return d.getAttribute('aria-current'); });
+      var dot = activeDot();
 
       if (after > before) {
         t.ok('next advances the track', true, before + ' -> ' + Math.round(after));
@@ -245,12 +252,23 @@ window.CBProbe = (function () {
         // scroll is issued and simply never progresses. Advancing the index is
         // the part that can be observed here; scroll position is covered
         // wherever frames actually run.
-        t.skip('smooth scroll needs animation frames; index advanced to ' + dot);
+        t.skip('smooth scroll needs animation frames; index advanced to ' + dotOnClick);
       } else {
         t.ok('next advances the track', false, before + ' -> ' + Math.round(after));
       }
 
-      t.ok('dots track position', dot > 0, 'dot index ' + dot);
+      t.ok('next advances the dot', dotOnClick > 0, 'dot index ' + dotOnClick);
+
+      // Ninety milliseconds after the last scroll event the component re-derives
+      // the index from scrollLeft. Where the scroll never progressed it reads
+      // back 0 and correctly overwrites the click — the component is right and
+      // the environment is not, so only assert this where the track did move.
+      // Asserting it unconditionally is what made this probe flaky.
+      if (after > before) {
+        t.ok('dots follow scroll position', dot > 0, 'dot index ' + dot);
+      } else {
+        t.skip('dots follow scrollLeft; the track did not move here');
+      }
     });
   });
 

@@ -1,0 +1,94 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — preflight</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+</style>
+<h1>Preflight</h1>
+<p class="sub">Findings must be actionable. A warning that fires on every fresh
+project is noise, and noise is what makes the real findings get ignored.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<script src="../js/core.js?v=pf1"></script>
+<script src="../js/components/content.js?v=pf1"></script>
+<script src="../js/components/heroes.js?v=pf1"></script>
+<script src="../js/components/interactive.js?v=pf1"></script>
+<script src="../js/components/media.js?v=pf1"></script>
+<script src="../js/components/modern.js?v=pf1"></script>
+<script src="../js/components/product.js?v=pf1"></script>
+<script src="../js/components/diagram.js?v=pf1"></script>
+<script src="../js/export.js?v=pf1"></script>
+<script src="../js/preflight.js?v=pf1"></script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '  got ' + got + (ok ? '' : '  want ' + want));
+}
+function inst(type, props) {
+  var def = CB.get(type);
+  return { uid: 'u', type: type, cls: 'cb-' + type + '-pf',
+           props: Object.assign(CB.defaults(def), props || {}) };
+}
+function altFindings(list) {
+  return (CB.Preflight.run(list, Object.assign({}, CB.DEFAULT_TOKENS), {}) || [])
+    .filter(function (f) { return /alt text/.test(f.title); });
+}
+
+window.addEventListener('load', function () {
+  // --- what ph() makes is recognisable, whatever it was asked for ----------
+  check('recognises a default placeholder', CB.isPlaceholder(CB.ph(800, 600, '', '#96694c', '#2b241f')), true);
+  check('recognises one at another size and palette', CB.isPlaceholder(CB.ph(120, 90, 'x', '#000', '#fff')), true);
+  check('a real URL is not a placeholder', CB.isPlaceholder('https://example.com/photo.jpg'), false);
+  check('an uploaded raster is not a placeholder', CB.isPlaceholder('data:image/png;base64,iVBORw0KGgo='), false);
+  check('empty is not a placeholder', CB.isPlaceholder(''), false);
+  check('undefined is not a placeholder', CB.isPlaceholder(undefined), false);
+
+  // --- a fresh project is quiet -------------------------------------------
+  var everything = CB.all().map(function (d, i) {
+    var x = inst(d.id); x.uid = 'u' + i; x.cls = 'cb-' + d.id + '-pf'; return x;
+  });
+  check('no alt warnings on 25 untouched components', altFindings(everything).length, 0);
+
+  // --- but it still catches a real image with no description --------------
+  var real = altFindings([inst('split-hero', { image: 'https://example.com/team.jpg', alt: '' })]);
+  check('a real image with blank alt warns', real.length, 1);
+  check('and says so plainly', real.length ? real[0].title : '', 'An image has no alt text');
+
+  check('filling the alt clears it',
+        altFindings([inst('split-hero', { image: 'https://example.com/team.jpg', alt: 'The team at work' })]).length, 0);
+
+  // --- inside a repeatable list, per item ---------------------------------
+  var cards = CB.defaults(CB.get('card-grid')).items;
+  cards[0].image = 'https://example.com/a.jpg';
+  cards[1].image = 'https://example.com/b.jpg';
+  var listed = altFindings([inst('card-grid', { items: cards })]);
+  check('two replaced cards, both undescribed', listed.length ? listed[0].title : '', '2 images have no alt text');
+
+  cards[0].alt = 'A described card';
+  listed = altFindings([inst('card-grid', { items: cards })]);
+  check('describing one leaves one', listed.length ? listed[0].title : '', 'An image has no alt text');
+
+  // --- a background the component itself marks decorative is not flagged ---
+  // Parallax Banner has no alt field: its image is role="presentation" and the
+  // headline carries the meaning. Preflight should say nothing, even once a
+  // real image is in, rather than demanding a description of a backdrop.
+  check('a decorative backdrop is not flagged',
+        altFindings([inst('parallax-banner', { image: 'https://example.com/bg.jpg' })]).length, 0);
+
+
+  document.getElementById('out').textContent = log.join('\n');
+  var bar = document.getElementById('bar');
+  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
+                         : (pass + '/' + pass + ' passed — preflight only speaks when there is something to do');
+  document.title = fail ? 'PREFLIGHT FAIL ' + fail : 'PREFLIGHT OK ' + pass;
+});
+</script>
