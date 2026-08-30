@@ -184,11 +184,23 @@ window.CB = (function () {
 
   var FONT_STACKS = {
     system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    inter: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
     grotesk: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
     serif: 'Georgia, "Times New Roman", "Iowan Old Style", serif',
     slab: '"Rockwell", "Courier Bold", Georgia, serif',
     mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
     rounded: '"Nunito", "Trebuchet MS", "Segoe UI", sans-serif'
+  };
+
+  /* Stacks that need a webfont to be what they claim. Selecting one of these is
+     enough — the @import is emitted for you. That is the whole difference
+     between `inter` and `grotesk`, whose identical stack only resolves to Inter
+     if the visitor happens to have it installed already.
+
+     400..800 is a variable range covering every weight the components ask for,
+     500 through 800, so no browser has to synthesise a fake bold. */
+  var FONT_IMPORTS = {
+    inter: 'https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap'
   };
 
   /* Southwire: copper on black and white.
@@ -204,16 +216,17 @@ window.CB = (function () {
     subtle: '#f7f4f1',
     border: '#e4ddd5',
     onBrand: '#ffffff',
-    font: 'system',
+    font: 'inter',
     fontImport: '',
     radius: 14,
     maxWidth: 1140,
     scale: 100,
 
-    /* Buttons. Defaults reproduce what was previously hard-coded — the old
-       radius was calc(var(--cb-radius) * .72), which is 10px at radius 14 —
-       so existing projects look unchanged until these are touched. */
-    btnRadius: 10,
+    /* Buttons. Everything here except the radius reproduces what used to be
+       hard-coded, so an old project looks unchanged until it is touched. The
+       radius is the deliberate exception: it was calc(var(--cb-radius) * .72),
+       or 10px, and is now a near-square 1px by choice. */
+    btnRadius: 1,
     btnPill: false,
     btnSize: 'md',
     btnWeight: 650,
@@ -267,6 +280,17 @@ window.CB = (function () {
     }
     if (t.font === 'custom') return t.fontCustom || FONT_STACKS.system;
     return FONT_STACKS[t.font] || FONT_STACKS.system;
+  }
+
+  /* Every @import a project needs, in the order they have to be written. A
+     custom import is still emitted when one is set but not selected — that has
+     always been the behaviour, and the field's help text says so. */
+  function fontImports(t) {
+    var out = [];
+    if (FONT_IMPORTS[t.font]) out.push(FONT_IMPORTS[t.font]);
+    var custom = String(t.fontImport || '').trim();
+    if (/^https?:\/\//i.test(custom) && out.indexOf(custom) < 0) out.push(custom);
+    return out;
   }
 
   function btnSize(t) { return BTN_SIZES[t.btnSize] || BTN_SIZES.md; }
@@ -750,6 +774,7 @@ window.CB = (function () {
     actions: actions, ctaFields: ctaFields,
     tokenCss: tokenCss, baseCss: baseCss, sharedCss: sharedCss, SCOPE: SCOPE,
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
+    fontImports: fontImports,
     familyFromImport: familyFromImport
   };
 })();

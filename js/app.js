@@ -24,8 +24,9 @@
     { t: 'section', label: 'Typography' },
     {
       k: 'font', t: 'select', label: 'Font stack', options: [
-        ['system', 'System UI'], ['import', 'The webfont imported below'],
-        ['grotesk', 'Inter / grotesk'], ['serif', 'Serif'],
+        ['inter', 'Inter (loaded from Google Fonts)'], ['system', 'System UI'],
+        ['import', 'The webfont imported below'],
+        ['grotesk', 'Inter if installed, else Helvetica'], ['serif', 'Serif'],
         ['slab', 'Slab'], ['rounded', 'Rounded'], ['mono', 'Monospace'], ['custom', 'Custom…']
       ],
       help: 'Importing a webfont below does not switch to it on its own — pick it here too.'
@@ -1087,23 +1088,12 @@
     setInterval(function () { if (dirty) save(true); }, 20000);
   }
 
-  function seedDemo() {
-    ['parallax-banner', 'feature-grid', 'carousel', 'accordion', 'cta-banner'].forEach(function (id) {
-      if (!CB.get(id)) return;
-      state.instances.push({
-        uid: CB.uid('i'),
-        cls: 'cb-' + id + '-' + Math.random().toString(36).slice(2, 7),
-        type: id,
-        props: CB.defaults(CB.get(id))
-      });
-    });
-    state.selected = state.instances[0].uid;
-  }
-
   function init() {
+    // A first run opens on an empty canvas. Seeding five blocks meant the first
+    // thing anyone did was delete somebody else's page; the empty state already
+    // says where to start, and the page templates are one click away.
     var restored = load();
     state = restored || blankProject();
-    if (!restored) seedDemo();
     lastPushed = snapshot();
 
     bind();

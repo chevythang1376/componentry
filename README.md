@@ -406,7 +406,19 @@ a single block under **Advanced** — those compose with the project values, so
 
 ### Using a webfont
 
-Two settings, and both are required — importing a font does not switch to it:
+**Inter is the default and needs no setup.** Picking it emits the Google Fonts `@import`
+for you, over the weight range 400–800 so nothing the components ask for gets synthesised
+into a fake bold. It's the one difference between **Inter** and **Inter if installed,
+else Helvetica** in the font list: the second names the same family but imports nothing,
+so it only resolves for visitors who already have Inter locally. Pick that one, or
+**System UI**, if you'd rather exports made no external request at all.
+
+Because it's an `@import`, an editor that strips them leaves the fallback stack —
+Helvetica Neue, Helvetica, Arial — which is why the stack has real names in it rather
+than ending at `sans-serif`.
+
+For any **other** font, two settings, and both are required — importing a font does not
+switch to it:
 
 1. **Design tokens → Typography → Webfont @import URL** — paste the Google Fonts URL
 2. **Font stack** — choose **The webfont imported below**
@@ -564,8 +576,11 @@ devices; with the toggle off the code isn't emitted at all.
 
 ### Starting from a page
 
-Four starters sit above the component list, each dropping a ready arrangement you can
-edit down: **Landing page**, **Product page**, **Capability page**, **Support page**.
+A first run opens on an empty canvas. It used to seed five blocks, which meant the first
+thing anyone did was delete somebody else's page.
+
+Four starters sit above the component list instead, each dropping a ready arrangement you
+can edit down: **Landing page**, **Product page**, **Capability page**, **Support page**.
 Search finds them by name too. Quicker than deciding which of 25 blocks belong together
 before you've seen any of them.
 
@@ -644,6 +659,10 @@ test/
                         goes in undescribed; 13 assertions
   freshness.html        Asserts the build check corrects a genuinely stale page and,
                         just as importantly, leaves every other case alone; 14 assertions
+  defaults.html         Pins what a brand new project ships as — Inter actually
+                        imported rather than merely named, 1px button corners —
+                        since a default that reverts is invisible until an
+                        export is already out the door; 14 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 ```
 
