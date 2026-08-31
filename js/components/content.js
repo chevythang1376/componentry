@@ -780,6 +780,252 @@
       return { html: html, css: css, js: js };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Webinar Library                                                        */
+  /* --------------------------------------------------------------------- */
+
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  /* Built from the string parts rather than through Date. new Date("2026-08-25")
+     is parsed as UTC midnight, so anyone west of Greenwich renders it as the
+     24th — an off-by-one that only shows up for some of your visitors. */
+  function niceDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '').trim());
+    if (!m) return String(iso || '').trim();   // "Coming soon" and the like pass through
+    return MONTHS[+m[2] - 1] + ' ' + (+m[3]) + ', ' + m[1];
+  }
+  function isoDate(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim());
+    return m ? m[0] : '';
+  }
+
+  /* Ordered here, at build time, so the exported markup is already in sequence
+     and needs no script to stay that way — the same reason nothing else in this
+     library sorts in the browser. */
+  function byDate(list, mode) {
+    if (mode === 'manual') return list.slice();
+    return list
+      .map(function (it, i) { return { it: it, i: i, k: isoDate(it.date) }; })
+      .sort(function (a, b) {
+        if (a.k === b.k) return a.i - b.i;   // same day keeps the order you typed
+        if (!a.k) return 1;                  // undated sink to the bottom either way
+        if (!b.k) return -1;
+        return mode === 'old' ? (a.k < b.k ? -1 : 1) : (a.k > b.k ? -1 : 1);
+      })
+      .map(function (x) { return x.it; });
+  }
+
+  CB.register({
+    id: 'webinar-grid',
+    name: 'Webinar Library',
+    category: CAT,
+    icon: '⊡',
+    blurb: 'An archive of recorded and upcoming sessions, newest first. The order is worked out when the code is generated rather than in the browser, so it survives an editor that strips scripts.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Webinars' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'Watch a recorded session, or register for one that has not aired yet.' },
+      { k: 'align', t: 'select', label: 'Heading alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center']] },
+
+      { t: 'section', label: 'Webinars' },
+      {
+        k: 'sort', t: 'select', label: 'Order', value: 'new',
+        options: [['new', 'Newest first'], ['old', 'Oldest first'], ['manual', 'Exactly as listed below']],
+        help: 'Ordered by the date on each webinar. Ones with no date go last.'
+      },
+      {
+        k: 'feature', t: 'toggle', label: 'Feature the first one', value: true,
+        help: 'Gives whichever webinar sorts to the top a wider image and a row of its own.'
+      },
+      {
+        k: 'items', t: 'list', label: 'Webinars', itemLabel: 'title',
+        fields: [
+          { k: 'image', t: 'image', label: 'Thumbnail', value: CB.ph(800, 450, '', '#96694c', '#2b241f') },
+          { k: 'alt', t: 'text', label: 'Alt text', value: '' },
+          { k: 'label', t: 'text', label: 'Label', value: '', help: 'Small line above the title — “On demand”, “Upcoming”, a product family.' },
+          { k: 'title', t: 'text', label: 'Title', value: 'Webinar title' },
+          { k: 'date', t: 'date', label: 'Date', value: '', help: 'What the list is ordered by. Free text works too, but only dated ones can sort.' },
+          { k: 'text', t: 'textarea', label: 'Summary', value: 'One or two sentences on what the session covers.' },
+          { k: 'btnText', t: 'text', label: 'Button label', value: 'Watch now' },
+          { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' }
+        ],
+        value: [
+          {
+            image: CB.ph(800, 450, '', '#96694c', '#2b241f'), alt: '',
+            label: 'On demand', title: 'Sizing conductors for high-density data center builds',
+            date: '2026-08-12',
+            text: 'Ampacity, derating and conduit fill on projects where the rack layout is still moving.',
+            btnText: 'Watch now', btnUrl: '#'
+          },
+          {
+            image: CB.ph(800, 450, '', '#6f4c37', '#141210'), alt: '',
+            label: 'On demand', title: 'What changed in the 2026 code cycle',
+            date: '2026-06-24',
+            text: 'The revisions most likely to affect how you specify and install, with the reasoning behind them.',
+            btnText: 'Watch now', btnUrl: '#'
+          },
+          {
+            image: CB.ph(800, 450, '', '#2b241f', '#4a443e'), alt: '',
+            label: 'On demand', title: 'Reducing installed cost without cutting corners',
+            date: '2026-05-06',
+            text: 'Where labour actually goes on a commercial pull, and the decisions that move the number.',
+            btnText: 'Watch now', btnUrl: '#'
+          },
+          {
+            image: CB.ph(800, 450, '', '#4a443e', '#96694c'), alt: '',
+            label: 'On demand', title: 'Specifying for harsh and wet locations',
+            date: '2026-03-18',
+            text: 'Jacket compounds, temperature ratings and the failure modes that show up years later.',
+            btnText: 'Watch now', btnUrl: '#'
+          }
+        ]
+      },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'cols', t: 'range', label: 'Columns (desktop)', min: 2, max: 4, step: 1, value: 3 },
+      { k: 'gap', t: 'range', label: 'Gap', min: 8, max: 48, step: 4, unit: 'px', value: 28 },
+      { k: 'ratio', t: 'select', label: 'Thumbnail ratio', value: '16/9', options: [['16/9', '16 : 9'], ['4/3', '4 : 3'], ['3/2', '3 : 2'], ['none', 'No thumbnails']] },
+
+      { t: 'section', label: 'Style' },
+      { k: 'variant', t: 'select', label: 'Card style', value: 'outline', options: [['elevated', 'Elevated'], ['outline', 'Outlined'], ['flat', 'Flat / borderless']] },
+      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var showImg = p.ratio !== 'none';
+      var items = byDate((p.items || []).filter(Boolean), p.sort);
+      var lead = p.feature && items.length ? items[0] : null;
+      var rest = lead ? items.slice(1) : items;
+
+      function dateHtml(it, cls) {
+        if (!it.date) return '';
+        var iso = isoDate(it.date);
+        return '<p class="' + cls + '">' + (iso
+          ? '<time datetime="' + c.attr(iso) + '">' + c.esc(niceDate(it.date)) + '</time>'
+          : c.esc(String(it.date).trim())) + '</p>';
+      }
+      function media(it, cls) {
+        if (!showImg || !it.image) return '';
+        return '<div class="' + cls + '"><img src="' + c.url(it.image) + '" alt="' +
+               c.attr(it.alt) + '" loading="lazy" decoding="async"></div>';
+      }
+
+      var featureHtml = lead ? c.dedent(`
+        <article class="cb-wb__feature">
+          ${media(lead, 'cb-wb__featureMedia')}
+          <div class="cb-wb__featureBody">
+            ${lead.label ? '<span class="cb-wb__label">' + c.esc(lead.label) + '</span>' : ''}
+            ${lead.title ? '<h3 class="cb-wb__featureTitle">' + c.rich(lead.title) + '</h3>' : ''}
+            ${dateHtml(lead, 'cb-wb__date')}
+            ${lead.text ? '<p class="cb-wb__x">' + c.rich(lead.text) + '</p>' : ''}
+            ${c.actions([{ text: lead.btnText, url: lead.btnUrl }], { tight: true })}
+          </div>
+        </article>`) : '';
+
+      var cards = rest.map(function (it) {
+        return c.dedent(`
+          <li class="cb-wb__card">
+            <article class="cb-wb__inner">
+              ${media(it, 'cb-wb__media')}
+              <div class="cb-wb__body">
+                ${it.label ? '<span class="cb-wb__label">' + c.esc(it.label) + '</span>' : ''}
+                ${it.title ? '<h3 class="cb-wb__t">' + c.rich(it.title) + '</h3>' : ''}
+                ${dateHtml(it, 'cb-wb__date')}
+                ${it.text ? '<p class="cb-wb__x">' + c.rich(it.text) + '</p>' : ''}
+                ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true })}
+              </div>
+            </article>
+          </li>`);
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-wb">
+          <div class="cb-wrap">
+            ${(p.title || p.sub) ? `<header class="cb-wb__head">
+              ${p.title ? '<h2 class="cb-wb__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-wb__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+        ${c.indent(featureHtml, 4)}
+            ${rest.length ? `<ul class="cb-wb__grid">
+        ${c.indent(cards, 6)}
+            </ul>` : ''}
+          </div>
+        </section>`);
+
+      var variantCss = {
+        elevated: `${s} .cb-wb__inner { background: var(--cb-surface); box-shadow: 0 12px 30px -22px rgba(20,18,16,.5); border: 1px solid transparent; }
+                   ${s} .cb-wb__feature { background: var(--cb-surface); box-shadow: 0 16px 40px -28px rgba(20,18,16,.5); border: 1px solid transparent; }`,
+        outline: `${s} .cb-wb__inner { background: var(--cb-surface); border: 1px solid var(--cb-border); }
+                  ${s} .cb-wb__feature { background: var(--cb-surface); border: 1px solid var(--cb-border); }`,
+        flat: `${s} .cb-wb__inner { background: transparent; border: 1px solid transparent; }
+               ${s} .cb-wb__feature { background: transparent; border: 1px solid transparent; }
+               ${s} .cb-wb__body, ${s} .cb-wb__featureBody { padding-inline: 0; }`
+      }[p.variant] || '';
+
+      var css = `
+        ${s}.cb-wb { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-wb__head { margin-bottom: 34px; max-width: 660px; ${p.align === 'center' ? 'margin-inline: auto; text-align: center;' : ''} }
+        ${s} .cb-wb__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
+        ${s} .cb-wb__sub { color: var(--cb-muted); margin-top: 10px; }
+
+        /* The featured row is two columns rather than a full-bleed banner, so
+           the newest session leads without swallowing the fold. */
+        ${s} .cb-wb__feature {
+          display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+          gap: ${c.num(p.gap, 28)}px; align-items: center; overflow: hidden;
+          border-radius: var(--cb-radius); margin-bottom: ${c.num(p.gap, 28)}px;
+        }
+        ${s} .cb-wb__featureMedia { background: var(--cb-subtle); }
+        ${s} .cb-wb__featureMedia img { width: 100%; ${showImg ? 'aspect-ratio: ' + p.ratio + ';' : ''} object-fit: cover; display: block; }
+        ${s} .cb-wb__featureBody { display: flex; flex-direction: column; gap: 10px; padding: 26px 26px 26px 4px; }
+        ${s} .cb-wb__featureTitle {
+          font-size: calc(clamp(21px, 2.4vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 750);
+          line-height: calc(1.25 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
+        }
+
+        ${s} .cb-wb__grid {
+          display: grid; gap: ${c.num(p.gap, 28)}px;
+          grid-template-columns: repeat(${c.clamp(c.num(p.cols, 3), 2, 4)}, minmax(0, 1fr));
+        }
+        ${s} .cb-wb__inner {
+          height: 100%; overflow: hidden; display: flex; flex-direction: column;
+          border-radius: var(--cb-radius);
+          transition: transform .3s cubic-bezier(.2,.7,.3,1), box-shadow .3s ease, border-color .3s ease;
+        }
+        ${variantCss}
+        ${s} .cb-wb__card:hover .cb-wb__inner { transform: translateY(-4px); box-shadow: 0 26px 46px -30px rgba(20,18,16,.45); }
+        ${s} .cb-wb__media { overflow: hidden; background: var(--cb-subtle); }
+        ${s} .cb-wb__media img {
+          width: 100%; ${showImg ? 'aspect-ratio: ' + p.ratio + ';' : ''} object-fit: cover; display: block;
+          transition: transform .5s cubic-bezier(.2,.7,.3,1);
+        }
+        ${s} .cb-wb__card:hover .cb-wb__media img { transform: scale(1.05); }
+        ${s} .cb-wb__body { display: flex; flex-direction: column; gap: 9px; padding: 22px; flex: 1 1 auto; }
+        ${s} .cb-wb__label {
+          align-self: flex-start; font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-brand);
+        }
+        ${s} .cb-wb__t {
+          font-size: 1.12em; font-weight: var(--cb-h-weight, 730);
+          line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-wb__date { color: var(--cb-muted); font-size: .86em; font-variant-numeric: tabular-nums; }
+        ${s} .cb-wb__x { color: var(--cb-muted); font-size: .96em; }
+        /* Buttons pinned to the bottom edge so a row of cards lines up however
+           long the summaries run. */
+        ${s} .cb-wb__body .cb-actions { margin-top: auto; padding-top: 6px; }
+
+        @media (max-width: 900px) {
+          ${s} .cb-wb__feature { grid-template-columns: 1fr; }
+          ${s} .cb-wb__featureBody { padding: 0 22px 24px; }
+          ${s} .cb-wb__grid { grid-template-columns: repeat(${Math.min(2, c.clamp(c.num(p.cols, 3), 2, 4))}, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) { ${s} .cb-wb__grid { grid-template-columns: 1fr; } }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
 })();
-
-

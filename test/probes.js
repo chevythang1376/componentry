@@ -152,6 +152,20 @@ window.CBProbe = (function () {
     t.ok('grid layout applied', getComputedStyle(q(root, '.cb-fg__grid')).display === 'grid');
   });
 
+  register('webinar-grid', function (root, t) {
+    t.ok('featured session rendered', !!q(root, '.cb-wb__feature'));
+    t.ok('remaining sessions rendered', qa(root, '.cb-wb__card').length >= 2);
+    t.ok('grid layout applied', getComputedStyle(q(root, '.cb-wb__grid')).display === 'grid');
+    t.ok('each session has a button', qa(root, '.cb-wb__card .cb-btn').length === qa(root, '.cb-wb__card').length);
+
+    // The order is baked into the markup at build time, so it has to still be
+    // right after a round-trip through an editor — there is no script to redo it.
+    var stamps = qa(root, '.cb-wb__date time').map(function (el) { return el.getAttribute('datetime'); });
+    t.ok('dates carry a machine-readable stamp', stamps.length > 0 && stamps.every(Boolean), stamps.join(' '));
+    var descending = stamps.every(function (d, i) { return i === 0 || stamps[i - 1] >= d; });
+    t.ok('newest first survived the paste', descending, stamps.join(' > '));
+  });
+
   register('stats-counter', function (root, t) {
     var vals = qa(root, '.cb-st__val');
     t.ok('stats rendered', vals.length >= 2);

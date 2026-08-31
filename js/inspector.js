@@ -132,6 +132,17 @@ CB.Inspector = (function () {
         wrap.appendChild(input);
         break;
 
+      /* Date without a time. The value is a plain YYYY-MM-DD string, which sorts
+         correctly as text and needs no Date object to read back. */
+      case 'date':
+        input = el('input', 'ctl');
+        input.type = 'date';
+        input.id = id;
+        input.value = v || '';
+        input.addEventListener('input', function () { set(input.value); onInput(); });
+        wrap.appendChild(input);
+        break;
+
       case 'image': {
         var ibox = el('div', 'ctl-image');
         var thumb = el('div', 'ctl-image__thumb');
