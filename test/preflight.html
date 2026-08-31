@@ -55,7 +55,7 @@ window.addEventListener('load', function () {
   var everything = CB.all().map(function (d, i) {
     var x = inst(d.id); x.uid = 'u' + i; x.cls = 'cb-' + d.id + '-pf'; return x;
   });
-  check('no alt warnings on 25 untouched components', altFindings(everything).length, 0);
+  check('no alt warnings on ' + everything.length + ' untouched components', altFindings(everything).length, 0);
 
   // --- but it still catches a real image with no description --------------
   var real = altFindings([inst('split-hero', { image: 'https://example.com/team.jpg', alt: '' })]);
