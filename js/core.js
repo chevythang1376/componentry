@@ -537,6 +537,13 @@ window.CB = (function () {
       k: '_maxWidth', t: 'range', label: 'Content width', min: 0, max: 1600, step: 20, unit: 'px',
       value: 0, auto: 0, help: 'Overrides the project token for this block only.'
     },
+    {
+      k: '_radius', t: 'range', label: 'Corner radius', min: -1, max: 40, step: 1, unit: 'px',
+      value: -1, auto: -1,
+      help: 'Overrides the project corner radius for this block only. Everything inside ' +
+            'that is proportional to it follows, so the block stays internally consistent. ' +
+            'Circles and pills keep their shape.'
+    },
     { k: '_padTop', t: 'range', label: 'Top padding', min: -4, max: 200, step: 4, unit: 'px', value: -4, auto: -4 },
     { k: '_padBottom', t: 'range', label: 'Bottom padding', min: -4, max: 200, step: 4, unit: 'px', value: -4, auto: -4 },
     {
@@ -655,6 +662,12 @@ window.CB = (function () {
        per-component wiring. */
     var hs = num(p._hScale, 1), ht = num(p._hTrack, 0), bs = num(p._bodyScale, 1);
     var typ = [];
+    /* Redeclaring the token is enough for corners: nothing rounded is written as
+       a bare pixel value, it is either var(--cb-radius) or a multiple of it, so
+       the whole block rescales together. Circles and pills are 50% and 999px and
+       are deliberately left out of that. */
+    var rad = num(p._radius, -1);
+    if (rad >= 0) typ.push('--cb-radius: ' + rad + 'px');
     if (hs !== 1) typ.push('--cb-h-scale: ' + (num(tokens.hScale, 1) * hs).toFixed(3));
     if (ht) typ.push('--cb-h-track: ' + ((num(tokens.hTrack, 0) + ht) / 100).toFixed(3) + 'em');
     if (bs !== 1) {

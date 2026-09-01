@@ -353,6 +353,7 @@ Applied centrally, so they behave identically on all 26 blocks:
 | **Heading size** | Multiplies the project heading size for this block only; `1×` leaves it alone |
 | **Heading letter spacing** | Added on top of the project value |
 | **Body size** | Same idea for the body copy in this block |
+| **Corner radius** | Overrides the project radius for one block; everything proportional inside follows, circles and pills don't |
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
 | **Reveal on scroll** | Fade, fade-up or scale as the block enters the viewport |
 
@@ -410,6 +411,36 @@ heading. All fixed.
 Any of heading size, heading letter spacing and body size can be overridden for
 a single block under **Advanced** — those compose with the project values, so
 `1×` and `0` there always mean "same as the rest of the page".
+
+### Corners
+
+One slider, **Shape → Corner radius**, and no per-component sliders anywhere. Twenty-six
+of those would be exactly the clutter worth avoiding, and it would make a coherent look
+harder rather than easier: matching a page would mean setting twenty-six values instead
+of one.
+
+It works because nothing rounded is written as a bare pixel value. Every rounded
+container is either `var(--cb-radius)` or a deliberate multiple of it — a rounded-square
+icon at `0.8×`, a Bento tile at `1.5×` — so one slider rescales a whole page while
+keeping the relationships between elements. A 16px card with an 8px chip inside it, not
+both at 16px, which looks wrong at either extreme. `test/radius.html` fails if a
+container ever drifts onto a literal pixel value, because that is precisely how an
+element silently opts out of the slider.
+
+**Circles and pills are deliberately exempt.** An avatar, a dot, an icon button and a
+badge are shapes rather than corners; squaring an avatar off because the cards are square
+is not consistency. They stay `50%` and `999px` at every setting.
+
+A single block can be overridden under **Advanced → Corner radius**, which reads `auto`
+until you touch it. Everything proportional inside that block follows, so the block stays
+internally consistent rather than becoming a mix of two scales.
+
+Some blocks are flat by default and so have nothing for the slider to do — Accordion
+ships as hairline rules, Feature Grid as bare items. Give them a surface (**Variant →
+Cards**, **Card treatment → Outlined**) and they follow the token immediately. Bento Grid
+used to be the real exception, with its own private 22px that the project slider could
+not reach; its tile radius is now derived like everything else, and it can still be
+pinned to an absolute value for one block if you want it.
 
 ### Using a webfont
 
@@ -670,7 +701,15 @@ test/
                         imported rather than merely named, 1px button corners —
                         since a default that reverts is invisible until an
                         export is already out the door; 14 assertions
+  radius.html           Asserts one slider reaches every rounded container and
+                        that circles and pills are left alone, and fails if any
+                        container drifts onto a bare pixel radius; 19 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
+
+Every test page loads the source with a timestamp. None of them carried a version
+query and bump.sh only versions index.html, so a browser would happily report on the
+copy it fetched ten minutes ago — which is how one intermittent carousel failure
+survived two rounds of "fixes" that were never actually running.
 ```
 
 Open the files in `test/` in a browser — each prints a pass/fail banner at the top.
