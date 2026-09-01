@@ -1,0 +1,130 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — corner radius</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 72ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+  iframe { position: absolute; left: -20000px; width: 1280px; height: 900px; border: 0; }
+</style>
+<h1>Corner radius</h1>
+<p class="sub">One slider has to reach every rounded container across 26 blocks, and just as
+importantly it has to leave circles and pills alone — an avatar squared off by a card
+setting is a bug, not consistency. Nothing rounded is written as a bare pixel value:
+it is <code>var(--cb-radius)</code> or a multiple of it, which is what lets a single
+token rescale a whole block coherently.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<iframe id="f"></iframe>
+<!-- Loaded with a timestamp so a test page can never report on stale
+     source. None of these carried a version query, and bump.sh only
+     versions index.html, so a cached copy turns a real result into a
+     misleading one — which is exactly how an intermittent carousel
+     failure survived two rounds of "fixes". -->
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+
+window.addEventListener('load', function () {
+  var f = document.getElementById('f'), w = f.contentWindow;
+
+  function radius(id, sel, tokenRadius, props) {
+    var def = CB.get(id);
+    var out = CB.build({ type: id, cls: 'cb-' + id + '-r', props: Object.assign(CB.defaults(def), props || {}) },
+                       Object.assign({}, CB.DEFAULT_TOKENS, { radius: tokenRadius }));
+    var d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style><style>' +
+            out.css + '</style>' + out.html);
+    d.close();
+    var el = d.querySelector(sel);
+    return el ? w.getComputedStyle(el).borderRadius : 'missing';
+  }
+
+  // --- containers follow the slider ---------------------------------------
+  check('a card follows the token', radius('card-grid', '.cb-cg__inner', 4), '4px');
+  check('and again at the other end', radius('card-grid', '.cb-cg__inner', 30), '30px');
+  check('a webinar card follows too', radius('webinar-grid', '.cb-wb__inner', 6), '6px');
+  check('so does a block that opts into cards',
+        radius('accordion', '.cb-acc__item', 24, { variant: 'cards' }), '24px');
+  check('and one that opts into a card treatment',
+        radius('feature-grid', '.cb-fg__item', 24, { cardStyle: 'outline' }), '24px');
+
+  // --- proportional bits stay proportional --------------------------------
+  // A rounded-square icon is deliberately 0.8x the card radius, so one slider
+  // gives a coherent result rather than a uniform one.
+  check('a nested icon scales with it, not to it',
+        radius('feature-grid', '.cb-fg__icon', 20, { iconStyle: 'square' }), '16px');
+
+  // --- Bento used to be pinned to its own 22px ----------------------------
+  check('bento tiles follow the token', radius('bento-grid', '.cb-bn__tile', 0), '0px');
+  check('bento is rounder than a card, by derivation', radius('bento-grid', '.cb-bn__tile', 14), '21px');
+  check('bento at the top of the range', radius('bento-grid', '.cb-bn__tile', 32), '48px');
+  check('bento can still be pinned to an absolute value',
+        radius('bento-grid', '.cb-bn__tile', 32, { radius: 30 }), '30px');
+
+  // --- circles and pills are exempt on purpose ----------------------------
+  check('an avatar stays a circle at radius 0', radius('testimonials', '.cb-tm__avatar', 0), '50%');
+  check('an avatar stays a circle at radius 32', radius('testimonials', '.cb-tm__avatar', 32), '50%');
+  check('a badge stays a pill', radius('pricing', '.cb-pr__badge', 0), '999px');
+  check('a timeline marker stays a dot', radius('timeline', '.cb-tl__marker', 32), '50%');
+
+  // --- per-block override -------------------------------------------------
+  check('a block can be squared off on its own',
+        radius('card-grid', '.cb-cg__inner', 14, { _radius: 2 }), '2px');
+  check('the override reaches derived radii inside it',
+        radius('bento-grid', '.cb-bn__tile', 14, { _radius: 4 }), '6px');
+  check('the override leaves circles alone',
+        radius('testimonials', '.cb-tm__avatar', 14, { _radius: 0 }), '50%');
+  check('auto means auto', radius('card-grid', '.cb-cg__inner', 14, { _radius: -1 }), '14px');
+
+  // --- nothing rounded is written as a bare pixel value -------------------
+  // A literal px radius is what silently opts an element out of the slider,
+  // which is exactly how Bento drifted. Circles and pills are the allowed
+  // exceptions, along with a handful of small fixed shapes.
+  // 0 is the defensive reset un-rounding whatever the host theme did; 50% and
+  // 999px are circles and pills, which are shapes rather than corners.
+  var SHAPE_EXEMPT = /^(0|0px|50%|999px)$/;
+  var strays = [];
+  CB.all().forEach(function (def) {
+    var out = CB.build({ type: def.id, cls: 'cb-x', props: CB.defaults(def) }, CB.DEFAULT_TOKENS);
+    (out.css.match(/border-radius:\s*([^;]+)/g) || []).forEach(function (m) {
+      var v = m.replace(/border-radius:\s*/, '').trim();
+      if (v.indexOf('var(--cb-radius)') >= 0 || v.indexOf('--cb-btn-radius') >= 0) return;
+      if (SHAPE_EXEMPT.test(v)) return;
+      strays.push(def.id + ': ' + v);
+    });
+  });
+  // These are shape details rather than container corners — a scroll-hint mouse,
+  // accordion +/- bars, active-dot capsules, the YouTube button. Listed rather
+  // than waved through, so a new one has to be argued for.
+  var KNOWN = ['pricing: 2px', 'hotspot-diagram: 3px', 'parallax-banner: 14px',
+               'parallax-banner: 2px', 'accordion: 2px', 'tabs: 8px', 'carousel: 5px',
+               'testimonials: 5px', 'video-embed: 14px', 'hero-slider: 10px',
+               'finish-switcher: 3px'];
+  var unexpected = strays.filter(function (s) { return KNOWN.indexOf(s) < 0; });
+  check('no container has drifted onto a bare pixel radius',
+        unexpected.length ? unexpected.join(' | ') : 'none', 'none');
+
+  document.getElementById('out').textContent = log.join('\n');
+  var bar = document.getElementById('bar');
+  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
+                         : (pass + '/' + pass + ' passed — one slider, and circles keep their shape');
+  document.title = fail ? 'RADIUS FAIL ' + fail : 'RADIUS OK ' + pass;
+});
+</script>

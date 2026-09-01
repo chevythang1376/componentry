@@ -10,14 +10,17 @@
 <h1>Typography effect — do the controls actually move anything?</h1>
 <div id="out">running…</div>
 <div class="frames"><iframe id="a"></iframe><iframe id="b"></iframe></div>
-<script src="../js/core.js?v=20260828"></script>
-<script src="../js/components/content.js?v=20260828"></script>
-<script src="../js/components/heroes.js?v=20260828"></script>
-<script src="../js/components/interactive.js?v=20260828"></script>
-<script src="../js/components/media.js?v=20260828"></script>
-<script src="../js/components/modern.js?v=20260828"></script>
-<script src="../js/components/product.js?v=20260828"></script>
-<script src="../js/components/diagram.js?v=20260828"></script>
+<!-- Loaded with a timestamp so a test page can never report on stale
+     source. None of these carried a version query, and bump.sh only
+     versions index.html, so a cached copy turns a real result into a
+     misleading one — which is exactly how an intermittent carousel
+     failure survived two rounds of "fixes". -->
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
 <script>
 /* A parity test alone would pass if the tokens were inert. Each case below
    moves one control and asserts the specific element it is meant to reach. */

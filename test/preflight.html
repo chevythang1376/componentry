@@ -15,16 +15,17 @@
 project is noise, and noise is what makes the real findings get ignored.</p>
 <div id="bar" class="bar">running…</div>
 <div id="out"></div>
-<script src="../js/core.js?v=pf1"></script>
-<script src="../js/components/content.js?v=pf1"></script>
-<script src="../js/components/heroes.js?v=pf1"></script>
-<script src="../js/components/interactive.js?v=pf1"></script>
-<script src="../js/components/media.js?v=pf1"></script>
-<script src="../js/components/modern.js?v=pf1"></script>
-<script src="../js/components/product.js?v=pf1"></script>
-<script src="../js/components/diagram.js?v=pf1"></script>
-<script src="../js/export.js?v=pf1"></script>
-<script src="../js/preflight.js?v=pf1"></script>
+<!-- Loaded with a timestamp so a test page can never report on stale
+     source. None of these carried a version query, and bump.sh only
+     versions index.html, so a cached copy turns a real result into a
+     misleading one — which is exactly how an intermittent carousel
+     failure survived two rounds of "fixes". -->
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'export.js', 'preflight.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
 <script>
 var log = [], pass = 0, fail = 0;
 function check(name, got, want) {

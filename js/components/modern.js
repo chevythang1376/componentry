@@ -61,7 +61,11 @@
       { k: 'gap', t: 'range', label: 'Gap', min: 6, max: 32, step: 2, unit: 'px', value: 14 },
 
       { t: 'section', label: 'Style' },
-      { k: 'radius', t: 'range', label: 'Tile corner radius', min: 0, max: 40, step: 2, unit: 'px', value: 22 },
+      {
+        k: 'radius', t: 'range', label: 'Tile corner radius', min: 0, max: 40, step: 2, unit: 'px',
+        value: 0, auto: 0,
+        help: 'Auto follows the project corner radius, a little rounder than a standard card. Set a value to pin this block to it instead.'
+      },
       { k: 'hover', t: 'select', label: 'Hover effect', value: 'lift', options: [['lift', 'Lift'], ['glow', 'Border glow'], ['none', 'None']] },
       { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 160, step: 8, unit: 'px', value: 80 }
@@ -127,7 +131,11 @@
         }
         ${s} .cb-bn__tile {
           position: relative; overflow: hidden;
-          border-radius: ${c.num(p.radius, 22)}px;
+          /* Bento tiles are deliberately rounder than a standard card. Deriving
+             that from the project token rather than pinning it to 22px is what
+             lets the one corner-radius slider reach this block too; 1.5x lands
+             on 21px at the default 14, which is where it always sat. */
+          border-radius: ${c.num(p.radius, 0) > 0 ? c.num(p.radius, 0) + 'px' : 'calc(var(--cb-radius) * 1.5)'};
           display: flex; flex-direction: column; justify-content: flex-end;
           transition: transform .28s cubic-bezier(.2,.7,.3,1), box-shadow .28s ease;
         }

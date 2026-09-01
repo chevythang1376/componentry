@@ -6,7 +6,17 @@
      an iframe and watches for the redirect it should provoke. location.replace
      is intercepted so the assertion can see the URL without navigating. -->
 <link rel="stylesheet" href="../css/app.css?v=00000000-old">
-<script src="../js/freshness.js"></script>
+<!-- Loaded with a timestamp so a test page can never report on stale
+     source. None of these carried a version query, and bump.sh only
+     versions index.html, so a cached copy turns a real result into a
+     misleading one — which is exactly how an intermittent carousel
+     failure survived two rounds of "fixes". -->
+<script>
+  ['freshness.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
 <script>
 CBFresh.check({
   url: '../version.txt',

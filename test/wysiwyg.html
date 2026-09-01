@@ -66,16 +66,23 @@
 <script src="https://cdn.jsdelivr.net/npm/grapesjs/dist/grapes.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
-<script src="../js/core.js"></script>
-<script src="../js/components/heroes.js"></script>
-<script src="../js/components/content.js"></script>
-<script src="../js/components/interactive.js"></script>
-<script src="../js/components/media.js"></script>
-<script src="../js/components/modern.js"></script>
-<script src="../js/components/product.js"></script>
-<script src="../js/components/diagram.js"></script>
-<script src="../js/export.js"></script>
-<script src="probes.js"></script>
+<!-- Loaded with a timestamp so a test page can never report on stale
+     source. None of these carried a version query, and bump.sh only
+     versions index.html, so a cached copy turns a real result into a
+     misleading one — which is exactly how an intermittent carousel
+     failure survived two rounds of "fixes". -->
+<script>
+  ['core.js', 'components/heroes.js', 'components/content.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'export.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+<!-- probes.js carries no version query and bump.sh only rewrites js/ paths in
+     index.html, so a browser will happily keep the copy it fetched ten minutes
+     ago. That shows up as a probe that "flakes" when it is really just stale —
+     two rounds of chasing an intermittent carousel failure turned out to be
+     exactly this. A test page has no reason to be cached at all. -->
+<script>document.write('<scr' + 'ipt src="probes.js?t=' + Date.now() + '"><\/scr' + 'ipt>');</script>
 
 <script>
 (function () {

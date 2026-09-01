@@ -20,7 +20,17 @@ through a reload when it shouldn't.</p>
 <div id="bar" class="bar">running…</div>
 <div id="out"></div>
 <iframe id="stale"></iframe>
-<script src="../js/freshness.js?v=t1"></script>
+<!-- Loaded with a timestamp so a test page can never report on stale
+     source. None of these carried a version query, and bump.sh only
+     versions index.html, so a cached copy turns a real result into a
+     misleading one — which is exactly how an intermittent carousel
+     failure survived two rounds of "fixes". -->
+<script>
+  ['freshness.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
 <script>
 var log = [], pass = 0, fail = 0;
 function check(name, got, want) {

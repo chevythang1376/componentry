@@ -31,32 +31,26 @@ window.CBProbe = (function () {
   function atLeast(px) {
     return (window.innerWidth || document.documentElement.clientWidth || 0) >= px;
   }
+  /* Wait for an outcome rather than for a duration. A debounced handler fires
+     on a timer, and timers are throttled hard in a background or hidden tab, so
+     "sample once after 160ms" is a coin flip — it was the last cause of an
+     intermittent carousel result. Polling until the expected state arrives
+     passes as soon as it does and only fails if it never does, which is the
+     thing actually being asserted.
 
-  /* Anything the browser animates — smooth scrolling, CSS transitions — only
-     advances while frames are being produced. A hidden or headless context
-     produces none, so an animated result stays pinned at its start value
-     forever. Probes that would otherwise read that as a broken component check
-     this first and report honestly instead. */
-  var framesRun = false;
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(function () { framesRun = true; });
-  }
-
-  /* Resolve once an element's scrollLeft has held steady for two frames, or
-     after a hard cap. Keeps assertions off the clock of a CSS animation. */
-  function settle(el, cap) {
-    cap = cap || 1500;
+     Where a component animates, probes drive the underlying state directly
+     instead, since whether frames are produced at all depends on the host and
+     not on the component. */
+  function until(fn, cap) {
+    cap = cap || 3000;
+    var t0 = Date.now();
     return new Promise(function (res) {
-      // Nothing to settle if the track cannot scroll at all — and waiting would
-      // cost a throttled timer tick per call for no information.
-      if (el.scrollWidth <= el.clientWidth + 1) return res(el.scrollLeft);
-      var last = el.scrollLeft, stable = 0, t0 = Date.now();
       (function tick() {
-        var now = el.scrollLeft;
-        stable = (Math.abs(now - last) < 0.5) ? stable + 1 : 0;
-        last = now;
-        if (stable >= 3 || Date.now() - t0 > cap) return res(now);
-        setTimeout(tick, 50);
+        var ok = false;
+        try { ok = !!fn(); } catch (e) { ok = false; }
+        if (ok) return res(true);
+        if (Date.now() - t0 > cap) return res(false);
+        setTimeout(tick, 40);
       })();
     });
   }
@@ -239,52 +233,57 @@ window.CBProbe = (function () {
     t.ok('section marked as carousel', root.getAttribute('aria-roledescription') === 'carousel');
     if (!track) return;
 
-    var before = track.scrollLeft;
-    var scrollable = track.scrollWidth > track.clientWidth + 1;
     function activeDot() {
       return qa(root, '.cb-car__dot').findIndex(function (d) { return d.getAttribute('aria-current'); });
     }
+    function offsetOf(i) { return slides[i].offsetLeft - slides[0].offsetLeft; }
+    function nearestTo(pos) {
+      var best = 0, dist = Infinity;
+      slides.forEach(function (sl, i) {
+        var d = Math.abs(offsetOf(i) - pos);
+        if (d < dist) { dist = d; best = i; }
+      });
+      return best;
+    }
+
+    /* Everything below is about advancing the track, and there is nothing to
+       advance to when every slide already fits — maxIndex() is 0, so next()
+       correctly does nothing and the dot correctly stays put. The harness can
+       mount into a container with no width, so this is a real state to report
+       rather than a failure to assert around. */
+    if (track.scrollWidth <= track.clientWidth + 1) {
+      t.skip('every slide fits at this width, so there is nothing to advance to (' +
+             track.scrollWidth + '/' + track.clientWidth + ')');
+      return;
+    }
+
+    /* What the next button does is two separate things, and only one of them is
+       ours to test. goTo() advances the index and repaints the dots
+       synchronously; it then asks for a smooth scroll, which the browser
+       animates over frames. Whether frames run at all is environmental — in a
+       hidden or headless context the scroll is issued and simply never
+       progresses — so asserting a scroll position here is asserting something
+       about the harness, not the component. Two earlier versions of this probe
+       failed intermittently for exactly that reason. */
     click(q(root, '.cb-car__next'));
+    t.ok('next advances the index', activeDot() === 1, 'dot index ' + activeDot());
 
-    // goTo() advances the index and repaints the dots synchronously, before any
-    // scrolling happens, so this reading does not depend on frames running.
-    var dotOnClick = activeDot();
-
-    // Smooth scrolling is animated, so poll until the position stops changing
-    // rather than sampling at a fixed delay — that raced the animation.
-    return settle(track).then(function (after) {
-      var dot = activeDot();
-
-      if (after > before) {
-        t.ok('next advances the track', true, before + ' -> ' + Math.round(after));
-      } else if (!scrollable) {
-        t.skip('track not scrollable at this width (' +
-               track.scrollWidth + '/' + track.clientWidth + ')');
-      } else if (!framesRun) {
-        // The component asks for behavior:"smooth", which the browser animates
-        // over frames. Nothing paints in a hidden or headless context, so the
-        // scroll is issued and simply never progresses. Advancing the index is
-        // the part that can be observed here; scroll position is covered
-        // wherever frames actually run.
-        t.skip('smooth scroll needs animation frames; index advanced to ' + dotOnClick);
-      } else {
-        t.ok('next advances the track', false, before + ' -> ' + Math.round(after));
-      }
-
-      t.ok('next advances the dot', dotOnClick > 0, 'dot index ' + dotOnClick);
-
-      // Ninety milliseconds after the last scroll event the component re-derives
-      // the index from scrollLeft. Where the scroll never progressed it reads
-      // back 0 and correctly overwrites the click — the component is right and
-      // the environment is not, so only assert this where the track did move.
-      // Asserting it unconditionally is what made this probe flaky.
-      if (after > before) {
-        t.ok('dots follow scroll position', dot > 0, 'dot index ' + dot);
-      } else {
-        t.skip('dots follow scrollLeft; the track did not move here');
-      }
-    });
+    /* The scroll-driven half is testable without any animation: move the track
+       the way a finger would, and the component should re-derive the index from
+       wherever it finds it. Read the position fresh on every poll — scroll-snap
+       can move it again after the assignment — and poll rather than sleeping,
+       because the component's 90ms debounce is a timer and timers are throttled
+       in a background tab. */
+    track.scrollLeft = offsetOf(2);
+    track.dispatchEvent(new Event('scroll'));
+    return until(function () { return activeDot() === nearestTo(track.scrollLeft); })
+      .then(function (ok) {
+        t.ok('dots follow the track when it is scrolled', ok,
+             'dot ' + activeDot() + ' vs nearest slide ' + nearestTo(track.scrollLeft) +
+             ' at ' + Math.round(track.scrollLeft));
+      });
   });
+
 
   register('testimonials', function (root, t) {
     var items = qa(root, '.cb-tm__item');
