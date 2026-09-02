@@ -1,0 +1,31 @@
+# Line endings are decided here rather than by whatever core.autocrlf a given
+# machine happens to have. LF in the repository, LF in the working tree.
+#
+# This is not tidiness. Git for Windows ships core.autocrlf=true in its *system*
+# config, which checks the working tree out as CRLF while the repository stays
+# LF. Any tool that writes LF — a shell heredoc, sed, perl — then leaves that
+# file mixed, and a regex anchored with $ matches the untouched lines and misses
+# the rewritten ones. Edits appear to apply and silently do not. That cost real
+# time before it was understood, so the setting is pinned in the repo where it
+# travels with the code.
+* text=auto eol=lf
+
+# Shell scripts have to be LF wherever they are run.
+*.sh text eol=lf
+
+# Left alone whatever a machine's settings say.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.avif binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.pdf  binary
+*.zip  binary
+*.mp4  binary
+*.webm binary
