@@ -86,6 +86,37 @@ window.CB = (function () {
     return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + alpha + ')';
   }
 
+  /* Ink that is actually readable on an arbitrary background.
+
+     Compares real WCAG contrast for each candidate and returns the better one,
+     rather than testing luminance against a threshold. A threshold gets the
+     obvious cases right and the boundary wrong: #4A8C3E reads as "dark enough
+     for white text" and lands at 4.11:1, when near-black on the same green
+     gives 4.55:1 and passes. The colours here are user-chosen, so the boundary
+     is not a rare case. */
+  function relLum(hex) {
+    var h = String(hex || '').trim().replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (!/^[0-9a-f]{6}$/i.test(h)) return null;
+    var n = parseInt(h, 16);
+    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v) {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  }
+  function contrast(a, b) {
+    var x = relLum(a), y = relLum(b);
+    if (x === null || y === null) return 0;
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  }
+  function readableInk(bg, light, dark) {
+    light = light || '#ffffff';
+    dark = dark || '#141210';
+    if (relLum(bg) === null) return light;
+    return contrast(bg, light) >= contrast(bg, dark) ? light : dark;
+  }
+
   /* Light-on-dark text has to state its colour, not inherit it.
      Themes very commonly ship `h2 { color: #111 !important }` (Elementor, Divi
      and most "fix my theme" snippets do). On a block with its own dark
@@ -742,6 +773,7 @@ window.CB = (function () {
       cls: cls, s: s, id: cls, tokens: tokens,
       esc: esc, attr: attr, rich: rich, url: url, num: num, clamp: clamp,
       rgba: rgba, ph: ph, uid: uid, wrap: wrap, dedent: dedent, indent: indent, pin: pin,
+      readableInk: readableInk, contrast: contrast,
       actions: actions
     };
 
@@ -784,6 +816,7 @@ window.CB = (function () {
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
     isPlaceholder: isPlaceholder,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
+    readableInk: readableInk, contrast: contrast,
     actions: actions, ctaFields: ctaFields,
     tokenCss: tokenCss, baseCss: baseCss, sharedCss: sharedCss, SCOPE: SCOPE,
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,

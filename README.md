@@ -43,7 +43,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 ---
 
-## The 26 components
+## The 27 components
 
 | Category | Component | Notes |
 |---|---|---|
@@ -70,6 +70,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Video Embed (lite) | Click-to-load facade — nothing loads from YouTube until you press play |
 | **Modern Layout** | Bento Grid | Asymmetric tiles with mixed spans and per-tile tones. Zero JS |
 | | Sticky Stacking Cards | Cards pin and stack on scroll, built on `position: sticky`. Zero JS |
+| | Mosaic Grid | Flush checkerboard of colour tiles and photos. Type is sized against the tile rather than the viewport, and each tile picks readable ink for the colour you give it. Zero JS |
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
 | | Spec Strip | Row of headline specs with hairline dividers |
@@ -166,7 +167,7 @@ the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-26 components, 200 round-trips.
+27 components, 200 round-trips.
 
 Run it in a **desktop-width window**. Several blocks deliberately drop a behaviour below a
 breakpoint — sticky pinning, multi-column spans — and the probes assert whichever branch
@@ -176,14 +177,14 @@ are measured at 1280px.
 
 | Insertion path | Fully working | Keeps CSS | Keeps JS |
 |---|---|---|---|
-| **Code / embed block** (verbatim) | **26/26** | yes | yes |
-| **TinyMCE**, permissive config | **26/26** | yes | yes |
-| **DOMPurify**, style+script allowed | **26/26** | yes | yes |
-| GrapesJS (page builder) | 15/26 | yes | no |
-| DOMPurify, defaults | 15/26 | yes | no |
-| `wp_kses_post` (approximated) | 5/26 | no | no |
-| TinyMCE, stock config | 4/26 | no | no |
-| Quill | 0/26 | no | no |
+| **Code / embed block** (verbatim) | **27/27** | yes | yes |
+| **TinyMCE**, permissive config | **27/27** | yes | yes |
+| **DOMPurify**, style+script allowed | **27/27** | yes | yes |
+| GrapesJS (page builder) | 15/27 | yes | no |
+| DOMPurify, defaults | 16/27 | yes | no |
+| `wp_kses_post` (approximated) | 5/27 | no | no |
+| TinyMCE, stock config | 4/27 | no | no |
+| Quill | 0/27 | no | no |
 
 The pattern is consistent and worth internalising:
 
@@ -250,7 +251,7 @@ With more than one block, that base is now stated once for the page against a sh
 | Page | Reset per block | Reset shared | |
 |---|---|---|---|
 | 5 blocks | 55.8 kB CSS | **28.6 kB** | −49% |
-| All 26 | 320.1 kB CSS | **109.0 kB** | −66% |
+| All 27 | 333.4 kB CSS | **113.5 kB** | −66% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -341,7 +342,7 @@ Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
 
 ### Advanced controls (every component)
 
-Applied centrally, so they behave identically on all 26 blocks:
+Applied centrally, so they behave identically on all 27 blocks:
 
 | Control | Why it's there |
 |---|---|
@@ -360,7 +361,7 @@ Applied centrally, so they behave identically on all 26 blocks:
 The three type controls only appear where they can do something. Logo Marquee
 has a kicker and logos but no heading, so it is not offered heading size or
 heading letter spacing; every other block is. A control that cannot change
-anything is just noise, and Advanced repeats on all 26 blocks.
+anything is just noise, and Advanced repeats on all 27 blocks.
 
 
 ### Typography (Design tokens → Typography)
@@ -401,7 +402,7 @@ clamped in px, like a hero subtitle, which it previously skipped.
 
 Coverage is measured, not assumed. Each control is moved and the elements whose
 computed style changes are counted, per component. Body size, letter spacing and
-line height reach all 26 blocks; heading controls reach 24 (all but Logo
+line height reach all 27 blocks; heading controls reach 24 (all but Logo
 Marquee); eyebrow controls reach the 15 blocks that have an eyebrow. That check
 found four eyebrows the first pass had missed — including two literally named
 `__eyebrow` — twelve headings that were inheriting body line height instead of
@@ -619,7 +620,7 @@ thing anyone did was delete somebody else's page.
 
 Four starters sit above the component list instead, each dropping a ready arrangement you
 can edit down: **Landing page**, **Product page**, **Capability page**, **Support page**.
-Search finds them by name too. Quicker than deciding which of 26 blocks belong together
+Search finds them by name too. Quicker than deciding which of 27 blocks belong together
 before you've seen any of them.
 
 ### Contrast, while you choose
@@ -678,7 +679,7 @@ js/components/
   product.js            finish-switcher, pinned-product, spec-strip
   diagram.js            hotspot-diagram
 test/
-  gallery.html          Renders all 26 through the real export path; reports failures
+  gallery.html          Renders all 27 through the real export path; reports failures
   hostile-host.html     Pastes exports into a deliberately awful theme; 165 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         200 round-trips, then functionally probes what survives
@@ -694,7 +695,7 @@ test/
                         is not offered at all; 31 assertions
   preflight.html        Asserts the findings are actionable: nothing fires on an
                         untouched project, everything fires once a real image
-                        goes in undescribed; 13 assertions
+                        goes in undescribed; 14 assertions
   freshness.html        Asserts the build check corrects a genuinely stale page and,
                         just as importantly, leaves every other case alone; 14 assertions
   defaults.html         Pins what a brand new project ships as — Inter actually

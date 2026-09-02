@@ -320,17 +320,34 @@ CB.Inspector = (function () {
         row.appendChild(rh);
 
         var body = el('div', 'lrow__body');
+        /* Sub-fields honour `when` the same way top-level ones do, against the
+           item's own values. A list whose entries come in kinds — a tile that is
+           either a colour or a photo — otherwise has to show every field for
+           every kind, which is most of them wrong most of the time. */
+        var subConds = [];
+        function applySubConditions() {
+          subConds.forEach(function (c) {
+            var show = Object.keys(c.when).every(function (key) {
+              return c.when[key].indexOf(item[key]) > -1;
+            });
+            c.node.classList.toggle('is-hidden', !show);
+          });
+        }
         (field.fields || []).forEach(function (sub) {
-          body.appendChild(control(
+          var node = control(
             sub,
             function () { return item[sub.k]; },
             function (val) { item[sub.k] = val; },
             function () {
               if (sub.k === field.itemLabel) toggle.querySelector('.lrow__name').textContent = labelFor(item, i);
+              applySubConditions();
               onInput();
             }
-          ));
+          );
+          if (sub.when) subConds.push({ node: node, when: sub.when });
+          body.appendChild(node);
         });
+        applySubConditions();
         row.appendChild(body);
         rows.appendChild(row);
       });

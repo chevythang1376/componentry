@@ -112,14 +112,11 @@
          is worked out per pin at build time and handed to the CSS as a
          variable. Falls back to white when the colour is a var() we cannot
          resolve here. */
-      function pinInk(color) {
-        var h = String(color || '').trim().replace('#', '');
-        if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(h)) return '#ffffff';
-        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-        var v = parseInt(h, 16);
-        var l = (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255;
-        return l > 0.55 ? '#141210' : '#ffffff';
-      }
+      /* This used to pick by luminance threshold, which gets the boundary wrong
+         — a mid green chose white at 4.11:1 when near-black would have given
+         4.55:1. c.readableInk compares real contrast for both and takes the
+         better one. */
+      function pinInk(color) { return c.readableInk(color); }
 
       /* One node per hotspot: the radio, the visible pin, and its accessible
          name. No parallel text list to keep in sync. */
