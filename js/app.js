@@ -513,8 +513,11 @@
     title.textContent = def.name;
     sub.textContent = def.category;
 
-    // Backfill any props added since this instance was created.
-    inst.props = Object.assign(CB.defaults(def), inst.props);
+    // Backfill any props added since this instance was created, list entries
+    // included — a field added to a list is otherwise missing from every item
+    // already saved, and the panel shows it blank while the block renders the
+    // default anyway.
+    inst.props = CB.hydrate(def, inst.props);
 
     CB.Inspector.render(host, { props: CB.fields(def) }, inst.props, function () {
       dirty = true;

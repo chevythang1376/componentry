@@ -797,12 +797,49 @@ window.CB = (function () {
   function all() { return order.map(function (id) { return defs.get(id); }); }
 
   /* Walk a component's schema and collect default values. */
+  /* The default value for one item of a list, built from the sub-field
+     declarations rather than repeated in every entry of the list's own value. */
+  function itemTemplate(f) {
+    var tpl = {};
+    (f.fields || []).forEach(function (sub) {
+      if (sub.t !== 'section') tpl[sub.k] = sub.value;
+    });
+    return tpl;
+  }
+
   function defaults(def) {
     var out = {};
     (def.props || []).forEach(function (f) {
       if (f.t === 'section') return;
-      if (f.t === 'list') { out[f.k] = JSON.parse(JSON.stringify(f.value || [])); return; }
+      if (f.t === 'list') {
+        /* Merged over the template so a list entry carries every field the
+           schema declares, not only the ones written out in the literal. A
+           field added to a list later is otherwise simply absent from every
+           shipped item, and the panel then shows a toggle as off and a colour
+           as blank while the component renders the default anyway — the control
+           disagreeing with what you are looking at. */
+        var tpl = itemTemplate(f);
+        out[f.k] = JSON.parse(JSON.stringify(f.value || [])).map(function (item) {
+          return Object.assign({}, tpl, item);
+        });
+        return;
+      }
       out[f.k] = f.value;
+    });
+    return out;
+  }
+
+  /* Defaults merged under an instance's saved props, one level into lists as
+     well as at the top. Called whenever an instance is edited, so a project
+     saved before a field existed picks it up rather than carrying a hole. */
+  function hydrate(def, props) {
+    var out = Object.assign(defaults(def), props || {});
+    (def.props || []).forEach(function (f) {
+      if (f.t !== 'list' || !Array.isArray(out[f.k])) return;
+      var tpl = itemTemplate(f);
+      out[f.k] = out[f.k].map(function (item) {
+        return Object.assign({}, tpl, item);
+      });
     });
     return out;
   }
@@ -858,7 +895,7 @@ window.CB = (function () {
   }
 
   return {
-    register: register, get: get, all: all, defaults: defaults, build: build,
+    register: register, get: get, all: all, defaults: defaults, hydrate: hydrate, build: build,
     fields: fields,
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
     isPlaceholder: isPlaceholder,

@@ -440,15 +440,15 @@
           { k: 'alt', t: 'text', label: 'Alt text', value: '', when: { kind: ['photo'] } }
         ],
         value: [
-          { kind: 'copy', color: '#96694c', title: 'Utility', text: 'Powering a resilient grid for where we live, work and play.', btnText: 'View', btnUrl: '#' },
+          { kind: 'copy', color: '#96694c', ink: '#ffffff', title: 'Utility', text: 'Powering a resilient grid for where we live, work and play.', btnText: 'View', btnUrl: '#' },
           { kind: 'photo', image: CB.ph(900, 900, '', '#2b241f', '#4a443e'), alt: '' },
-          { kind: 'copy', color: '#4A8C3E', title: 'EV Charging', text: 'Energising electric vehicles on the road, in the air and at sea.', btnText: 'View', btnUrl: '#' },
+          { kind: 'copy', color: '#4A8C3E', ink: '#141210', title: 'EV Charging', text: 'Energising electric vehicles on the road, in the air and at sea.', btnText: 'View', btnUrl: '#' },
           { kind: 'photo', image: CB.ph(900, 900, '', '#3a332d', '#6f4c37'), alt: '' },
-          { kind: 'copy', color: '#141210', title: 'New Products', text: 'Innovating to support an all-electric future.', btnText: 'View', btnUrl: '#' },
+          { kind: 'copy', color: '#141210', ink: '#ffffff', title: 'New Products', text: 'Innovating to support an all-electric future.', btnText: 'View', btnUrl: '#' },
           { kind: 'photo', image: CB.ph(900, 900, '', '#4a443e', '#96694c'), alt: '' },
-          { kind: 'copy', color: '#F0A22B', title: 'Residential', text: 'Streamlining operations at every stage of construction.', btnText: 'View', btnUrl: '#' },
+          { kind: 'copy', color: '#F0A22B', ink: '#141210', title: 'Residential', text: 'Streamlining operations at every stage of construction.', btnText: 'View', btnUrl: '#' },
           { kind: 'photo', image: CB.ph(900, 900, '', '#12161c', '#241a12'), alt: '' },
-          { kind: 'copy', color: '#2BB3CD', title: 'Data Centers', text: 'Protecting data with secure and sustainable power.', btnText: 'View', btnUrl: '#' },
+          { kind: 'copy', color: '#2BB3CD', ink: '#141210', title: 'Data Centers', text: 'Protecting data with secure and sustainable power.', btnText: 'View', btnUrl: '#' },
           { kind: 'photo', image: CB.ph(900, 900, '', '#6f4c37', '#141210'), alt: '' }
         ]
       },

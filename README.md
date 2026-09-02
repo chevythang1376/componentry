@@ -763,8 +763,9 @@ test/
                         container drifts onto a bare pixel radius; 19 assertions
   colour.html           Asserts each text colour reaches what it should, that no
                         colour setting can black out text on a dark band, and
-                        that a mosaic tile can override the block it sits in;
-                        31 assertions
+                        that a mosaic tile can override the block it sits in,
+                        and that a list entry carries every field its schema
+                        declares; 40 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 
 Every test page loads the source with a timestamp. None of them carried a version

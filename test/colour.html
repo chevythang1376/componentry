@@ -154,6 +154,38 @@ window.addEventListener('load', function () {
         tile({ btnStyle: 'brand' }, '.cb-mo__tile--copy .cb-mo__btn', 'backgroundColor'), 'rgb(150, 105, 76)');
 
 
+  // --- a list entry carries every field the schema declares -----------------
+  // A field added to a list later is otherwise absent from every shipped item,
+  // and the panel then shows a toggle as off and a colour as blank while the
+  // block renders the default anyway — the control disagreeing with the canvas.
+  (function () {
+    var def = CB.get('mosaic-grid');
+    var declared = def.props.filter(function (x) { return x.k === 'items'; })[0]
+      .fields.map(function (x) { return x.k; });
+    var missing = CB.defaults(def).items.map(function (it) {
+      return declared.filter(function (k) { return !(k in it); });
+    }).reduce(function (a, b) { return a.concat(b); }, []);
+    check('every shipped tile carries every declared field',
+          missing.length ? missing.join(',') : 'none', 'none');
+    check('and the auto toggle reads as on', CB.defaults(def).items[0].inkAuto, true);
+
+    // A project saved before those fields existed.
+    var old = { items: [{ kind: 'copy', color: '#96694c', title: 'Utility', btnText: 'View', btnUrl: '#' }] };
+    var h = CB.hydrate(def, old);
+    check('an older saved block is filled in', h.items[0].inkAuto, true);
+    check('without losing what it already said', h.items[0].title, 'Utility');
+  })();
+
+  // Turning auto off must not move the text: each tile ships the colour auto
+  // would have picked, so the toggle is a handover rather than a jump.
+  CB.defaults(CB.get('mosaic-grid')).items
+    .filter(function (it) { return it.kind === 'copy'; })
+    .forEach(function (it) {
+      check('seeded ink matches auto for ' + it.color,
+            String(it.ink).toLowerCase(), CB.readableInk(it.color).toLowerCase());
+    });
+
+
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
   bar.className = 'bar ' + (fail ? 'bad' : 'ok');
