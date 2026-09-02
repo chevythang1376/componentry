@@ -386,4 +386,238 @@
       return { html: html, css: css, js: '' };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Mosaic Grid                                                            */
+  /* --------------------------------------------------------------------- */
+
+  CB.register({
+    id: 'mosaic-grid',
+    name: 'Mosaic Grid',
+    category: CAT,
+    icon: '▩',
+    blurb: 'Flush checkerboard of colour tiles and photos. Type is sized against the tile rather than the viewport, so a 5-up tile and a phone-width one are both readable. Zero JS.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      {
+        k: 'title', t: 'text', label: 'Section title', value: '',
+        help: 'Leave empty for a bare mosaic with nothing above it.'
+      },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: '' },
+      { k: 'align', t: 'select', label: 'Heading alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center']] },
+
+      { t: 'section', label: 'Tiles' },
+      {
+        k: 'items', t: 'list', label: 'Tiles', itemLabel: 'title',
+        help: 'Alternate colour and image tiles to get the checkerboard. Two of a kind side by side is allowed — it just reads as a block.',
+        fields: [
+          {
+            k: 'kind', t: 'select', label: 'Tile', value: 'copy',
+            options: [['copy', 'Colour tile'], ['photo', 'Image tile']]
+          },
+          { k: 'color', t: 'color', label: 'Tile colour', value: '#96694c', when: { kind: ['copy'] } },
+          { k: 'title', t: 'text', label: 'Title', value: 'Tile title', when: { kind: ['copy'] } },
+          { k: 'text', t: 'textarea', label: 'Body copy', value: 'A sentence on what this one covers.', when: { kind: ['copy'] } },
+          { k: 'btnText', t: 'text', label: 'Button label', value: 'View', when: { kind: ['copy'] }, help: 'Leave empty for no button.' },
+          { k: 'btnUrl', t: 'text', label: 'Button link', value: '#', when: { kind: ['copy'] } },
+          { k: 'image', t: 'image', label: 'Image', value: CB.ph(900, 900, '', '#2b241f', '#4a443e'), when: { kind: ['photo'] } },
+          { k: 'alt', t: 'text', label: 'Alt text', value: '', when: { kind: ['photo'] } }
+        ],
+        value: [
+          { kind: 'copy', color: '#96694c', title: 'Utility', text: 'Powering a resilient grid for where we live, work and play.', btnText: 'View', btnUrl: '#' },
+          { kind: 'photo', image: CB.ph(900, 900, '', '#2b241f', '#4a443e'), alt: '' },
+          { kind: 'copy', color: '#4A8C3E', title: 'EV Charging', text: 'Energising electric vehicles on the road, in the air and at sea.', btnText: 'View', btnUrl: '#' },
+          { kind: 'photo', image: CB.ph(900, 900, '', '#3a332d', '#6f4c37'), alt: '' },
+          { kind: 'copy', color: '#141210', title: 'New Products', text: 'Innovating to support an all-electric future.', btnText: 'View', btnUrl: '#' },
+          { kind: 'photo', image: CB.ph(900, 900, '', '#4a443e', '#96694c'), alt: '' },
+          { kind: 'copy', color: '#F0A22B', title: 'Residential', text: 'Streamlining operations at every stage of construction.', btnText: 'View', btnUrl: '#' },
+          { kind: 'photo', image: CB.ph(900, 900, '', '#12161c', '#241a12'), alt: '' },
+          { kind: 'copy', color: '#2BB3CD', title: 'Data Centers', text: 'Protecting data with secure and sustainable power.', btnText: 'View', btnUrl: '#' },
+          { kind: 'photo', image: CB.ph(900, 900, '', '#6f4c37', '#141210'), alt: '' }
+        ]
+      },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'cols', t: 'range', label: 'Columns (desktop)', min: 2, max: 6, step: 1, value: 5 },
+      {
+        k: 'colsMobile', t: 'select', label: 'Columns (mobile)', value: '2',
+        options: [['2', 'Two — keeps the checkerboard'], ['1', 'One — a single stack']]
+      },
+      { k: 'ratio', t: 'select', label: 'Tile shape', value: '1/1', options: [['1/1', 'Square'], ['4/3', '4 : 3'], ['3/2', '3 : 2'], ['16/9', '16 : 9']] },
+      { k: 'gap', t: 'range', label: 'Gap', min: 0, max: 24, step: 2, unit: 'px', value: 0, help: 'Zero is flush, which is what makes it read as one mosaic.' },
+      {
+        k: 'full', t: 'toggle', label: 'Full bleed', value: true,
+        help: 'Off constrains the mosaic to the project content width.'
+      },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'btnStyle', t: 'select', label: 'Button', value: 'solid',
+        options: [['solid', 'Solid, contrasting the tile'], ['outline', 'Outlined'], ['brand', 'Brand colour']]
+      },
+      { k: 'zoom', t: 'toggle', label: 'Zoom images on hover', value: true },
+      {
+        k: 'reveal', t: 'toggle', label: 'Reveal as they scroll in', value: true,
+        help: 'A CSS scroll timeline, so it still runs where an editor strips <script>. Ignored under reduced-motion.'
+      },
+      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 0 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var cols = c.clamp(c.num(p.cols, 5), 2, 6);
+      var mob = c.num(p.colsMobile, 2) === 1 ? 1 : 2;
+      var gap = c.num(p.gap, 0);
+      var items = (p.items || []).filter(Boolean);
+
+      var tiles = items.map(function (it) {
+        if (it.kind === 'photo') {
+          return c.dedent(`
+            <div class="cb-mo__tile cb-mo__tile--photo">
+              ${it.image ? `<img class="cb-mo__img" src="${c.url(it.image)}" alt="${c.attr(it.alt)}" loading="lazy" decoding="async">` : ''}
+            </div>`);
+        }
+        var ink = c.readableInk(it.color || '#96694c');
+        return c.dedent(`
+          <article class="cb-mo__tile cb-mo__tile--copy" style="--cb-tile: ${c.attr(it.color || '#96694c')}; --cb-tile-ink: ${ink};">
+            <div class="cb-mo__in">
+              <div class="cb-mo__top">
+                ${it.title ? '<h3 class="cb-mo__t">' + c.rich(it.title) + '</h3>' : ''}
+                ${it.text ? '<p class="cb-mo__x">' + c.rich(it.text) + '</p>' : ''}
+              </div>
+              ${it.btnText ? '<a class="cb-mo__btn" href="' + c.url(it.btnUrl) + '">' + c.esc(it.btnText) + '</a>' : ''}
+            </div>
+          </article>`);
+      }).join('\n');
+
+      var head = (p.title || p.sub) ? c.dedent(`
+        <header class="cb-mo__head">
+          ${p.title ? '<h2 class="cb-mo__title">' + c.rich(p.title) + '</h2>' : ''}
+          ${p.sub ? '<p class="cb-mo__sub">' + c.rich(p.sub) + '</p>' : ''}
+        </header>`) : '';
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-mo">
+          ${p.full ? '' : '<div class="cb-wrap">'}
+          ${head ? c.indent(head, p.full ? 2 : 4) : ''}
+          <div class="cb-mo__grid">
+        ${c.indent(tiles, 6)}
+          </div>
+          ${p.full ? '' : '</div>'}
+        </section>`);
+
+      /* At an odd column count, authoring tiles alternately checkerboards for
+         free. At an even one the pattern lines up into stripes instead, so every
+         second row is placed in reverse and `dense` backfills — which continues
+         the alternation across the row boundary. Generated for the chosen count
+         rather than hard-coded for two, so the columns control stays honest. */
+      function swapRules(n, scope) {
+        if (n % 2) return '';
+        var out = [];
+        for (var k = 1; k <= n; k++) {
+          out.push(scope + ' .cb-mo__tile:nth-child(' + (n * 2) + 'n + ' + (n + k) + ') { grid-column: ' + (n - k + 1) + '; }');
+        }
+        return out.join('\n');
+      }
+
+      var btnCss = {
+        solid: `background: var(--cb-tile-ink, #fff); color: var(--cb-tile, #141210);`,
+        outline: `background: transparent; color: var(--cb-tile-ink, #fff); box-shadow: inset 0 0 0 var(--cb-btn-border, 2px) currentColor;`,
+        brand: `background: var(--cb-brand); color: var(--cb-on-brand);`
+      }[p.btnStyle] || '';
+
+      var css = `
+        ${s}.cb-mo { background: ${p.bg}; padding-block: ${c.num(p.pad, 0)}px; }
+        ${s} .cb-mo__head { margin-bottom: 28px; max-width: 660px; ${p.full ? 'padding-inline: clamp(16px, 4vw, 48px);' : ''} ${p.align === 'center' ? 'margin-inline: auto; text-align: center;' : ''} }
+        ${s} .cb-mo__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
+        ${s} .cb-mo__sub { color: var(--cb-muted); margin-top: 10px; }
+
+        ${s} .cb-mo__grid {
+          display: grid; grid-template-columns: repeat(${cols}, minmax(0, 1fr));
+          gap: ${gap}px; grid-auto-flow: row dense;
+        }
+        ${swapRules(cols, s)}
+
+        ${s} .cb-mo__tile {
+          position: relative; aspect-ratio: ${p.ratio};
+          /* Type is sized against the tile, not the page, so the same tile is
+             readable five-up on a desktop and two-up on a phone. */
+          container-type: inline-size;
+          ${gap ? 'border-radius: var(--cb-radius); overflow: hidden;' : ''}
+        }
+        ${s} .cb-mo__tile--copy {
+          background: var(--cb-tile, var(--cb-brand));
+          color: var(--cb-tile-ink, #fff);
+          display: flex;
+        }
+        ${s} .cb-mo__in {
+          flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+          padding: 22px; padding: clamp(16px, 10cqw, 52px);
+        }
+        ${s} .cb-mo__t {
+          font-weight: var(--cb-h-weight, 800); line-height: calc(1.12 + var(--cb-h-leading, 0));
+          letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+          margin-bottom: 10px; margin-bottom: clamp(8px, 3.5cqw, 18px);
+          font-size: 20px; font-size: calc(clamp(15px, 6.6cqw, 36px) * var(--cb-h-scale, 1));
+        }
+        ${s} .cb-mo__x {
+          line-height: 1.45; font-size: 13px;
+          font-size: calc(clamp(12px, 3.7cqw, 19px) * var(--cb-body-scale, 1));
+          opacity: .95;
+        }
+        ${s} .cb-mo__btn {
+          align-self: flex-start; text-decoration: none; display: inline-block;
+          font-weight: var(--cb-btn-weight, 650); border-radius: var(--cb-btn-radius);
+          ${p.btnStyle === 'brand' ? '' : 'letter-spacing: var(--cb-btn-tracking, 0);'}
+          font-size: 12px; font-size: clamp(11px, 2.9cqw, 15px);
+          padding: 9px 16px; padding: clamp(8px, 2.6cqw, 14px) clamp(14px, 5cqw, 26px);
+          transition: transform .2s cubic-bezier(.22,.61,.36,1), filter .2s ease;
+          ${btnCss}
+        }
+        ${s} .cb-mo__btn:hover { transform: translateY(-2px); filter: brightness(.94); }
+
+        ${s} .cb-mo__tile--photo {
+          overflow: hidden;
+          background: linear-gradient(140deg, #241a12, #12161c);
+        }
+        ${s} .cb-mo__img {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          object-fit: cover; display: block;
+          transition: transform .7s cubic-bezier(.22,.61,.36,1);
+        }
+        ${p.zoom ? `${s} .cb-mo__tile--photo:hover .cb-mo__img { transform: scale(1.05); }` : ''}
+
+        /* A theme that colours every heading and paragraph would otherwise turn
+           the copy on a dark tile into black-on-black. */
+        ${c.pin([s + ' .cb-mo__tile--copy .cb-mo__t', s + ' .cb-mo__tile--copy .cb-mo__x'], 'var(--cb-tile-ink, #fff)')}
+
+        @media (max-width: 900px) {
+          ${s} .cb-mo__grid { grid-template-columns: repeat(${mob}, minmax(0, 1fr)); }
+          ${swapRules(cols, s).length ? `${s} .cb-mo__tile { grid-column: auto; }` : ''}
+          ${swapRules(mob, s)}
+        }`;
+
+      /* Reveal is a scroll timeline rather than an IntersectionObserver, so it
+         survives an editor that strips <script> — which is most of them. The
+         per-tile delay comes from the range, not a transition-delay, because
+         there is no JS to hand each tile an index. */
+      var reveal = p.reveal ? `
+        @keyframes cb-mo-in-${c.cls.replace(/[^\w-]/g, '')} {
+          from { opacity: 0; transform: translateY(28px); }
+          to { opacity: 1; transform: none; }
+        }
+        @supports (animation-timeline: view()) {
+          @media (prefers-reduced-motion: no-preference) {
+            ${s} .cb-mo__tile {
+              animation: cb-mo-in-${c.cls.replace(/[^\w-]/g, '')} linear both;
+              animation-timeline: view();
+              animation-range: entry 0% entry 60%;
+            }
+          }
+        }` : '';
+
+      return { html: html, css: css + reveal, js: '' };
+    }
+  });
 })();

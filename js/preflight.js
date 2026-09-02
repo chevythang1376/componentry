@@ -210,7 +210,11 @@ CB.Preflight = (function () {
               // A placeholder nobody has replaced is not a missing description;
               // there is no image yet to describe. Warning about all 22 of them
               // on a fresh project buried the two findings that were real.
-              if (imgKey && CB.isPlaceholder(obj[imgKey])) return;
+              //
+              // Nor is an empty image field: a list whose entries come in kinds
+              // gives every entry every field, so a colour tile carries an alt
+              // box it will never render an image into.
+              if (imgKey && (!String(obj[imgKey] || '').trim() || CB.isPlaceholder(obj[imgKey]))) return;
               missing++;
             }
           });

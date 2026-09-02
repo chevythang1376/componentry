@@ -77,6 +77,11 @@ window.addEventListener('load', function () {
   listed = altFindings([inst('card-grid', { items: cards })]);
   check('describing one leaves one', listed.length ? listed[0].title : '', 'An image has no alt text');
 
+  // A field pair that exists but has no image is not a missing description —
+  // a colour tile in a mixed list carries an alt box it never uses.
+  check('an item with no image at all is not flagged',
+        altFindings([inst('mosaic-grid')]).length, 0);
+
   // --- a background the component itself marks decorative is not flagged ---
   // Parallax Banner has no alt field: its image is role="presentation" and the
   // headline carries the meaning. Preflight should say nothing, even once a

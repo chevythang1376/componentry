@@ -356,6 +356,52 @@ window.CBProbe = (function () {
      is no behaviour to click. That is the point: they keep working on the
      paths where <script> is stripped. */
 
+  register('mosaic-grid', function (root, t) {
+    var tiles = qa(root, '.cb-mo__tile');
+    var grid = q(root, '.cb-mo__grid');
+    t.ok('tiles rendered', tiles.length >= 4, tiles.length + ' tiles');
+    t.ok('grid layout applied', grid && getComputedStyle(grid).display === 'grid');
+
+    var copy = qa(root, '.cb-mo__tile--copy');
+    var photo = qa(root, '.cb-mo__tile--photo');
+    t.ok('both kinds of tile present', copy.length > 0 && photo.length > 0,
+         copy.length + ' colour, ' + photo.length + ' photo');
+
+    // Photos are real <img> rather than a background on an empty element, so a
+    // screen reader and the alt-text preflight can both see them.
+    var imgs = qa(root, '.cb-mo__img');
+    t.ok('photo tiles are real images', imgs.length === photo.length,
+         imgs.length + '/' + photo.length);
+    t.ok('every image can carry alt text',
+         imgs.every(function (im) { return im.hasAttribute('alt'); }));
+
+    t.ok('colour tiles carry their own colour',
+         copy.every(function (el) { return /--cb-tile:/.test(el.getAttribute('style') || ''); }));
+
+    /* The ink is worked out per tile so a light colour does not end up with
+       white text on it. Assert the contrast rather than the colour, since the
+       point is legibility and not a particular value. */
+    // Computed here rather than through CB.Preflight, because probes.js is
+    // shared by harnesses that do not load it.
+    function lum(rgb) {
+      var p = (rgb.match(/[\d.]+/g) || []).slice(0, 3).map(function (n) {
+        var v = +n / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+    }
+    var worst = copy.map(function (el) {
+      var h = q(el, '.cb-mo__t');
+      if (!h) return 21;
+      var a = lum(getComputedStyle(h).color), b = lum(getComputedStyle(el).backgroundColor);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    }).reduce(function (a, b) { return Math.min(a, b); }, 21);
+    t.ok('tile text stays legible on every tile colour', worst >= 4.5,
+         'worst ' + worst.toFixed(2) + ':1');
+
+    t.ok('colour tiles link out', qa(root, '.cb-mo__btn').length > 0);
+  });
+
   register('bento-grid', function (root, t) {
     var tiles = qa(root, '.cb-bn__tile');
     var grid = q(root, '.cb-bn__grid');
