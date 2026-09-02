@@ -780,6 +780,22 @@ the others are fully offline.
 
 ---
 
+## Line endings
+
+LF, in the repository and in the working tree, pinned by `.gitattributes` so it holds on
+any machine whatever that machine's Git is configured to do.
+
+Worth knowing why, because the failure is silent. Git for Windows ships
+`core.autocrlf=true` in its **system** config, which checks the working tree out as CRLF
+while the repository stays LF. Any tool that writes LF — a heredoc, `sed`, `perl` — then
+leaves the file it touched mixed. A regex anchored with `$` matches the untouched lines
+and misses the rewritten ones, so an edit reports success and quietly does nothing. That
+cost real time here, and was misdiagnosed twice as something else before the cause was
+found.
+
+Nothing needs doing to benefit from it. `.gitattributes` travels with the code, and a
+fresh clone checks out LF.
+
 ## Adding a component
 
 Register a definition. Everything else — the library entry, the property panel, the
