@@ -597,12 +597,12 @@ ${p.deepLink ? `
         ${s} .cb-car__link { display: block; text-decoration: none; }
         ${s} .cb-car__cap {
           position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 2px;
-          padding: 44px 18px 16px; color: #fff;
+          padding: 44px 18px 16px; color: var(--cb-on-dark, #fff);
           background: linear-gradient(to top, rgba(12,10,8,.86), rgba(12,10,8,0));
         }
         ${s} .cb-car__capT { font-weight: 700; }
         ${s} .cb-car__capS { font-size: .85em; opacity: .8; }
-        ${c.pin([s + ' .cb-car__cap', s + ' .cb-car__capT', s + ' .cb-car__capS'], '#fff')}
+        ${c.pin([s + ' .cb-car__cap', s + ' .cb-car__capT', s + ' .cb-car__capS'], 'var(--cb-on-dark, #fff)')}
         ${s} .cb-car__dots { display: flex; justify-content: center; gap: 8px; margin-top: 22px; flex-wrap: wrap; }
         ${s} .cb-car__dot {
           width: 9px; height: 9px; border-radius: 50%; padding: 0;

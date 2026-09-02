@@ -110,6 +110,13 @@ window.CB = (function () {
     if (x === null || y === null) return 0;
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
   }
+  /* True once the "text on dark bands" colour is something other than the white
+     every block already hard-codes as its fallback. */
+  function customOnDark(t) {
+    var v = String(t.inkOnDark || '').trim().toLowerCase();
+    return !!v && v !== '#ffffff' && v !== '#fff' && v !== 'white';
+  }
+
   function readableInk(bg, light, dark) {
     light = light || '#ffffff';
     dark = dark || '#141210';
@@ -247,6 +254,15 @@ window.CB = (function () {
     subtle: '#f7f4f1',
     border: '#e4ddd5',
     onBrand: '#ffffff',
+    /* Text on a surface the block paints dark itself — a colour band, a photo
+       hero, a dark tile. Held apart from `ink` on purpose: those places are
+       defended with !important so a host theme cannot black them out, and
+       tying them to the body colour would mean a dark ink setting produced
+       black text on a black band. */
+    inkOnDark: '#ffffff',
+    /* Headings follow the body colour until this is turned on. */
+    hColorOn: false,
+    hColor: '#141210',
     font: 'inter',
     fontImport: '',
     radius: 14,
@@ -354,6 +370,16 @@ window.CB = (function () {
         --cb-subtle: ${t.subtle};
         --cb-border: ${t.border};
         --cb-on-brand: ${t.onBrand};
+        /* Emitted only once this is moved off white, so that until it is, every
+           block keeps the exact literal it was designed with. Those literals are
+           not interchangeable — captions sit at .6, .7, .72 and .82 depending on
+           what they sit on — and collapsing them onto one shared alpha changed
+           the countdown labels the first time this was written. The muted
+           partner is derived rather than asked for separately, so one control
+           still keeps a caption and the title above it in the same family. */
+        ${customOnDark(t) ? '--cb-on-dark: ' + t.inkOnDark + ';' : ''}
+        ${customOnDark(t) ? '--cb-on-dark-muted: ' + rgba(t.inkOnDark, 0.72) + ';' : ''}
+        ${t.hColorOn && t.hColor ? '--cb-h-color: ' + t.hColor + ';' : ''}
         --cb-radius: ${num(t.radius, 14)}px;
         --cb-max: ${num(t.maxWidth, 1140)}px;
         --cb-font: ${fontStack(t)};
@@ -466,6 +492,14 @@ window.CB = (function () {
            out-ranks this. */
         position: static; z-index: auto;
       }
+      /* Headings take their own colour once one is set, and inherit exactly as
+         before when it is not. Same specificity as the reset above and written
+         after it, so source order decides; and lower than any component class,
+         so a block that paints its own dark surface still wins — setting a
+         heading colour must not put dark text on a dark band. */
+      ${s} h1, ${s} h2, ${s} h3, ${s} h4, ${s} h5, ${s} h6 {
+        color: var(--cb-h-color, inherit);
+      }
       ${s} ul, ${s} ol { margin: 0; padding: 0; list-style: none; }
       ${s} img, ${s} video, ${s} svg, ${s} iframe { display: block; max-width: 100%; }
       ${s} img { width: auto; height: auto; border: 0; }
@@ -568,6 +602,13 @@ window.CB = (function () {
       k: '_maxWidth', t: 'range', label: 'Content width', min: 0, max: 1600, step: 20, unit: 'px',
       value: 0, auto: 0, help: 'Overrides the project token for this block only.'
     },
+    {
+      k: '_textOn', t: 'toggle', label: 'Override text colour', value: false,
+      help: 'Sets the body and heading colour for this block only. A block that ' +
+            'paints its own dark surface keeps its defended colour, so this cannot ' +
+            'put dark text on a dark band.'
+    },
+    { k: '_text', t: 'color', label: 'Text colour', value: '#141210', when: { _textOn: [true] } },
     {
       k: '_radius', t: 'range', label: 'Corner radius', min: -1, max: 40, step: 1, unit: 'px',
       value: -1, auto: -1,
@@ -699,6 +740,12 @@ window.CB = (function () {
        are deliberately left out of that. */
     var rad = num(p._radius, -1);
     if (rad >= 0) typ.push('--cb-radius: ' + rad + 'px');
+    /* Both, so the block's headings move with its body rather than splitting
+       off onto the project's heading colour. */
+    if (p._textOn && p._text) {
+      typ.push('--cb-ink: ' + p._text);
+      typ.push('--cb-h-color: ' + p._text);
+    }
     if (hs !== 1) typ.push('--cb-h-scale: ' + (num(tokens.hScale, 1) * hs).toFixed(3));
     if (ht) typ.push('--cb-h-track: ' + ((num(tokens.hTrack, 0) + ht) / 100).toFixed(3) + 'em');
     if (bs !== 1) {

@@ -354,6 +354,7 @@ Applied centrally, so they behave identically on all 27 blocks:
 | **Heading size** | Multiplies the project heading size for this block only; `1×` leaves it alone |
 | **Heading letter spacing** | Added on top of the project value |
 | **Body size** | Same idea for the body copy in this block |
+| **Override text colour** | Sets body and heading colour for one block; a dark band keeps its defended colour |
 | **Corner radius** | Overrides the project radius for one block; everything proportional inside follows, circles and pills don't |
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
 | **Reveal on scroll** | Fade, fade-up or scale as the block enters the viewport |
@@ -412,6 +413,38 @@ heading. All fixed.
 Any of heading size, heading letter spacing and body size can be overridden for
 a single block under **Advanced** — those compose with the project values, so
 `1×` and `0` there always mean "same as the rest of the page".
+
+### Text colour
+
+Four controls under **Neutrals**, and the split between them is the whole design:
+
+| Control | Reaches |
+|---|---|
+| **Body text** | Everything on an ordinary surface, headings included |
+| **Heading text** | Headings only, once the toggle above it is on. Off, they follow the body |
+| **Muted text** | Supporting copy, meta lines, captions |
+| **Text on dark bands** | Text wherever a block paints its own dark surface |
+
+That last one is separate on purpose, and it is not tidiness. Light text on a block's own
+dark background is declared with `!important`, because a theme rule like
+`h2 { color: #111 !important }` would otherwise turn a title inside a dark band into black
+on black. If the body colour reached those places, choosing a dark ink would cause exactly
+the failure the defence exists to prevent. So it cannot: setting body and heading to pure
+black leaves every dark band white, and there is a test that says so.
+
+The dark-band colour is only emitted once you move it off white, so until you do, every
+block keeps the exact literal it was designed with. Those literals are not
+interchangeable — captions sit at .6, .7, .72 and .82 opacity depending on what they sit
+on — and collapsing them onto one shared value changed the countdown labels the first time
+this was written. Once you do move it, they all follow, with captions derived at 72% so a
+caption and the title above it stay in the same family.
+
+Parallax Banner, Video Hero and Hero Slider keep their own text-colour pickers. They sit
+on imagery you chose, where no global default can be right.
+
+A single block can be recoloured under **Advanced → Override text colour**. It sets body
+and heading together, so the block does not split across two colours, and it cannot black
+out a dark band either.
 
 ### Corners
 
@@ -705,6 +738,9 @@ test/
   radius.html           Asserts one slider reaches every rounded container and
                         that circles and pills are left alone, and fails if any
                         container drifts onto a bare pixel radius; 19 assertions
+  colour.html           Asserts each text colour reaches what it should, and that
+                        no colour setting can black out text on a dark band;
+                        23 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 
 Every test page loads the source with a timestamp. None of them carried a version
