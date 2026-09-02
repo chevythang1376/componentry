@@ -70,7 +70,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Video Embed (lite) | Click-to-load facade — nothing loads from YouTube until you press play |
 | **Modern Layout** | Bento Grid | Asymmetric tiles with mixed spans and per-tile tones. Zero JS |
 | | Sticky Stacking Cards | Cards pin and stack on scroll, built on `position: sticky`. Zero JS |
-| | Mosaic Grid | Flush checkerboard of colour tiles and photos. Type is sized against the tile rather than the viewport, and each tile picks readable ink for the colour you give it. Zero JS |
+| | Mosaic Grid | Flush checkerboard of colour tiles and photos. Type is sized against the tile rather than the viewport. Each tile carries its own colour, copy, text colour and button style, and picks readable ink unless told otherwise. Zero JS |
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
 | | Spec Strip | Row of headline specs with hairline dividers |
@@ -446,6 +446,29 @@ A single block can be recoloured under **Advanced → Override text colour**. It
 and heading together, so the block does not split across two colours, and it cannot black
 out a dark band either.
 
+### Per-tile settings on the Mosaic
+
+Everything about a Mosaic tile lives in that tile's own settings rather than being shared
+across the block. Pick **Colour tile** or **Image tile** and the panel shows only what that
+kind uses — a colour tile never shows an image picker, an image tile never shows a button
+field.
+
+| Colour tile | |
+|---|---|
+| **Tile colour** | The fill |
+| **Title / Body copy** | Its own text |
+| **Pick the text colour for me** | On by default: white or near-black, whichever has more contrast against the fill. Off, you choose |
+| **Button label / link** | Blank label means no button, as everywhere else |
+| **Button style** | *Same as the block* by default, or solid / outlined / brand / custom colours for this tile alone |
+
+"Same as the block" is resolved when the code is generated, not in CSS, so the stylesheet
+carries one rule per style rather than one per tile however many tiles you add.
+
+Leaving the text colour on auto is the sensible default — the point of a per-tile colour
+picker is that some of those colours will be light, and white text on amber is what the
+markup this grew from actually shipped. If you do choose your own and it lands under
+4.5:1, preflight says so.
+
 ### Corners
 
 One slider, **Shape → Corner radius**, and no per-component sliders anywhere. Twenty-six
@@ -738,9 +761,10 @@ test/
   radius.html           Asserts one slider reaches every rounded container and
                         that circles and pills are left alone, and fails if any
                         container drifts onto a bare pixel radius; 19 assertions
-  colour.html           Asserts each text colour reaches what it should, and that
-                        no colour setting can black out text on a dark band;
-                        23 assertions
+  colour.html           Asserts each text colour reaches what it should, that no
+                        colour setting can black out text on a dark band, and
+                        that a mosaic tile can override the block it sits in;
+                        31 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 
 Every test page loads the source with a timestamp. None of them carried a version

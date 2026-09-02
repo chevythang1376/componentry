@@ -120,6 +120,40 @@ window.addEventListener('load', function () {
   check('a mosaic tile keeps the ink it worked out',
         colour('mosaic-grid', '.cb-mo__t', { ink: '#cc0000', hColorOn: true, hColor: '#cc0000' }), 'rgb(255, 255, 255)');
 
+  // --- a tile can override what the block decided -------------------------
+  function tile(over, sel, prop) {
+    var def = CB.get('mosaic-grid');
+    var items = CB.defaults(def).items.slice();
+    items[0] = Object.assign({}, items[0], over);
+    var out = CB.build({ type: 'mosaic-grid', cls: 'cb-mo-t', props: Object.assign(CB.defaults(def), { items: items }) },
+                       Object.assign({}, CB.DEFAULT_TOKENS));
+    var d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style><style>' + out.css + '</style>' + out.html);
+    d.close();
+    var el = d.querySelector(sel);
+    return el ? w.getComputedStyle(el)[prop || 'color'] : 'missing';
+  }
+  check('a tile keeps the readable ink by default',
+        tile({}, '.cb-mo__tile--copy .cb-mo__t'), 'rgb(255, 255, 255)');
+  check('and takes its own once told to',
+        tile({ inkAuto: false, ink: '#00ff00' }, '.cb-mo__tile--copy .cb-mo__t'), 'rgb(0, 255, 0)');
+  check('an empty own colour falls back to readable',
+        tile({ inkAuto: false, ink: '' }, '.cb-mo__tile--copy .cb-mo__t'), 'rgb(255, 255, 255)');
+  check('a tile button follows the block unless told otherwise',
+        tile({}, '.cb-mo__tile--copy'), 'rgb(255, 255, 255)');
+  check('a tile can take a custom button fill',
+        tile({ btnStyle: 'custom', btnBg: '#cc0000', btnInk: '#ffff00' },
+             '.cb-mo__tile--copy .cb-mo__btn', 'backgroundColor'), 'rgb(204, 0, 0)');
+  check('and its own label colour with it',
+        tile({ btnStyle: 'custom', btnBg: '#cc0000', btnInk: '#ffff00' },
+             '.cb-mo__tile--copy .cb-mo__btn'), 'rgb(255, 255, 0)');
+  check('an outlined tile button has no fill',
+        tile({ btnStyle: 'outline' }, '.cb-mo__tile--copy .cb-mo__btn', 'backgroundColor'), 'rgba(0, 0, 0, 0)');
+  check('a brand tile button takes the brand',
+        tile({ btnStyle: 'brand' }, '.cb-mo__tile--copy .cb-mo__btn', 'backgroundColor'), 'rgb(150, 105, 76)');
+
+
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
   bar.className = 'bar ' + (fail ? 'bad' : 'ok');

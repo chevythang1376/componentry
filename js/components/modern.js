@@ -418,8 +418,24 @@
           { k: 'color', t: 'color', label: 'Tile colour', value: '#96694c', when: { kind: ['copy'] } },
           { k: 'title', t: 'text', label: 'Title', value: 'Tile title', when: { kind: ['copy'] } },
           { k: 'text', t: 'textarea', label: 'Body copy', value: 'A sentence on what this one covers.', when: { kind: ['copy'] } },
+          {
+            k: 'inkAuto', t: 'toggle', label: 'Pick the text colour for me', value: true,
+            when: { kind: ['copy'] },
+            help: 'Takes white or near-black, whichever has more contrast against the tile colour. Turn off to choose your own.'
+          },
+          { k: 'ink', t: 'color', label: 'Text colour', value: '#ffffff', when: { kind: ['copy'], inkAuto: [false] } },
           { k: 'btnText', t: 'text', label: 'Button label', value: 'View', when: { kind: ['copy'] }, help: 'Leave empty for no button.' },
           { k: 'btnUrl', t: 'text', label: 'Button link', value: '#', when: { kind: ['copy'] } },
+          {
+            k: 'btnStyle', t: 'select', label: 'Button style', value: 'inherit',
+            when: { kind: ['copy'] },
+            options: [
+              ['inherit', 'Same as the block'], ['solid', 'Solid, contrasting the tile'],
+              ['outline', 'Outlined'], ['brand', 'Brand colour'], ['custom', 'Custom colours']
+            ]
+          },
+          { k: 'btnBg', t: 'color', label: 'Button fill', value: '#ffffff', when: { kind: ['copy'], btnStyle: ['custom'] } },
+          { k: 'btnInk', t: 'color', label: 'Button label colour', value: '#141210', when: { kind: ['copy'], btnStyle: ['custom'] } },
           { k: 'image', t: 'image', label: 'Image', value: CB.ph(900, 900, '', '#2b241f', '#4a443e'), when: { kind: ['photo'] } },
           { k: 'alt', t: 'text', label: 'Alt text', value: '', when: { kind: ['photo'] } }
         ],
@@ -478,9 +494,22 @@
               ${it.image ? `<img class="cb-mo__img" src="${c.url(it.image)}" alt="${c.attr(it.alt)}" loading="lazy" decoding="async">` : ''}
             </div>`);
         }
-        var ink = c.readableInk(it.color || '#96694c');
+        var fill = it.color || '#96694c';
+        /* Auto by default, so a tile stays readable whatever colour it is given
+           and nobody has to think about it. Off, the tile says what it wants —
+           and preflight will tell you if that lands under 4.5:1. */
+        var ink = it.inkAuto === false && it.ink ? it.ink : c.readableInk(fill);
+        /* Resolved here rather than in CSS: "same as the block" is a build-time
+           question, and settling it now keeps the stylesheet to one rule per
+           style instead of one per tile. */
+        var btn = (it.btnStyle && it.btnStyle !== 'inherit') ? it.btnStyle : (p.btnStyle || 'solid');
+        var vars = '--cb-tile: ' + c.attr(fill) + '; --cb-tile-ink: ' + c.attr(ink) + ';' +
+          (btn === 'custom'
+            ? ' --cb-mo-btn-bg: ' + c.attr(it.btnBg || '#ffffff') +
+              '; --cb-mo-btn-ink: ' + c.attr(it.btnInk || '#141210') + ';'
+            : '');
         return c.dedent(`
-          <article class="cb-mo__tile cb-mo__tile--copy" style="--cb-tile: ${c.attr(it.color || '#96694c')}; --cb-tile-ink: ${ink};">
+          <article class="cb-mo__tile cb-mo__tile--copy" data-btn="${c.attr(btn)}" style="${vars}">
             <div class="cb-mo__in">
               <div class="cb-mo__top">
                 ${it.title ? '<h3 class="cb-mo__t">' + c.rich(it.title) + '</h3>' : ''}
@@ -521,11 +550,23 @@
         return out.join('\n');
       }
 
-      var btnCss = {
-        solid: `background: var(--cb-tile-ink, #fff); color: var(--cb-tile, #141210);`,
-        outline: `background: transparent; color: var(--cb-tile-ink, #fff); box-shadow: inset 0 0 0 var(--cb-btn-border, 2px) currentColor;`,
-        brand: `background: var(--cb-brand); color: var(--cb-on-brand);`
-      }[p.btnStyle] || '';
+      /* One rule per style, chosen by the attribute the tile resolved to, so a
+         tile can differ from the block without emitting per-tile CSS. */
+      var btnCss = [
+        `${s} .cb-mo__tile[data-btn="solid"] .cb-mo__btn {
+           background: var(--cb-tile-ink, #fff); color: var(--cb-tile, #141210);
+         }`,
+        `${s} .cb-mo__tile[data-btn="outline"] .cb-mo__btn {
+           background: transparent; color: var(--cb-tile-ink, #fff);
+           box-shadow: inset 0 0 0 var(--cb-btn-border, 2px) currentColor;
+         }`,
+        `${s} .cb-mo__tile[data-btn="brand"] .cb-mo__btn {
+           background: var(--cb-brand); color: var(--cb-on-brand);
+         }`,
+        `${s} .cb-mo__tile[data-btn="custom"] .cb-mo__btn {
+           background: var(--cb-mo-btn-bg, #fff); color: var(--cb-mo-btn-ink, #141210);
+         }`
+      ].join('\n        ');
 
       var css = `
         ${s}.cb-mo { background: ${p.bg}; padding-block: ${c.num(p.pad, 0)}px; }
@@ -569,12 +610,12 @@
         ${s} .cb-mo__btn {
           align-self: flex-start; text-decoration: none; display: inline-block;
           font-weight: var(--cb-btn-weight, 650); border-radius: var(--cb-btn-radius);
-          ${p.btnStyle === 'brand' ? '' : 'letter-spacing: var(--cb-btn-tracking, 0);'}
+          letter-spacing: var(--cb-btn-tracking, 0);
           font-size: 12px; font-size: clamp(11px, 2.9cqw, 15px);
           padding: 9px 16px; padding: clamp(8px, 2.6cqw, 14px) clamp(14px, 5cqw, 26px);
           transition: transform .2s cubic-bezier(.22,.61,.36,1), filter .2s ease;
-          ${btnCss}
         }
+        ${btnCss}
         ${s} .cb-mo__btn:hover { transform: translateY(-2px); filter: brightness(.94); }
 
         ${s} .cb-mo__tile--photo {
