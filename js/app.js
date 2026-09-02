@@ -17,7 +17,18 @@
     { k: 'onBrand', t: 'color', label: 'Text on primary' },
     { t: 'section', label: 'Neutrals' },
     { k: 'ink', t: 'color', label: 'Body text' },
+    {
+      k: 'hColorOn', t: 'toggle', label: 'Separate heading colour', value: false,
+      help: 'Off means headings take the body colour, which is how it has always worked.'
+    },
+    { k: 'hColor', t: 'color', label: 'Heading text', when: { hColorOn: [true] } },
     { k: 'muted', t: 'color', label: 'Muted text' },
+    {
+      k: 'inkOnDark', t: 'color', label: 'Text on dark bands',
+      help: 'Used wherever a block paints its own dark surface — a colour band, a photo hero, ' +
+            'a dark tile. Held apart from body text because those places are defended against ' +
+            'host themes, and a dark body colour there would be invisible.'
+    },
     { k: 'surface', t: 'color', label: 'Surface / card' },
     { k: 'subtle', t: 'color', label: 'Subtle fill' },
     { k: 'border', t: 'color', label: 'Border' },

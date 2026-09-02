@@ -1,0 +1,130 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — text colour</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 74ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+  iframe { position: absolute; left: -20000px; width: 1280px; height: 900px; border: 0; }
+</style>
+<h1>Text colour</h1>
+<p class="sub">Body, heading and muted colours have to reach the text on an ordinary surface.
+Text on a surface a block paints dark itself is a separate control on purpose: those places
+are defended with <code>!important</code> against host themes, so if the body colour reached
+them, choosing a dark ink would produce black text on a black band — the exact failure the
+defence exists to prevent.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<iframe id="f"></iframe>
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js',
+   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+
+window.addEventListener('load', function () {
+  var f = document.getElementById('f'), w = f.contentWindow;
+
+  function colour(id, sel, tokens, props) {
+    var def = CB.get(id);
+    var out = CB.build({ type: id, cls: 'cb-' + id + '-k', props: Object.assign(CB.defaults(def), props || {}) },
+                       Object.assign({}, CB.DEFAULT_TOKENS, tokens || {}));
+    var d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style><style>' +
+            out.css + '</style>' + out.html);
+    d.close();
+    var el = d.querySelector(sel);
+    return el ? w.getComputedStyle(el).color : 'missing';
+  }
+  var RED = 'rgb(204, 0, 0)', BLUE = 'rgb(0, 0, 204)';
+
+  // --- body colour reaches ordinary text ----------------------------------
+  check('body colour reaches a card title', colour('card-grid', '.cb-cg__t', { ink: '#cc0000' }), RED);
+  check('body colour reaches a section title', colour('card-grid', '.cb-cg__title', { ink: '#cc0000' }), RED);
+  check('body colour reaches a webinar title', colour('webinar-grid', '.cb-wb__t', { ink: '#cc0000' }), RED);
+  check('muted colour reaches supporting copy', colour('card-grid', '.cb-cg__x', { muted: '#cc0000' }), RED);
+
+  // --- headings can differ from body --------------------------------------
+  check('headings follow the body colour by default',
+        colour('card-grid', '.cb-cg__title', { ink: '#cc0000' }), RED);
+  check('a separate heading colour takes over',
+        colour('card-grid', '.cb-cg__title', { ink: '#cc0000', hColorOn: true, hColor: '#0000cc' }), BLUE);
+  check('and leaves the body copy alone',
+        colour('card-grid', '.cb-cg__x', { ink: '#cc0000', hColorOn: true, hColor: '#0000cc', muted: '#cc0000' }), RED);
+  check('the toggle off means no heading colour is emitted',
+        colour('card-grid', '.cb-cg__title', { ink: '#cc0000', hColorOn: false, hColor: '#0000cc' }), RED);
+
+  // --- text on a block's own dark surface is its own control ---------------
+  // These are the ones that had no control at all before.
+  [['cta-banner', '.cb-cta__title', {}],
+   ['countdown', '.cb-cd__num', { onDark: true }],
+   ['pinned-product', '.cb-psc__title', {}]].forEach(function (row) {
+    check('dark-band text follows its own control - ' + row[0],
+          colour(row[0], row[1], { inkOnDark: '#cc0000' }, row[2]), RED);
+  });
+  check('captions on dark move with it, in the same family',
+        colour('countdown', '.cb-cd__lab', { inkOnDark: '#cc0000' }, { onDark: true }), 'rgba(204, 0, 0, 0.72)');
+
+  // --- and the body colour must not reach them -----------------------------
+  // A dark ink on a dark band is invisible; this is why the two are separate.
+  [['cta-banner', '.cb-cta__title', {}],
+   ['countdown', '.cb-cd__num', { onDark: true }],
+   ['hero-slider', '.cb-hsl__title', {}]].forEach(function (row) {
+    check('a dark body colour cannot black out ' + row[0],
+          colour(row[0], row[1], { ink: '#000000', hColorOn: true, hColor: '#000000' }, row[2]),
+          'rgb(255, 255, 255)');
+  });
+
+  // --- a block that already had its own text colour keeps it ----------------
+  // Hero Slider, Parallax Banner and Video Hero sit on imagery, so each carries
+  // its own picker. That stays the control, rather than a global one guessing.
+  check('hero slider keeps its own per-block picker',
+        colour('hero-slider', '.cb-hsl__title', { inkOnDark: '#00ff00' }, { textColor: '#cc0000' }), RED);
+  check('parallax banner keeps its own too',
+        colour('parallax-banner', '.cb-px__title', { inkOnDark: '#00ff00' }, { textColor: '#cc0000' }), RED);
+
+  // --- text on an ordinary light surface is not treated as dark -------------
+  // Sticky Stack's first card is light, so its title follows the body colour
+  // like any other card. Being defended is about dark surfaces, not about
+  // being inside a component that has some.
+  check('a light card in a mixed block follows the body colour',
+        colour('sticky-stack', '.cb-stk__title', { ink: '#cc0000' }), RED);
+
+  // --- per-block override ---------------------------------------------------
+  check('a block can be recoloured on its own',
+        colour('card-grid', '.cb-cg__title', {}, { _textOn: true, _text: '#0000cc' }), BLUE);
+  check('and its body copy comes with it',
+        colour('card-grid', '.cb-cg__body', {}, { _textOn: true, _text: '#0000cc' }), BLUE);
+  check('the override off changes nothing',
+        colour('card-grid', '.cb-cg__title', { ink: '#cc0000' }, { _textOn: false, _text: '#0000cc' }), RED);
+  check('a per-block override cannot black out a dark band either',
+        colour('cta-banner', '.cb-cta__title', {}, { _textOn: true, _text: '#000000' }), 'rgb(255, 255, 255)');
+
+  // --- computed inks stay computed -----------------------------------------
+  // Mosaic tiles and diagram pins work their ink out from the colour they are
+  // given, and must not be overridden into something unreadable.
+  check('a mosaic tile keeps the ink it worked out',
+        colour('mosaic-grid', '.cb-mo__t', { ink: '#cc0000', hColorOn: true, hColor: '#cc0000' }), 'rgb(255, 255, 255)');
+
+  document.getElementById('out').textContent = log.join('\n');
+  var bar = document.getElementById('bar');
+  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
+                         : (pass + '/' + pass + ' passed — colour reaches the text, and never hides it');
+  document.title = fail ? 'COLOUR FAIL ' + fail : 'COLOUR OK ' + pass;
+});
+</script>
