@@ -90,7 +90,12 @@
       { k: 'pin', t: 'select', label: 'Pin style', value: 'number', options: [['number', 'Numbered'], ['dot', 'Plain dot']] },
       { k: 'pinSize', t: 'range', label: 'Pin size', min: 18, max: 44, step: 2, unit: 'px', value: 28 },
       { k: 'pulse', t: 'toggle', label: 'Pulse unselected pins', value: true },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 160, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -204,7 +209,7 @@ ${c.indent(panels, 16)}
       }).join('\n        ') : '';
 
       var css = `
-        ${s}.cb-hs { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-hs { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-hs__head { max-width: 640px; margin-bottom: 24px; }
         ${s} .cb-hs__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-hs__sub { color: var(--cb-muted); margin-top: 10px; }
@@ -265,7 +270,10 @@ ${c.indent(panels, 16)}
         ${s} .cb-hs__dot {
           display: grid; place-items: center;
           width: ${c.num(p.pinSize, 28)}px; height: ${c.num(p.pinSize, 28)}px;
-          border-radius: 50%; background: #fff; color: var(--cb-ink);
+          border-radius: 50%; background: #fff;
+          /* The dot stays white in either scheme, so its number has to be the
+             colour that does not flip — --cb-ink would turn light and vanish. */
+          color: var(--cb-deep, #141210);
           border: 2px solid var(--cb-pc);
           font-size: ${Math.round(c.num(p.pinSize, 28) * 0.44)}px; font-weight: 800; line-height: 1;
           font-variant-numeric: tabular-nums;

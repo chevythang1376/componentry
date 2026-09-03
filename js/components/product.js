@@ -60,7 +60,12 @@
 
       { t: 'section', label: 'Style' },
       { k: 'tone', t: 'select', label: 'Tone', value: 'light', options: [['light', 'Light'], ['dark', 'Dark']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'band',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#f7f4f1', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 180, step: 8, unit: 'px', value: 96 }
     ],
 
@@ -137,7 +142,7 @@
       }).join('\n        ');
 
       var css = `
-        ${s}.cb-fin { background: ${p.bg}; padding-block: ${c.num(p.pad, 96)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
+        ${s}.cb-fin { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 96)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
         ${s} .cb-fin__inner {
           display: ${p.layout === 'split' ? 'grid' : 'block'};
           ${p.layout === 'split' ? 'grid-template-columns: 1fr 1.15fr; gap: clamp(28px, 5vw, 64px); align-items: center;' : ''}
@@ -288,7 +293,12 @@
 
       { t: 'section', label: 'Style' },
       { k: 'tone', t: 'select', label: 'Tone', value: 'dark', options: [['dark', 'Dark'], ['light', 'Light']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#141210' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'deep',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#141210', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 200, step: 8, unit: 'px', value: 110 }
     ],
 
@@ -353,7 +363,7 @@
       }).join('\n');
 
       var css = `
-        ${s}.cb-psc { background: ${p.bg}; padding-block: ${c.num(p.pad, 110)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
+        ${s}.cb-psc { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 110)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
         ${s} .cb-psc__head { max-width: 640px; margin-bottom: clamp(32px, 6vw, 72px); }
         ${s} .cb-psc__eyebrow {
           font-size: calc(.76em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
@@ -493,7 +503,12 @@
       { k: 'divider', t: 'toggle', label: 'Hairline dividers', value: true },
       { k: 'valueSize', t: 'range', label: 'Value size', min: 20, max: 64, step: 2, unit: 'px', value: 34 },
       { k: 'tone', t: 'select', label: 'Tone', value: 'light', options: [['light', 'Light'], ['dark', 'Dark']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 16, max: 140, step: 4, unit: 'px', value: 56 }
     ],
 
@@ -524,7 +539,7 @@
         </section>`);
 
       var css = `
-        ${s}.cb-spec { background: ${p.bg}; padding-block: ${c.num(p.pad, 56)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
+        ${s}.cb-spec { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 56)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
         ${s} .cb-spec__title {
           font-size: calc(clamp(20px, 2.6vw, 26px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 750); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
           text-align: ${p.align}; margin-bottom: 28px;
