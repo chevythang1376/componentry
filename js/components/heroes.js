@@ -327,7 +327,12 @@
       { k: 'ratio', t: 'select', label: 'Image ratio', value: '4/3', options: [['4/3', '4 : 3'], ['1/1', 'Square'], ['3/4', 'Portrait'], ['16/9', '16 : 9'], ['auto', 'Natural']] },
 
       { t: 'section', label: 'Style' },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -357,7 +362,7 @@
         </section>`);
 
       var css = `
-        ${s}.cb-sh { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-sh { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-sh__grid {
           display: grid; gap: clamp(28px, 5vw, 64px); align-items: center;
           grid-template-columns: 1fr 1fr;
@@ -980,7 +985,10 @@ ${c.indent(slides, 12)}
           background: ${dark ? '#fff' : 'var(--cb-brand)'};
           box-shadow: 0 8px 22px -10px rgba(0,0,0,.5);
         }
-        ${c.pin([s + ' .cb-cta__primary'], dark ? 'var(--cb-ink)' : 'var(--cb-on-brand)')}
+        ${/* On the dark variant the button is white in either scheme, so its
+              label has to be the colour that does not flip — --cb-ink turns
+              light under a dark scheme and the label disappears into the fill. */
+          c.pin([s + ' .cb-cta__primary'], dark ? 'var(--cb-deep, #141210)' : 'var(--cb-on-brand)')}
         @media (max-width: 760px) {
           ${s} .cb-cta__inner { flex-direction: column; align-items: center; text-align: center; }
           ${s} .cb-cta__actions { justify-content: center; width: 100%; }

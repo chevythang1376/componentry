@@ -40,7 +40,12 @@
       { t: 'section', label: 'Style' },
       { k: 'start', t: 'range', label: 'Start position', min: 0, max: 100, step: 1, unit: '%', value: 50 },
       { k: 'handleColor', t: 'color', label: 'Handle colour', value: '#ffffff' },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
     ],
 
@@ -70,7 +75,7 @@
         </section>`);
 
       var css = `
-        ${s}.cb-ba { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-ba { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-ba__head { margin-bottom: 28px; max-width: 620px; }
         ${s} .cb-ba__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-ba__sub { color: var(--cb-muted); margin-top: 10px; }
@@ -208,7 +213,12 @@
       { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
 
       { t: 'section', label: 'Style' },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
     ],
 
@@ -262,7 +272,7 @@
         </section>`);
 
       var css = `
-        ${s}.cb-gl { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-gl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-gl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
         ${masonry ? `
         ${s} .cb-gl__grid { columns: ${c.clamp(c.num(p.cols, 3), 2, 5)}; column-gap: ${c.num(p.gap, 14)}px; }
@@ -420,7 +430,12 @@
       { k: 'gap', t: 'range', label: 'Gap', min: 20, max: 120, step: 4, unit: 'px', value: 64 },
       { k: 'grayscale', t: 'toggle', label: 'Desaturate until hover', value: true },
       { k: 'fade', t: 'toggle', label: 'Fade edges', value: true },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 120, step: 8, unit: 'px', value: 48 }
     ],
 
@@ -451,7 +466,7 @@
         </section>`);
 
       var css = `
-        ${s}.cb-mq { background: ${p.bg}; padding-block: ${c.num(p.pad, 48)}px; overflow: hidden; }
+        ${s}.cb-mq { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 48)}px; overflow: hidden; }
         ${s} .cb-mq__kicker {
           text-align: center; font-size: calc(.78em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; color: var(--cb-muted); margin-bottom: 28px;
@@ -531,7 +546,12 @@
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Unit style', value: 'boxed', options: [['boxed', 'Boxed'], ['plain', 'Plain'], ['split', 'Split-flap']] },
       { k: 'onDark', t: 'toggle', label: 'Dark background', value: true },
-      { k: 'bg', t: 'color', label: 'Background', value: '#141210' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'deep',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#141210', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -591,7 +611,7 @@
       }[p.variant] || '';
 
       var css = `
-        ${s}.cb-cd { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; color: ${ink}; }
+        ${s}.cb-cd { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; color: ${ink}; }
         ${s} .cb-cd__inner { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
         ${s} .cb-cd__title { font-size: calc(clamp(26px, 3.8vw, 40px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance; }
         ${s} .cb-cd__sub { color: ${muted}; max-width: 54ch; }
@@ -700,7 +720,12 @@
       { t: 'section', label: 'Style' },
       { k: 'maxWidth', t: 'range', label: 'Max width', min: 480, max: 1400, step: 20, unit: 'px', value: 900 },
       { k: 'playStyle', t: 'select', label: 'Play button', value: 'brand', options: [['brand', 'Brand pill'], ['youtube', 'YouTube red'], ['glass', 'Glass circle']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
     ],
 
@@ -754,7 +779,7 @@
       }[p.playStyle] || '';
 
       var css = `
-        ${s}.cb-ve { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-ve { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-ve__head { text-align: center; max-width: 620px; margin: 0 auto 28px; }
         ${s} .cb-ve__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-ve__sub { color: var(--cb-muted); margin-top: 10px; }

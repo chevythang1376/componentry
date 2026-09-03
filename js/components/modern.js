@@ -67,7 +67,12 @@
         help: 'Auto follows the project corner radius, a little rounder than a standard card. Set a value to pin this block to it instead.'
       },
       { k: 'hover', t: 'select', label: 'Hover effect', value: 'lift', options: [['lift', 'Lift'], ['glow', 'Border glow'], ['none', 'None']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 160, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -114,7 +119,7 @@
       }[p.hover] || '';
 
       var css = `
-        ${s}.cb-bn { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-bn { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-bn__head {
           margin-bottom: 32px; max-width: 660px;
           text-align: ${p.align}; ${p.align === 'center' ? 'margin-inline: auto;' : ''}
@@ -152,8 +157,8 @@
            white at 1:1. The gradient is opaque, so the solid never shows while
            it works. */
         ${s} .cb-bn__tile[data-tone="brand"]   { background: var(--cb-brand); background-image: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
-        ${s} .cb-bn__tile[data-tone="dark"]    { background: var(--cb-ink); }
-        ${s} .cb-bn__tile[data-tone="image"]   { background: var(--cb-ink); }
+        ${s} .cb-bn__tile[data-tone="dark"]    { background: var(--cb-deep, #141210); }
+        ${s} .cb-bn__tile[data-tone="image"]   { background: var(--cb-deep, #141210); }
         ${s} .cb-bn__media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         ${s} .cb-bn__tile[data-tone="image"] .cb-bn__body {
           position: relative; z-index: 1;
@@ -258,7 +263,12 @@
       { t: 'section', label: 'Style' },
       { k: 'layout', t: 'select', label: 'Card layout', value: 'split', options: [['split', 'Text + image'], ['text', 'Text only']] },
       { k: 'minHeight', t: 'range', label: 'Card height', min: 240, max: 560, step: 10, unit: 'px', value: 380 },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'band',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#f7f4f1', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 160, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -298,7 +308,7 @@
         </section>`);
 
       var css = `
-        ${s}.cb-stk { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-stk { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-stk__head { margin-bottom: 32px; max-width: 640px; }
         ${s} .cb-stk__h { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-stk__sub { color: var(--cb-muted); margin-top: 10px; }
@@ -326,7 +336,7 @@
         ${s} .cb-stk__card[data-tone="surface"] { background: var(--cb-surface); border: 1px solid var(--cb-border); }
         ${s} .cb-stk__card[data-tone="subtle"]  { background: var(--cb-subtle); border: 1px solid var(--cb-border); }
         ${s} .cb-stk__card[data-tone="brand"]   { background: var(--cb-brand); background-image: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
-        ${s} .cb-stk__card[data-tone="dark"]    { background: var(--cb-ink); }
+        ${s} .cb-stk__card[data-tone="dark"]    { background: var(--cb-deep, #141210); }
 
         ${s} .cb-stk__copy { display: flex; flex-direction: column; gap: 12px; ${p.layout === 'text' ? 'max-width: 62ch;' : ''} }
         ${s} .cb-stk__eyebrow {
@@ -476,7 +486,12 @@
         k: 'reveal', t: 'toggle', label: 'Reveal as they scroll in', value: true,
         help: 'A CSS scroll timeline, so it still runs where an editor strips <script>. Ignored under reduced-motion.'
       },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 0 }
     ],
 
@@ -569,7 +584,7 @@
       ].join('\n        ');
 
       var css = `
-        ${s}.cb-mo { background: ${p.bg}; padding-block: ${c.num(p.pad, 0)}px; }
+        ${s}.cb-mo { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 0)}px; }
         ${s} .cb-mo__head { margin-bottom: 28px; max-width: 660px; ${p.full ? 'padding-inline: clamp(16px, 4vw, 48px);' : ''} ${p.align === 'center' ? 'margin-inline: auto; text-align: center;' : ''} }
         ${s} .cb-mo__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-mo__sub { color: var(--cb-muted); margin-top: 10px; }

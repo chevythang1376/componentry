@@ -1,0 +1,147 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — colour scheme</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 76ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+  iframe { position: absolute; left: -20000px; width: 1280px; height: 1200px; border: 0; }
+</style>
+<h1>Colour scheme</h1>
+<p class="sub">A dark scheme has to be readable on every block, not most of them — and the
+swap has to be a step rather than a fade, because a light-to-dark crossfade is unreadable
+at its own midpoint by definition: interpolate the ground white-to-black and the text
+black-to-white and they meet at grey on grey, around 1:1.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<iframe id="f"></iframe>
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js',
+   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js',
+   'export.js', 'preflight.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+
+window.addEventListener('load', function () {
+  var f = document.getElementById('f'), w = f.contentWindow, P = CB.Preflight;
+
+  function render(id, tokens, props) {
+    var def = CB.get(id);
+    var out = CB.build({ type: id, cls: 'cb-' + id + '-s', props: Object.assign(CB.defaults(def), props || {}) },
+                       Object.assign({}, CB.DEFAULT_TOKENS, tokens || {}));
+    var d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style><style>' +
+            out.css + '</style>' + out.html);
+    d.close();
+    return { doc: d, css: out.css, js: out.js, root: d.querySelector('.cb-' + id + '-s') };
+  }
+
+  /* Every block, both ways round. The whole promise of a scheme is that it does
+     not leave one block behind, and one unreadable block is a broken page. */
+  function auditAll(scheme) {
+    var problems = [], judged = 0;
+    CB.all().forEach(function (def) {
+      var r = render(def.id, { scheme: scheme });
+      r.doc.querySelectorAll('*').forEach(function (el) {
+        var own = Array.prototype.filter.call(el.childNodes, function (n) {
+          return n.nodeType === 3 && n.textContent.trim();
+        }).length;
+        if (!own || !P.visible(el, w)) return;
+        var back = P.backdrop(el, r.root, w);
+        if (!back) return;                       // over imagery: not knowable, not guessed
+        judged++;
+        if (P.ratio(P.parse(w.getComputedStyle(el).color), back) < 3) {
+          problems.push(def.id + ' ' + (el.className || el.tagName).toString().split(' ')[0]);
+        }
+      });
+    });
+    return { judged: judged, problems: problems };
+  }
+
+  var light = auditAll('light'), dark = auditAll('dark');
+  check('every block is readable in light', light.problems.length ? light.problems.slice(0, 4).join(', ') : 'none', 'none');
+  check('every block is readable in dark', dark.problems.length ? dark.problems.slice(0, 4).join(', ') : 'none', 'none');
+  check('and both were actually judged, not skipped', light.judged > 200 && dark.judged > 200, true);
+
+  // --- the scheme reaches the ground, not only the text --------------------
+  function bg(id, tokens, props) {
+    var r = render(id, tokens, props);
+    return w.getComputedStyle(r.root).backgroundColor;
+  }
+  check('a light project keeps its ground', bg('card-grid', { scheme: 'light' }), 'rgb(247, 244, 241)');
+  check('a dark project moves it', bg('card-grid', { scheme: 'dark' }), 'rgb(26, 23, 20)');
+  check('a block can go dark on a light project', bg('card-grid', {}, { _scheme: 'dark' }), 'rgb(26, 23, 20)');
+  check('and light on a dark one', bg('card-grid', { scheme: 'dark' }, { _scheme: 'light' }), 'rgb(247, 244, 241)');
+  check('following the project is the default', bg('card-grid', { scheme: 'dark' }, { _scheme: 'inherit' }), 'rgb(26, 23, 20)');
+
+  // --- a chosen colour is still a chosen colour ----------------------------
+  check('a custom background ignores the scheme',
+        bg('card-grid', { scheme: 'dark' }, { bgMode: 'custom', bg: '#ee0000' }), 'rgb(238, 0, 0)');
+
+  // --- a "dark tone" tile must not invert ----------------------------------
+  // It used to paint itself with --cb-ink, which turns light under a dark
+  // scheme while its text stays pinned white.
+  (function () {
+    var r = render('bento-grid', { scheme: 'dark' });
+    var tile = r.doc.querySelector('.cb-bn__tile[data-tone="dark"]');
+    check('a dark tile stays dark in a dark scheme',
+          tile ? w.getComputedStyle(tile).backgroundColor : 'missing', 'rgb(20, 18, 16)');
+  })();
+
+  // --- the swap ------------------------------------------------------------
+  var swap = render('card-grid', {}, { _scheme: 'swapDark' });
+  check('the swap ships no JavaScript', swap.js, '');
+  check('it is guarded, so no scroll timelines means no animation',
+        /@supports \(animation-timeline: view\(\)\)/.test(swap.css), true);
+  check('it starts in the state it is swapping from',
+        w.getComputedStyle(swap.root).backgroundColor, 'rgb(247, 244, 241)');
+  check('and names its keyframes per instance, so two blocks cannot collide',
+        /@keyframes cb-scheme-cb-card-grid-s\b/.test(swap.css), true);
+  check('the swap carries the ground with it',
+        /to \{[^}]*--cb-page: #121010;/.test(swap.css), true);
+
+  /* The property that makes the swap safe. Custom properties that have not been
+     registered with @property animate discretely — every declaration in the
+     keyframe changes on the same frame at the midpoint — so the block is never
+     caught with a dark ground and dark text. Asserted here rather than trusted,
+     because the whole design rests on it. */
+  (function () {
+    var d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta charset="utf-8"><style>' +
+            '@keyframes t { from { --g: #ffffff; --i: #141210; } to { --g: #101010; --i: #f3efeb; } }' +
+            '#b { --g: #ffffff; --i: #141210; background: var(--g); color: var(--i);' +
+            ' animation: t 1000s linear forwards paused; }' +
+            '</style><div id="b">x</div>');
+    d.close();
+    var el = d.getElementById('b');
+    var seen = {};
+    [0, 0.25, 0.49, 0.51, 0.75, 1].forEach(function (t) {
+      el.style.animationDelay = '-' + (t * 1000) + 's';
+      seen[w.getComputedStyle(el).backgroundColor] = true;
+    });
+    check('custom properties swap discretely, never mid-fade', Object.keys(seen).length, 2);
+  })();
+
+  document.getElementById('out').textContent = log.join('\n');
+  var bar = document.getElementById('bar');
+  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
+                         : (pass + '/' + pass + ' passed — readable both ways, and the swap is a step');
+  document.title = fail ? 'SCHEME FAIL ' + fail : 'SCHEME OK ' + pass;
+});
+</script>

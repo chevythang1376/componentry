@@ -48,7 +48,12 @@
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Card style', value: 'elevated', options: [['elevated', 'Elevated'], ['outline', 'Outlined'], ['flat', 'Flat / borderless'], ['overlay', 'Text over image']] },
       { k: 'hover', t: 'select', label: 'Hover effect', value: 'lift', options: [['lift', 'Lift'], ['zoom', 'Image zoom'], ['border', 'Border glow'], ['none', 'None']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'band',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#f7f4f1', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -121,7 +126,7 @@
       }[p.variant] || '';
 
       var css = `
-        ${s}.cb-cg { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-cg { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-cg__head { margin-bottom: 34px; max-width: 660px; }
         ${s} .cb-cg__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-cg__sub { color: var(--cb-muted); margin-top: 10px; }
@@ -211,7 +216,12 @@
       { k: 'iconStyle', t: 'select', label: 'Icon treatment', value: 'tint', options: [['tint', 'Tinted circle'], ['solid', 'Solid brand'], ['square', 'Rounded square'], ['bare', 'Bare']] },
       { k: 'cardStyle', t: 'select', label: 'Card treatment', value: 'none', options: [['none', 'No card'], ['outline', 'Outlined'], ['soft', 'Soft fill']] },
       { k: 'itemAlign', t: 'select', label: 'Item alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -257,7 +267,7 @@
       }[p.cardStyle] || '';
 
       var css = `
-        ${s}.cb-fg { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-fg { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-fg__head {
           margin-bottom: 42px; max-width: 680px;
           text-align: ${p.align}; ${p.align === 'center' ? 'margin-inline: auto;' : ''}
@@ -328,7 +338,12 @@
       { k: 'divider', t: 'toggle', label: 'Dividers between stats', value: true },
       { k: 'align', t: 'select', label: 'Alignment', value: 'center', options: [['center', 'Center'], ['left', 'Left']] },
       { k: 'numColor', t: 'select', label: 'Number colour', value: 'brand', options: [['brand', 'Brand'], ['ink', 'Text colour'], ['gradient', 'Brand gradient']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
     ],
 
@@ -371,7 +386,7 @@
       }[p.numColor] || '';
 
       var css = `
-        ${s}.cb-st { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-st { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-st__title { font-size: calc(clamp(24px, 3.2vw, 34px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-align: ${p.align}; margin-bottom: 34px; }
         ${s} .cb-st__grid {
           display: grid; gap: clamp(20px, 3vw, 32px);
@@ -500,7 +515,12 @@
       { k: 'layout', t: 'select', label: 'Layout', value: 'alternating', options: [['alternating', 'Alternating'], ['left', 'Single column']] },
       { k: 'marker', t: 'select', label: 'Marker', value: 'dot', options: [['dot', 'Dot'], ['number', 'Number'], ['ring', 'Ring']] },
       { k: 'reveal', t: 'toggle', label: 'Reveal on scroll', value: true },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -540,7 +560,7 @@
       }[p.marker] || '';
 
       var css = `
-        ${s}.cb-tl { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-tl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-tl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 44px; ${alt ? 'text-align: center;' : ''} }
         ${s} .cb-tl__list { position: relative; display: flex; flex-direction: column; gap: 34px; }
         ${s} .cb-tl__list::before {
@@ -642,7 +662,12 @@
       { k: 'yearPeriod', t: 'text', label: 'Annual period label', value: '/ year', when: { toggle: [true] } },
 
       { t: 'section', label: 'Style' },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'band',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#f7f4f1', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 88 }
     ],
 
@@ -691,7 +716,7 @@
         </section>`);
 
       var css = `
-        ${s}.cb-pr { background: ${p.bg}; padding-block: ${c.num(p.pad, 88)}px; }
+        ${s}.cb-pr { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 88)}px; }
         ${s} .cb-pr__head { text-align: center; max-width: 640px; margin: 0 auto 44px; }
         ${s} .cb-pr__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-pr__sub { color: var(--cb-muted); margin-top: 10px; }
@@ -889,7 +914,12 @@
 
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Card style', value: 'outline', options: [['elevated', 'Elevated'], ['outline', 'Outlined'], ['flat', 'Flat / borderless']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
@@ -966,7 +996,7 @@
       }[p.variant] || '';
 
       var css = `
-        ${s}.cb-wb { background: ${p.bg}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s}.cb-wb { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-wb__head { margin-bottom: 34px; max-width: 660px; ${p.align === 'center' ? 'margin-inline: auto; text-align: center;' : ''} }
         ${s} .cb-wb__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-wb__sub { color: var(--cb-muted); margin-top: 10px; }

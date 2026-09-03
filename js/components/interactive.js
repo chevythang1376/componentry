@@ -58,7 +58,12 @@
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Variant', value: 'divided', options: [['divided', 'Divided lines'], ['cards', 'Separate cards'], ['boxed', 'Single bordered box']] },
       { k: 'marker', t: 'select', label: 'Marker', value: 'chevron', options: [['chevron', 'Chevron'], ['plus', 'Plus / minus'], ['none', 'None']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
     ],
 
@@ -150,7 +155,7 @@
         ${s} .cb-acc__item[data-open] .cb-acc__marker::before { rotate: 225deg; top: 9px; }` : '';
 
       var css = `
-        ${s}.cb-acc { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-acc { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-acc__head { margin-bottom: 32px; max-width: 640px; }
         ${s} .cb-acc__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-acc__sub { color: var(--cb-muted); margin-top: 10px; }
@@ -294,7 +299,12 @@ ${p.deepLink ? `
       { k: 'variant', t: 'select', label: 'Tab style', value: 'underline', options: [['underline', 'Underline'], ['pill', 'Pills'], ['segmented', 'Segmented control']] },
       { k: 'align', t: 'select', label: 'Tab alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center'], ['stretch', 'Full width']] },
       { k: 'layout', t: 'select', label: 'Panel layout', value: 'split', options: [['split', 'Text + image'], ['text', 'Text only']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
     ],
 
@@ -353,7 +363,7 @@ ${p.deepLink ? `
       }[p.variant] || '';
 
       var css = `
-        ${s}.cb-tabs { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-tabs { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-tabs__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
         ${s} .cb-tabs__bar { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; margin-bottom: 32px; }
         ${s} .cb-tabs__bar::-webkit-scrollbar { display: none; }
@@ -503,7 +513,12 @@ ${p.deepLink ? `
       { k: 'captions', t: 'toggle', label: 'Show captions', value: true },
 
       { t: 'section', label: 'Style' },
-      { k: 'bg', t: 'color', label: 'Background', value: '#ffffff' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
     ],
 
@@ -562,7 +577,7 @@ ${p.deepLink ? `
         </section>`);
 
       var css = `
-        ${s}.cb-car { background: ${p.bg}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-car { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-car__head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
         ${s} .cb-car__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-car__nav { display: flex; gap: 8px; flex-shrink: 0; }
@@ -789,7 +804,12 @@ ${p.deepLink ? `
 
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Variant', value: 'centered', options: [['centered', 'Centred'], ['card', 'Card']] },
-      { k: 'bg', t: 'color', label: 'Background', value: '#f7f4f1' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'band',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#f7f4f1', when: { bgMode: ['custom'] } },
       { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 88 }
     ],
 
@@ -846,7 +866,7 @@ ${p.deepLink ? `
 
       var card = p.variant === 'card';
       var css = `
-        ${s}.cb-tm { background: ${p.bg}; padding-block: ${c.num(p.pad, 88)}px; }
+        ${s}.cb-tm { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 88)}px; }
         ${s} .cb-tm__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-align: center; margin-bottom: 36px; }
         ${s} .cb-tm__stage { position: relative; display: grid; }
         ${s} .cb-tm__item {

@@ -354,6 +354,7 @@ Applied centrally, so they behave identically on all 27 blocks:
 | **Heading size** | Multiplies the project heading size for this block only; `1×` leaves it alone |
 | **Heading letter spacing** | Added on top of the project value |
 | **Body size** | Same idea for the body copy in this block |
+| **Colour scheme** | Light, dark, or swap as the block scrolls in; `Follow the project` by default |
 | **Override text colour** | Sets body and heading colour for one block; a dark band keeps its defended colour |
 | **Corner radius** | Overrides the project radius for one block; everything proportional inside follows, circles and pills don't |
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
@@ -413,6 +414,42 @@ heading. All fixed.
 Any of heading size, heading letter spacing and body size can be overridden for
 a single block under **Advanced** — those compose with the project values, so
 `1×` and `0` there always mean "same as the rest of the page".
+
+### Light and dark
+
+**Design tokens → Neutrals → Colour scheme** flips the whole project. Only the five
+neutrals move — brand, buttons and the type scale are untouched, because a scheme changes
+the ground a design sits on, not the design.
+
+Each block's **Background** is what carries it. Rather than a bare colour, it names a role:
+
+| | Light | Dark |
+|---|---|---|
+| **Follow the colour scheme** | `#ffffff` | `#121010` |
+| **Follow the scheme, tinted** | `#f7f4f1` | `#1a1714` |
+| **Always dark** | `#141210` | `#141210` |
+| **A colour I pick** | yours | yours |
+
+The tinted band is *darker* than the page in light and *lighter* in dark — a tint that
+does not invert disappears into the ground it is meant to sit against.
+
+Any block can differ under **Advanced → Colour scheme**, and a background you picked
+yourself is left alone by both.
+
+### Swapping on scroll
+
+The same control offers **Swap to dark on scroll** (and the reverse). The block renders in
+its starting scheme and flips as it scrolls in — a CSS scroll timeline, no JavaScript, so
+it survives the editors that strip scripts. Where scroll timelines are unsupported the
+block simply renders its starting state.
+
+**It is a step, not a fade, and that is not a shortcut.** A light-to-dark crossfade is
+unreadable at its own midpoint by definition: interpolate the ground white-to-black and
+the text black-to-white and they meet at grey on grey, about 1:1. Custom properties that
+have not been registered with `@property` animate *discretely* — every declaration in the
+keyframe changes on the same frame — so the ground and the text move together and the
+block is never caught dark-on-dark. That behaviour is measured in `test/scheme.html`
+rather than trusted, because the whole design rests on it.
 
 ### Text colour
 
@@ -761,6 +798,10 @@ test/
   radius.html           Asserts one slider reaches every rounded container and
                         that circles and pills are left alone, and fails if any
                         container drifts onto a bare pixel radius; 19 assertions
+  scheme.html           Audits every block for contrast in light *and* dark, checks
+                        the scheme reaches the ground and not only the text, and
+                        pins the discrete-swap behaviour the scroll option rests
+                        on; 16 assertions
   colour.html           Asserts each text colour reaches what it should, that no
                         colour setting can black out text on a dark band, and
                         that a mosaic tile can override the block it sits in,

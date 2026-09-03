@@ -110,6 +110,58 @@ window.CB = (function () {
     if (x === null || y === null) return 0;
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
   }
+  /* The dark counterpart of the five neutrals. Everything else — brand, button
+     styling, the whole type scale — is deliberately untouched: a scheme changes
+     the surface a design sits on, not the design. */
+  var DARK_NEUTRALS = {
+    ink: '#f3efeb',
+    muted: '#9c9289',
+    surface: '#1a1714',
+    subtle: '#121010',
+    border: '#2f2a25'
+  };
+  var NEUTRAL_KEYS = ['ink', 'muted', 'surface', 'subtle', 'border'];
+
+  /* The two grounds a block sits on, as opposed to the surfaces inside it.
+     `page` is the plain one and `band` the tinted alternate, and the
+     relationship inverts between schemes on purpose: in light the tint is
+     slightly darker than the page, in dark it has to be slightly lighter or it
+     disappears into it. */
+  var GROUNDS = {
+    light: { page: '#ffffff', band: '#f7f4f1' },
+    dark: { page: '#121010', band: '#1a1714' }
+  };
+
+  /* How a block decides its own background. Shared so all 23 that have one
+     offer the same choice rather than each inventing wording. */
+  var BG_MODES = [
+    ['page', 'Follow the colour scheme'],
+    ['band', 'Follow the scheme, tinted'],
+    ['deep', 'Always dark'],
+    ['custom', 'A colour I pick']
+  ];
+
+  /* The CSS value for a block's background. Anything but `custom` resolves to a
+     token, which is what lets one scheme setting reach every block. */
+  function bgValue(p) {
+    var mode = p && p.bgMode;
+    if (mode === 'band') return 'var(--cb-band, #f7f4f1)';
+    if (mode === 'deep') return 'var(--cb-deep, #141210)';
+    if (mode === 'page') return 'var(--cb-page, #ffffff)';
+    return (p && p.bg) || 'var(--cb-page, #ffffff)';
+  }
+
+  /* The five neutrals for a scheme. 'light' returns whatever the project has
+     set; 'dark' returns the dark counterparts. Anything else is treated as
+     light, so an unknown value can never produce a half-applied scheme. */
+  function neutrals(t, scheme) {
+    var out = {};
+    NEUTRAL_KEYS.forEach(function (k) {
+      out[k] = scheme === 'dark' ? DARK_NEUTRALS[k] : t[k];
+    });
+    return out;
+  }
+
   /* True once the "text on dark bands" colour is something other than the white
      every block already hard-codes as its fallback. */
   function customOnDark(t) {
@@ -254,6 +306,15 @@ window.CB = (function () {
     subtle: '#f7f4f1',
     border: '#e4ddd5',
     onBrand: '#ffffff',
+    /* A surface that is dark in either scheme. A "dark tone" tile used to paint
+       itself with --cb-ink, which is fine while ink is near-black and inverts
+       the moment the scheme flips it light — the tile turning pale while its
+       text stays pinned white. Kept separate so dark means dark either way. */
+    deep: '#141210',
+    /* Light or dark. Only the five neutrals move; brand, buttons and type stay
+       exactly as set, because a scheme is about the surface under the design,
+       not a different design. */
+    scheme: 'light',
     /* Text on a surface the block paints dark itself — a colour band, a photo
        hero, a dark tile. Held apart from `ink` on purpose: those places are
        defended with !important so a host theme cannot black them out, and
@@ -364,11 +425,14 @@ window.CB = (function () {
       ${s} {
         --cb-brand: ${t.brand};
         --cb-brand-2: ${t.brand2};
-        --cb-ink: ${t.ink};
-        --cb-muted: ${t.muted};
-        --cb-surface: ${t.surface};
-        --cb-subtle: ${t.subtle};
-        --cb-border: ${t.border};
+        --cb-ink: ${neutrals(t, t.scheme).ink};
+        --cb-muted: ${neutrals(t, t.scheme).muted};
+        --cb-surface: ${neutrals(t, t.scheme).surface};
+        --cb-subtle: ${neutrals(t, t.scheme).subtle};
+        --cb-border: ${neutrals(t, t.scheme).border};
+        --cb-deep: ${t.deep || '#141210'};
+        --cb-page: ${(GROUNDS[t.scheme === 'dark' ? 'dark' : 'light']).page};
+        --cb-band: ${(GROUNDS[t.scheme === 'dark' ? 'dark' : 'light']).band};
         --cb-on-brand: ${t.onBrand};
         /* Emitted only once this is moved off white, so that until it is, every
            block keeps the exact literal it was designed with. Those literals are
@@ -603,6 +667,16 @@ window.CB = (function () {
       value: 0, auto: 0, help: 'Overrides the project token for this block only.'
     },
     {
+      k: '_scheme', t: 'select', label: 'Colour scheme', value: 'inherit',
+      options: [
+        ['inherit', 'Follow the project'], ['light', 'Light'], ['dark', 'Dark'],
+        ['swapDark', 'Swap to dark on scroll'], ['swapLight', 'Swap to light on scroll']
+      ],
+      help: 'The swap is a step, not a fade. A light-to-dark fade is unreadable ' +
+            'halfway through by definition — grey text on a grey background — so ' +
+            'the two states change together on one frame as the block scrolls in.'
+    },
+    {
       k: '_textOn', t: 'toggle', label: 'Override text colour', value: false,
       help: 'Sets the body and heading colour for this block only. A block that ' +
             'paints its own dark surface keeps its defended colour, so this cannot ' +
@@ -690,6 +764,63 @@ window.CB = (function () {
      pure enhancement: the block renders visible by default and only animates
      where timelines exist *and* the visitor hasn't asked for reduced motion.
      Strip the animation-timeline declaration and nothing is hidden. */
+  /* A block's own light/dark scheme, and the scroll-driven version of it.
+
+     Both work by redeclaring the same five neutral tokens on the block root,
+     which is all a scheme is — every component already reads them, so nothing
+     needs per-component wiring.
+
+     The scroll version is a *step*, not a fade, and that is not a shortcut. A
+     light-to-dark crossfade is unreadable at its own midpoint by definition:
+     interpolate the background white-to-black and the text black-to-white and
+     they meet at grey on grey, about 1:1. Custom properties that have not been
+     registered with @property animate discretely — both states change on the
+     same frame at the midpoint of the range — so the swap never passes through
+     a state you cannot read. Measured, not assumed.
+
+     Wrapped in @supports so a browser without scroll timelines simply renders
+     the end state rather than nothing. */
+  function schemeCss(sel, cls, p, t) {
+    var mode = p._scheme;
+    if (!mode || mode === 'inherit') return '';
+
+    /* The grounds go in alongside the neutrals. Without them a block set to
+       dark on its own would flip its text and cards while its background kept
+       whatever the project's page colour is — light text on a white ground,
+       which is the whole failure this is meant to avoid. */
+    function decls(scheme) {
+      var n = neutrals(t || {}, scheme);
+      var g = GROUNDS[scheme === 'dark' ? 'dark' : 'light'];
+      return NEUTRAL_KEYS.map(function (k) {
+        return '--cb-' + k + ': ' + n[k] + ';';
+      }).concat([
+        '--cb-page: ' + g.page + ';',
+        '--cb-band: ' + g.band + ';'
+      ]).join(' ');
+    }
+
+    if (mode === 'light' || mode === 'dark') {
+      return sel + ' { ' + decls(mode) + ' }';
+    }
+
+    var to = mode === 'swapLight' ? 'light' : 'dark';
+    var from = to === 'dark' ? 'light' : 'dark';
+    var name = 'cb-scheme-' + cls;
+    return dedent(`
+      ${sel} { ${decls(from)} }
+      @keyframes ${name} {
+        from { ${decls(from)} }
+        to { ${decls(to)} }
+      }
+      @supports (animation-timeline: view()) {
+        ${sel} {
+          animation: ${name} linear both;
+          animation-timeline: view();
+          animation-range: entry 15% entry 55%;
+        }
+      }`);
+  }
+
   function revealCss(sel, cls, p) {
     var from = {
       fade: 'opacity: 0;',
@@ -754,6 +885,9 @@ window.CB = (function () {
     }
     if (typ.length) out.push(sel + ' { ' + typ.join('; ') + '; }');
 
+
+    var scheme = schemeCss(sel, s.replace(/^\./, ''), p, tokens);
+    if (scheme) out.push(scheme);
 
     var reveal = revealCss(sel, s.replace(/^\./, ''), p);
     if (reveal) out.push(reveal);
@@ -834,6 +968,20 @@ window.CB = (function () {
      saved before a field existed picks it up rather than carrying a hole. */
   function hydrate(def, props) {
     var out = Object.assign(defaults(def), props || {});
+
+    /* A field added later can carry `legacy: { key, value }`, meaning: if the
+       saved props already contain `key`, this field defaults to `value` instead
+       of its own. Without it, adding a "follow the scheme" background mode that
+       defaults to following would silently discard a background somebody had
+       already chosen — the saved colour would still be there, just ignored.
+       Only applies when the field is genuinely absent from the save. */
+    if (props) {
+      (def.props || []).forEach(function (f) {
+        if (!f.legacy || f.k in props) return;
+        if (f.legacy.key in props) out[f.k] = f.legacy.value;
+      });
+    }
+
     (def.props || []).forEach(function (f) {
       if (f.t !== 'list' || !Array.isArray(out[f.k])) return;
       var tpl = itemTemplate(f);
@@ -857,6 +1005,7 @@ window.CB = (function () {
       cls: cls, s: s, id: cls, tokens: tokens,
       esc: esc, attr: attr, rich: rich, url: url, num: num, clamp: clamp,
       rgba: rgba, ph: ph, uid: uid, wrap: wrap, dedent: dedent, indent: indent, pin: pin,
+      bg: bgValue,
       readableInk: readableInk, contrast: contrast,
       actions: actions
     };
@@ -904,6 +1053,7 @@ window.CB = (function () {
     actions: actions, ctaFields: ctaFields,
     tokenCss: tokenCss, baseCss: baseCss, sharedCss: sharedCss, SCOPE: SCOPE,
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
+    BG_MODES: BG_MODES, bgValue: bgValue,
     fontImports: fontImports,
     familyFromImport: familyFromImport
   };
