@@ -438,9 +438,23 @@ yourself is left alone by both.
 
 ### Swapping on scroll
 
-The same control offers **Swap to dark on scroll** (and the reverse). A CSS scroll
-timeline, no JavaScript, so it survives the editors that strip scripts. Where scroll
-timelines are unsupported the block simply renders its starting state.
+Set it **once, for the whole project**: the design tokens' **Colour scheme** offers
+*Light, swapping to dark on scroll* and the reverse, and every block still following the
+project comes with it — the page changes as one surface rather than as blocks taking turns.
+A block set to Light or Dark under Advanced stays where it is put, because naming a scheme
+is a decision to stay still, not an omission. A single block can also swap on its own
+against a project that does not.
+
+Either way it is a CSS scroll timeline and no JavaScript, so it survives the editors that
+strip scripts. Where scroll timelines are unsupported the block simply renders its starting
+state.
+
+The swap is emitted **per block** rather than once on the shared scope, and that is not
+duplication for its own sake: blocks do not share a ground. One may follow the scheme,
+its neighbour the tinted band, a third be permanently dark and a fourth a colour somebody
+picked. A single shared rule cannot fade to four different destinations, and the ground is
+the half that has to fade. What *is* shared is the timeline, which is the half that has to
+be identical.
 
 **The ground fades; the text steps.** Those are deliberately different, and the split is
 what makes the transition both smooth and readable.
@@ -840,7 +854,9 @@ test/
                         on. Then samples the real transition off the element and
                         sweeps for the switch point with the least-bad worst
                         moment, failing unless the shipped value is that
-                        optimum; 26 assertions
+                        optimum. Then checks the project-level swap reaches
+                        every block that follows the project, and no block that
+                        does not; 36 assertions
   swap-demo.html        Not a harness — a page you scroll, building six blocks all
                         set to swap, plus the paste-in CSS for the page background
                         behind them

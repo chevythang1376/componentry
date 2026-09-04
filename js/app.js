@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Componentry — application shell
    ========================================================================== */
 (function () {
@@ -18,27 +18,34 @@
     { t: 'section', label: 'Neutrals' },
     {
       k: 'scheme', t: 'select', label: 'Colour scheme', value: 'light',
-      options: [['light', 'Light'], ['dark', 'Dark']],
+      options: [
+        ['light', 'Light'], ['dark', 'Dark'],
+        ['swapDark', 'Light, swapping to dark on scroll'],
+        ['swapLight', 'Dark, swapping to light on scroll']
+      ],
       help: 'Dark swaps the five neutrals below for their dark counterparts. Brand, ' +
             'buttons and type are untouched — a scheme changes the surface a design ' +
-            'sits on, not the design. Any block can differ, or swap on scroll, under Advanced.'
+            'sits on, not the design. The two swapping options carry the whole page ' +
+            'over as one unit: every block following the project moves together, on ' +
+            'the page’s own scroll, over about two thirds of a screen. A block ' +
+            'set to Light or Dark under Advanced stays where it is put.'
     },
-    { k: 'ink', t: 'color', label: 'Body text', when: { scheme: ['light'] } },
+    { k: 'ink', t: 'color', label: 'Body text', when: { scheme: ['light', 'swapDark', 'swapLight'] } },
     {
       k: 'hColorOn', t: 'toggle', label: 'Separate heading colour', value: false,
       help: 'Off means headings take the body colour, which is how it has always worked.'
     },
     { k: 'hColor', t: 'color', label: 'Heading text', when: { hColorOn: [true] } },
-    { k: 'muted', t: 'color', label: 'Muted text', when: { scheme: ['light'] } },
+    { k: 'muted', t: 'color', label: 'Muted text', when: { scheme: ['light', 'swapDark', 'swapLight'] } },
     {
       k: 'inkOnDark', t: 'color', label: 'Text on dark bands',
       help: 'Used wherever a block paints its own dark surface — a colour band, a photo hero, ' +
             'a dark tile. Held apart from body text because those places are defended against ' +
             'host themes, and a dark body colour there would be invisible.'
     },
-    { k: 'surface', t: 'color', label: 'Surface / card', when: { scheme: ['light'] } },
-    { k: 'subtle', t: 'color', label: 'Subtle fill', when: { scheme: ['light'] } },
-    { k: 'border', t: 'color', label: 'Border', when: { scheme: ['light'] } },
+    { k: 'surface', t: 'color', label: 'Surface / card', when: { scheme: ['light', 'swapDark', 'swapLight'] } },
+    { k: 'subtle', t: 'color', label: 'Subtle fill', when: { scheme: ['light', 'swapDark', 'swapLight'] } },
+    { k: 'border', t: 'color', label: 'Border', when: { scheme: ['light', 'swapDark', 'swapLight'] } },
     { k: 'deep', t: 'color', label: 'Dark tile fill', help: 'Stays dark in either scheme, so a "dark tone" tile does not invert when the scheme flips.' },
     { t: 'section', label: 'Typography' },
     {

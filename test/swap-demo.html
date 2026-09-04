@@ -51,8 +51,10 @@
 
 <div id="intro">
   <h1>Light to dark, on scroll</h1>
-  <p>Scroll. Every block below is set to <b>swap to dark</b>, and they all read the
-     same page scroll position, so they change together rather than one at a time.</p>
+  <p>Scroll. None of these blocks has been told to swap — the project's
+     <b>Colour scheme</b> is set to <b>Light, swapping to dark on scroll</b>, and every
+     block following the project comes with it. They all read the same page scroll
+     position, so they change together rather than one at a time.</p>
   <p>The ground fades and the text steps once, near the middle. Fading both would pass
      through grey text on a grey ground, which is unreadable at roughly 1:1.</p>
   <p>The whole transition takes about two thirds of one screen of scrolling, measured
@@ -80,16 +82,21 @@
 window.addEventListener('load', function () {
   /* A realistic run of blocks rather than one repeated, and alternating between
      the plain ground and the tinted one so you can see they stay in step with
-     each other as well as with the page. */
+     each other as well as with the page.
+
+     Note what is *not* here: no block is told to swap. Every one is left on its
+     default of following the project, and the swap is set once, on the project
+     token below — which is the way it is meant to be used. */
   var ids = ['split-hero', 'card-grid', 'feature-grid', 'stats-counter', 'timeline', 'cta-banner'];
+  var tokens = Object.assign({}, CB.DEFAULT_TOKENS, { scheme: 'swapDark' });
   var css = [], html = [], js = [];
 
   ids.forEach(function (id, i) {
     var def = CB.get(id);
     if (!def) return;
-    var props = Object.assign(CB.defaults(def), { _scheme: 'swapDark' });
+    var props = CB.defaults(def);
     if ('bgMode' in props) props.bgMode = (i % 2) ? 'band' : 'page';
-    var out = CB.build({ type: id, cls: 'cb-demo-' + i, props: props }, CB.DEFAULT_TOKENS);
+    var out = CB.build({ type: id, cls: 'cb-demo-' + i, props: props }, tokens);
     css.push(out.css); html.push(out.html); if (out.js) js.push(out.js);
   });
 
