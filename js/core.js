@@ -162,6 +162,19 @@ window.CB = (function () {
     return out;
   }
 
+  /* The project scheme can now be a swap, and a swap is two schemes rather than
+     one. Everything that has to name a single scheme — the tokens on the shared
+     scope, the neutrals a colour picker is editing — wants the one it *starts*
+     in, so that a page at rest at the top is in a defined state and not halfway
+     through something. The swap itself is emitted per block, where the ground is
+     actually known. */
+  function baseScheme(v) {
+    if (v === 'swapDark') return 'light';
+    if (v === 'swapLight') return 'dark';
+    return v === 'dark' ? 'dark' : 'light';
+  }
+  function isSwap(v) { return v === 'swapDark' || v === 'swapLight'; }
+
   /* True once the "text on dark bands" colour is something other than the white
      every block already hard-codes as its fallback. */
   function customOnDark(t) {
@@ -425,14 +438,14 @@ window.CB = (function () {
       ${s} {
         --cb-brand: ${t.brand};
         --cb-brand-2: ${t.brand2};
-        --cb-ink: ${neutrals(t, t.scheme).ink};
-        --cb-muted: ${neutrals(t, t.scheme).muted};
-        --cb-surface: ${neutrals(t, t.scheme).surface};
-        --cb-subtle: ${neutrals(t, t.scheme).subtle};
-        --cb-border: ${neutrals(t, t.scheme).border};
+        --cb-ink: ${neutrals(t, baseScheme(t.scheme)).ink};
+        --cb-muted: ${neutrals(t, baseScheme(t.scheme)).muted};
+        --cb-surface: ${neutrals(t, baseScheme(t.scheme)).surface};
+        --cb-subtle: ${neutrals(t, baseScheme(t.scheme)).subtle};
+        --cb-border: ${neutrals(t, baseScheme(t.scheme)).border};
         --cb-deep: ${t.deep || '#141210'};
-        --cb-page: ${(GROUNDS[t.scheme === 'dark' ? 'dark' : 'light']).page};
-        --cb-band: ${(GROUNDS[t.scheme === 'dark' ? 'dark' : 'light']).band};
+        --cb-page: ${GROUNDS[baseScheme(t.scheme)].page};
+        --cb-band: ${GROUNDS[baseScheme(t.scheme)].band};
         --cb-on-brand: ${t.onBrand};
         /* Emitted only once this is moved off white, so that until it is, every
            block keeps the exact literal it was designed with. Those literals are
@@ -672,9 +685,12 @@ window.CB = (function () {
         ['inherit', 'Follow the project'], ['light', 'Light'], ['dark', 'Dark'],
         ['swapDark', 'Swap to dark on scroll'], ['swapLight', 'Swap to light on scroll']
       ],
-      help: 'The swap is a step, not a fade. A light-to-dark fade is unreadable ' +
-            'halfway through by definition — grey text on a grey background — so ' +
-            'the two states change together on one frame as the block scrolls in.'
+      help: 'Following the project includes following it into a scroll swap, so ' +
+            'setting the swap once under Colour scheme carries every block. Light ' +
+            'or Dark here pins this block instead, and it will sit still while the ' +
+            'rest of the page changes around it. In a swap the ground fades and the ' +
+            'text switches once, near the middle: fading both would pass through ' +
+            'grey text on a grey ground, which is unreadable at about 1:1.'
     },
     {
       k: '_textOn', t: 'toggle', label: 'Override text colour', value: false,
@@ -781,7 +797,14 @@ window.CB = (function () {
      Wrapped in @supports so a browser without scroll timelines simply renders
      the end state rather than nothing. */
   function schemeCss(sel, cls, p, t) {
+    /* "Follow the project" has to mean following it into a swap as well, or a
+       project-level swap reaches only the blocks somebody remembered to set —
+       and the ones left behind sit light against dark neighbours, which is the
+       seam the whole design is trying to avoid. A block that names its own
+       scheme still wins: an explicit Light or Dark is a decision to stay put,
+       not an omission. */
     var mode = p._scheme;
+    if (!mode || mode === 'inherit') mode = isSwap(t && t.scheme) ? t.scheme : '';
     if (!mode || mode === 'inherit') return '';
 
     /* The grounds go in alongside the neutrals. Without them a block set to

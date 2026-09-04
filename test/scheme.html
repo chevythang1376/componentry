@@ -142,6 +142,57 @@ window.addEventListener('load', function () {
         /animation: cb-scheme-cb-card-grid-s-ground ease-in-out both, cb-scheme-cb-card-grid-s-ink linear both/
           .test(swap.css), true);
 
+  /* --- the swap set once, for the whole project ---------------------------
+     A project-level swap that reached only the blocks somebody remembered to
+     set would be worse than none: the ones left behind sit light against dark
+     neighbours, which is exactly the seam this is meant to remove. So "follow
+     the project" has to mean following it into a swap too. */
+  (function () {
+    var proj = render('card-grid', { scheme: 'swapDark' });
+    check('a project-level swap reaches a block that follows the project',
+          /@keyframes cb-scheme-cb-card-grid-s-ground\b/.test(proj.css), true);
+    check('and it is the same mechanism, not a second one',
+          /animation-range: 10vh 70vh, 10vh 70vh/.test(proj.css), true);
+    check('a page at rest starts in the scheme it swaps from',
+          w.getComputedStyle(proj.root).backgroundColor, 'rgb(247, 244, 241)');
+
+    /* The reverse direction has to start dark, which is the case that would
+       break if the swap value were simply treated as "not dark". */
+    var back = render('card-grid', { scheme: 'swapLight' });
+    check('swapping the other way starts dark instead',
+          w.getComputedStyle(back.root).backgroundColor, 'rgb(26, 23, 20)');
+    check('and its neutrals start dark too, not merely its ground',
+          /--cb-ink: #f3efeb/.test(back.css), true);
+
+    /* An explicit choice is a decision to stay put, not an omission. */
+    var pinned = render('card-grid', { scheme: 'swapDark' }, { _scheme: 'light' });
+    check('a block pinned to light is not swept along',
+          /@keyframes/.test(pinned.css), false);
+    var pinnedDark = render('card-grid', { scheme: 'swapDark' }, { _scheme: 'dark' });
+    check('nor one pinned to dark',
+          /@keyframes cb-scheme/.test(pinnedDark.css), false);
+    check('and pinning it dark really does hold it dark',
+          w.getComputedStyle(pinnedDark.root).backgroundColor, 'rgb(26, 23, 20)');
+
+    /* A block may still swap against a project that does not. */
+    var lone = render('card-grid', { scheme: 'light' }, { _scheme: 'swapDark' });
+    check('one block can still swap on a project that stays put',
+          /@keyframes cb-scheme-cb-card-grid-s-ink\b/.test(lone.css), true);
+
+    /* Every block, not just the one this file happens to sample. A project
+       setting that reached twenty of twenty-seven would look like a bug in the
+       seven. */
+    var missed = [];
+    CB.all().forEach(function (def) {
+      var out = CB.build({ type: def.id, cls: 'cb-' + def.id + '-p',
+                           props: CB.defaults(def) },
+                         Object.assign({}, CB.DEFAULT_TOKENS, { scheme: 'swapDark' }));
+      if (!/@keyframes cb-scheme-[\w-]+-ground\b/.test(out.css)) missed.push(def.id);
+    });
+    check('and it reaches every block in the library',
+          missed.length ? missed.join(', ') : 'none', 'none');
+  })();
+
   /* The property that makes the swap safe. Custom properties that have not been
      registered with @property animate discretely — every declaration in the
      keyframe changes on the same frame at the midpoint — so the block is never
