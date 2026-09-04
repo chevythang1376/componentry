@@ -806,17 +806,63 @@ window.CB = (function () {
     var to = mode === 'swapLight' ? 'light' : 'dark';
     var from = to === 'dark' ? 'light' : 'dark';
     var name = 'cb-scheme-' + cls;
+
+    /* The ground this block paints in each scheme. Only page and band follow the
+       scheme; a colour somebody picked, or an always-dark block, keeps what it
+       has and only its text moves. */
+    function ground(scheme) {
+      if (p.bgMode === 'custom') return p.bg || GROUNDS[scheme].page;
+      if (p.bgMode === 'deep') return (t && t.deep) || '#141210';
+      return GROUNDS[scheme][p.bgMode === 'band' ? 'band' : 'page'];
+    }
+
+    /* Two things happen across one timeline, at deliberately different rates,
+       so they are two animations rather than one.
+
+       The ground *fades*, because background-color is a real animatable
+       property and interpolates without needing @property. The text *steps*,
+       because unregistered custom properties change discretely — and that is
+       what keeps the transition readable. Fading both is what is unreadable: a
+       white-to-black ground under black-to-white text meets at grey on grey,
+       around 1:1.
+
+       They are split because the ground wants easing across the whole fade and
+       the text does not. A timing function applies to each keyframe segment
+       individually, so easing one four-keyframe animation would put an S-curve
+       either side of the step instead of one across the transition. Two
+       animations on one timeline give the ground a single eased ramp — soft at
+       both ends, so you never catch it starting or stopping. */
+    var STEP = 54.5;
     return dedent(`
       ${sel} { ${decls(from)} }
-      @keyframes ${name} {
+      @keyframes ${name}-ground {
+        from { background-color: ${ground(from)}; }
+        to { background-color: ${ground(to)}; }
+      }
+      @keyframes ${name}-ink {
         from { ${decls(from)} }
+        ${STEP - 0.1}% { ${decls(from)} }
+        ${STEP}% { ${decls(to)} }
         to { ${decls(to)} }
       }
-      @supports (animation-timeline: view()) {
+      /* scroll(root), not view(): every block set to swap then shares the page's
+         scroll progress and moves in lockstep. On a per-element timeline each
+         block crosses at its own moment, so a dark block sits against a light
+         one and you see the seam between them — which is the thing that read as
+         unfinished.
+
+         The range is measured in viewport heights, not in percent of the page.
+         A percentage stretches the transition over the whole document, so the
+         same setting is a brisk change on a short page and an imperceptible
+         drift on a long one — the block is never quite either colour, which
+         reads as a wrong colour rather than as a transition. Sixty vh of travel
+         is about two thirds of a screen: long enough to feel deliberate,
+         short enough to finish while you are still looking at it. */
+      @supports (animation-timeline: scroll()) {
         ${sel} {
-          animation: ${name} linear both;
-          animation-timeline: view();
-          animation-range: entry 15% entry 55%;
+          animation: ${name}-ground ease-in-out both, ${name}-ink linear both;
+          animation-timeline: scroll(root), scroll(root);
+          animation-range: 10vh 70vh, 10vh 70vh;
         }
       }`);
   }

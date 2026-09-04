@@ -438,18 +438,54 @@ yourself is left alone by both.
 
 ### Swapping on scroll
 
-The same control offers **Swap to dark on scroll** (and the reverse). The block renders in
-its starting scheme and flips as it scrolls in — a CSS scroll timeline, no JavaScript, so
-it survives the editors that strip scripts. Where scroll timelines are unsupported the
-block simply renders its starting state.
+The same control offers **Swap to dark on scroll** (and the reverse). A CSS scroll
+timeline, no JavaScript, so it survives the editors that strip scripts. Where scroll
+timelines are unsupported the block simply renders its starting state.
 
-**It is a step, not a fade, and that is not a shortcut.** A light-to-dark crossfade is
-unreadable at its own midpoint by definition: interpolate the ground white-to-black and
-the text black-to-white and they meet at grey on grey, about 1:1. Custom properties that
-have not been registered with `@property` animate *discretely* — every declaration in the
-keyframe changes on the same frame — so the ground and the text move together and the
-block is never caught dark-on-dark. That behaviour is measured in `test/scheme.html`
-rather than trusted, because the whole design rests on it.
+**The ground fades; the text steps.** Those are deliberately different, and the split is
+what makes the transition both smooth and readable.
+
+Fading *both* is the thing that cannot work: a white-to-black ground under black-to-white
+text meets at grey on grey, around 1:1. But `background-color` is a real animatable
+property and interpolates on its own, while custom properties that have not been
+registered with `@property` change *discretely*. So the ground can slide while the text
+switches once.
+
+They are emitted as *two* animations, not one, because the ground wants easing across the
+whole fade and the text does not. A timing function applies to each keyframe segment
+separately, so easing a single four-keyframe animation would put an S-curve either side of
+the step instead of one ramp across the transition. Split apart, the ground gets a single
+`ease-in-out` ramp — soft at both ends, so you never catch it starting or stopping.
+
+The switch sits at **54.5%**, not halfway. Before it, a darkening ground under dark text is
+losing contrast; after it, light text on a still-midtone ground has little. Those two
+curves cross at 54.5%, where the worst moment of the entire transition measures **4.12:1** —
+against 3.16:1 with the switch at the midpoint. `test/scheme.html` does not take that
+number on trust: it samples the real transition off the element, sweeps every candidate
+switch point against those samples, and fails unless the shipped value *is* the computed
+optimum. Easing the ground moved this point, which is why it is recomputed rather than
+carried over.
+
+**Every swapping block reads the page's scroll progress**, via `scroll(root)` rather than a
+per-element `view()` timeline. On a per-element timeline each block crosses at its own
+moment, so a dark block sits against a light one and you see the seam between them — which
+reads as unfinished rather than as a page changing. Sharing one timeline means every block
+that swaps is always the same colour as its neighbours; `test/swap-demo.html` checks six
+blocks at 101 points and finds no moment where any two disagree.
+
+**The range is `10vh 70vh` — viewport heights, not a percentage of the document.** This is
+the difference between a transition and a drift. A percentage stretches the swap over the
+whole page, so the same setting is a brisk change on a short page and an imperceptible
+creep on a long one, and a block that is never quite either colour reads as the wrong
+colour rather than as something happening. Sixty vh of travel is about two thirds of a
+screen: long enough to feel deliberate, short enough to finish while you are still looking
+at it, and identical on a two-screen page and a twenty-screen one.
+
+One thing the export deliberately cannot do is set the page's own background — a block only
+ever paints itself, because reaching up to `body` or `:root` is what makes a pasted block
+wreck the page around it. If your blocks do not cover the full page, the CSS to swap the
+background behind them is at the top of `test/swap-demo.html`, ready to paste into a
+theme's custom CSS. It is plain CSS, so a script-stripping editor keeps it.
 
 ### Text colour
 
@@ -801,7 +837,13 @@ test/
   scheme.html           Audits every block for contrast in light *and* dark, checks
                         the scheme reaches the ground and not only the text, and
                         pins the discrete-swap behaviour the scroll option rests
-                        on; 16 assertions
+                        on. Then samples the real transition off the element and
+                        sweeps for the switch point with the least-bad worst
+                        moment, failing unless the shipped value is that
+                        optimum; 26 assertions
+  swap-demo.html        Not a harness — a page you scroll, building six blocks all
+                        set to swap, plus the paste-in CSS for the page background
+                        behind them
   colour.html           Asserts each text colour reaches what it should, that no
                         colour setting can black out text on a dark band, and
                         that a mosaic tile can override the block it sits in,

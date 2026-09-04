@@ -1,0 +1,124 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — light to dark on scroll</title>
+<style>
+  html, body { margin: 0; }
+  body { font-family: Inter, system-ui, sans-serif; }
+
+  /* The host page's own background. The export cannot set this for you — a
+     block only ever paints itself, because reaching up to body or :root is what
+     makes a pasted block wreck the page around it. So if your blocks do not
+     cover the full width and height of the page, drop this in the theme's
+     custom CSS and the page behind them swaps on the same schedule. It is
+     plain CSS, so a script-stripping editor keeps it. */
+  @supports (animation-timeline: scroll()) {
+    @keyframes cb-page-swap {
+      from { background-color: #ffffff; }
+      to { background-color: #121010; }
+    }
+    body {
+      animation: cb-page-swap ease-in-out both;
+      animation-timeline: scroll(root);
+      animation-range: 10vh 70vh;
+    }
+  }
+
+  /* Demo furniture only — not part of any export. */
+  #readout {
+    position: fixed; right: 16px; bottom: 16px; z-index: 99;
+    background: #1c1917; color: #f3efeb; border: 1px solid #3a332c;
+    border-radius: 8px; padding: 10px 13px; font: 12px/1.6 ui-monospace, Consolas, monospace;
+    min-width: 232px; pointer-events: none;
+  }
+  #readout b { color: #d3a17a; font-weight: 600; }
+  #readout .row { display: flex; justify-content: space-between; gap: 14px; }
+  #track { height: 4px; border-radius: 2px; background: #3a332c; margin-top: 7px; overflow: hidden; }
+  #fill { height: 100%; width: 0; background: #96694c; }
+  #intro {
+    padding: 96px 32px 64px; max-width: 62ch; margin: 0 auto;
+    color: #141210; font: 15px/1.65 Inter, system-ui, sans-serif;
+  }
+  #intro h1 { font-size: 26px; margin: 0 0 12px; letter-spacing: -0.02em; }
+  #intro p { margin: 0 0 12px; color: #5c554e; }
+  #unsupported { display: none; background: #fdeaea; color: #7f1d1d; padding: 12px 16px; font: 13px/1.5 system-ui; }
+  @supports not (animation-timeline: scroll()) { #unsupported { display: block; } }
+</style>
+
+<div id="unsupported">
+  This browser has no scroll-driven animations, so every block stays in its starting
+  scheme — which is the intended fallback, not a failure. Chrome or Edge 115+ to see the swap.
+</div>
+
+<div id="intro">
+  <h1>Light to dark, on scroll</h1>
+  <p>Scroll. Every block below is set to <b>swap to dark</b>, and they all read the
+     same page scroll position, so they change together rather than one at a time.</p>
+  <p>The ground fades and the text steps once, near the middle. Fading both would pass
+     through grey text on a grey ground, which is unreadable at roughly 1:1.</p>
+  <p>The whole transition takes about two thirds of one screen of scrolling, measured
+     in viewport heights — so it feels the same on a short page and a long one.</p>
+</div>
+
+<div id="blocks"></div>
+
+<div id="readout">
+  <div class="row"><span>scroll</span><b id="r-scroll">0vh</b></div>
+  <div class="row"><span>first block</span><b id="r-bg">—</b></div>
+  <div class="row"><span>its heading</span><b id="r-ink">—</b></div>
+  <div id="track"><div id="fill"></div></div>
+</div>
+
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js',
+   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+
+<script>
+window.addEventListener('load', function () {
+  /* A realistic run of blocks rather than one repeated, and alternating between
+     the plain ground and the tinted one so you can see they stay in step with
+     each other as well as with the page. */
+  var ids = ['split-hero', 'card-grid', 'feature-grid', 'stats-counter', 'timeline', 'cta-banner'];
+  var css = [], html = [], js = [];
+
+  ids.forEach(function (id, i) {
+    var def = CB.get(id);
+    if (!def) return;
+    var props = Object.assign(CB.defaults(def), { _scheme: 'swapDark' });
+    if ('bgMode' in props) props.bgMode = (i % 2) ? 'band' : 'page';
+    var out = CB.build({ type: id, cls: 'cb-demo-' + i, props: props }, CB.DEFAULT_TOKENS);
+    css.push(out.css); html.push(out.html); if (out.js) js.push(out.js);
+  });
+
+  var style = document.createElement('style');
+  style.textContent = css.join('\n');
+  document.head.appendChild(style);
+  document.getElementById('blocks').innerHTML = html.join('\n');
+  if (js.join('').trim()) {
+    var s = document.createElement('script');
+    s.textContent = js.join('\n');
+    document.body.appendChild(s);
+  }
+
+  var first = document.querySelector('#blocks > *');
+  var head = first && first.querySelector('h1, h2, h3');
+  var rs = document.getElementById('r-scroll'), rb = document.getElementById('r-bg'),
+      ri = document.getElementById('r-ink'), fill = document.getElementById('fill');
+
+  function tick() {
+    var vh = window.innerHeight;
+    var y = window.scrollY;
+    rs.textContent = (y / vh).toFixed(2) + 'vh';
+    if (first) rb.textContent = getComputedStyle(first).backgroundColor;
+    if (head) ri.textContent = getComputedStyle(head).color;
+    /* The shipped range, expressed the same way, so the bar tracks the real thing. */
+    var p = Math.max(0, Math.min(1, (y - vh * 0.10) / (vh * 0.60)));
+    fill.style.width = (p * 100).toFixed(1) + '%';
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+});
+</script>

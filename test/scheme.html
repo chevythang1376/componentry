@@ -13,9 +13,11 @@
 </style>
 <h1>Colour scheme</h1>
 <p class="sub">A dark scheme has to be readable on every block, not most of them — and the
-swap has to be a step rather than a fade, because a light-to-dark crossfade is unreadable
-at its own midpoint by definition: interpolate the ground white-to-black and the text
-black-to-white and they meet at grey on grey, around 1:1.</p>
+swap has to move the ground and the text at different rates, because a light-to-dark
+crossfade of both is unreadable at its own midpoint by definition: interpolate the ground
+white-to-black and the text black-to-white and they meet at grey on grey, around 1:1. So
+the ground fades and the text steps, once, at the point where the worst moment of the
+whole transition is least bad — a point this page recomputes rather than takes on trust.</p>
 <div id="bar" class="bar">running…</div>
 <div id="out"></div>
 <iframe id="f"></iframe>
@@ -106,13 +108,39 @@ window.addEventListener('load', function () {
   var swap = render('card-grid', {}, { _scheme: 'swapDark' });
   check('the swap ships no JavaScript', swap.js, '');
   check('it is guarded, so no scroll timelines means no animation',
-        /@supports \(animation-timeline: view\(\)\)/.test(swap.css), true);
+        /@supports \(animation-timeline: scroll\(\)\)/.test(swap.css), true);
   check('it starts in the state it is swapping from',
         w.getComputedStyle(swap.root).backgroundColor, 'rgb(247, 244, 241)');
   check('and names its keyframes per instance, so two blocks cannot collide',
-        /@keyframes cb-scheme-cb-card-grid-s\b/.test(swap.css), true);
+        /@keyframes cb-scheme-cb-card-grid-s-ground\b/.test(swap.css) &&
+        /@keyframes cb-scheme-cb-card-grid-s-ink\b/.test(swap.css), true);
   check('the swap carries the ground with it',
         /to \{[^}]*--cb-page: #121010;/.test(swap.css), true);
+
+  /* Every swapping block reads the page's scroll progress rather than its own
+     position. On a per-element timeline each one crosses at its own moment, so a
+     dark block sits against a light one and the seam between them is the thing
+     that reads as unfinished. */
+  check('all swapping blocks share the page timeline',
+        /animation-timeline: scroll\(root\), scroll\(root\)/.test(swap.css), true);
+  check('and the same range, so they cannot drift apart',
+        (swap.css.match(/animation-range: ([^;]+)/) || [])[1], '10vh 70vh, 10vh 70vh');
+
+  /* Measured in viewport heights rather than percent of the document. A
+     percentage stretches the transition over the whole page, so the same
+     setting is brisk on a short page and an imperceptible drift on a long one —
+     and a block that is never quite either colour reads as the wrong colour
+     rather than as a transition. */
+  check('the pace does not depend on how long the page is',
+        /animation-range: [^;]*%/.test(swap.css), false);
+
+  /* The ground is eased and the text is not. One animation could not do both:
+     a timing function applies to each keyframe segment separately, so easing a
+     single four-keyframe animation puts an S either side of the step instead of
+     one ramp across the whole fade. */
+  check('the ground eases while the text steps',
+        /animation: cb-scheme-cb-card-grid-s-ground ease-in-out both, cb-scheme-cb-card-grid-s-ink linear both/
+          .test(swap.css), true);
 
   /* The property that makes the swap safe. Custom properties that have not been
      registered with @property animate discretely — every declaration in the
@@ -135,6 +163,83 @@ window.addEventListener('load', function () {
       seen[w.getComputedStyle(el).backgroundColor] = true;
     });
     check('custom properties swap discretely, never mid-fade', Object.keys(seen).length, 2);
+  })();
+
+  /* The shape of the transition, sampled across the whole thing. The ground has
+     to move gradually or it reads as a pop; the text has to move once or it
+     passes through grey-on-grey; and nothing in between may drop below 3:1.
+     Driven by hand rather than by scrolling, because a hidden or throttled tab
+     never samples a scroll timeline and would report a transition that works as
+     one that does nothing. */
+  (function () {
+    var r = render('card-grid', {}, { _scheme: 'swapDark' });
+    var d = r.doc;
+    var title = r.root.querySelector('.cb-cg__title');
+    var anims = d.getAnimations().filter(function (x) { return /cb-scheme/.test(x.animationName || ''); });
+    if (anims.length !== 2) {
+      check('the ground and the ink animate separately', anims.length, 2);
+      return;
+    }
+    anims.forEach(function (a) {
+      a.timeline = d.timeline;
+      a.effect.updateTiming({ duration: 1000, fill: 'both' });
+      a.pause();
+    });
+
+    function lin(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+    function lum(c) {
+      var p = (c.match(/[\d.]+/g) || []).slice(0, 3).map(function (n) { return lin(+n); });
+      return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+    }
+    function ratio(x, y) { var m = lum(x), n = lum(y); return (Math.max(m, n) + 0.05) / (Math.min(m, n) + 0.05); }
+
+    /* Sample the real transition rather than a model of it: every value here is
+       read back off the element with the shipped CSS driving it. Sampled at
+       integer percents, and compared as integers below — stepping a float by
+       0.005 drifts enough to put the crossover sample on the wrong side of the
+       step, which flatters the result by about 0.17:1. */
+    var bgs = [], inks = {}, worst = 99;
+    for (var i = 0; i <= 100; i++) {
+      anims.forEach(function (a) { a.currentTime = i * 10; });
+      var bg = w.getComputedStyle(r.root).backgroundColor;
+      var ink = w.getComputedStyle(title).color;
+      bgs.push(bg);
+      inks[ink] = true;
+      worst = Math.min(worst, ratio(bg, ink));
+    }
+    var grounds = bgs.reduce(function (a, c) { a[c] = 1; return a; }, {});
+
+    check('the ground fades rather than popping', Object.keys(grounds).length > 6, true);
+    check('the text changes exactly once', Object.keys(inks).length, 2);
+    check('and nothing mid-transition drops below 3:1', worst >= 3, true);
+
+    /* Where the step belongs is not a matter of taste, so it is not asserted as
+       a taste. Before the step a darkening ground under dark text is losing
+       contrast; after it, light text on a still-midtone ground has little. Sweep
+       every candidate against the ground values actually measured above and the
+       two curves cross at one point — and easing the ground moves that point,
+       which is why it is recomputed here rather than carried over. */
+    anims.forEach(function (a) { a.currentTime = 0; });
+    var inkFrom = w.getComputedStyle(title).color;
+    anims.forEach(function (a) { a.currentTime = 1000; });
+    var inkTo = w.getComputedStyle(title).color;
+
+    /* Candidate step of k/2 percent. Sample i is still on the old ink while
+       2i < k, which is how the shipped keyframes behave: at the step's own
+       percentage the ink is already the new one. */
+    function worstFor(k) {
+      var low = 99;
+      for (var j = 0; j <= 100; j++) low = Math.min(low, ratio(bgs[j], 2 * j < k ? inkFrom : inkTo));
+      return low;
+    }
+    var best = 0, bestK = 0;
+    for (var k = 0; k <= 200; k++) { var v = worstFor(k); if (v > best) { best = v; bestK = k; } }
+
+    var shipped = +(swap.css.match(/(\d+(?:\.\d+)?)% \{/g) || []).slice(-1)[0].replace(/% \{/, '');
+    check('the step sits where the worst moment is least bad', shipped, bestK / 2);
+    check('which is measurably better than halving it',
+          +worstFor(100).toFixed(2) < +best.toFixed(2) - 0.5, true);
+    check('and that worst moment clears 3:1 with room to spare', worst > 3.9, true);
   })();
 
   document.getElementById('out').textContent = log.join('\n');
