@@ -149,6 +149,118 @@ CB.Preflight = (function () {
     });
   }
 
+  /* ------------------------------------------------------- image probes
+
+     Two things worth knowing about an image that lives at a URL, and neither
+     is knowable from the markup alone: whether the link still resolves, and
+     how big the file behind it actually is.
+
+     A dead link is the nastier of the two because it is invisible here — the
+     builder shows the copy the browser cached this morning, and the live page
+     shows a blank box. An oversized one is invisible in a different way: a
+     4000px master dropped into a 400px card looks perfect and costs the
+     visitor ten times the bytes.
+
+     Loading an image is asynchronous and preflight is not, so probes go into a
+     cache that run() reads synchronously. Anything still in flight is simply
+     not reported this pass; when it settles, onSettle asks for another. Note
+     that naturalWidth is readable cross-origin — only reading *pixels* back
+     out of a canvas is blocked — so no CORS headers are needed for this. */
+  var probes = {};
+  var settleCbs = [];
+  var settleTimer = null;
+
+  function settle() {
+    if (settleTimer) return;
+    settleTimer = setTimeout(function () {
+      settleTimer = null;
+      settleCbs.forEach(function (fn) { try { fn(); } catch (e) {} });
+    }, 60);
+  }
+
+  function probeImage(src) {
+    var url = String(src || '');
+    // Anything carried inline is already in front of us; there is nothing to
+    // fetch and nothing that can 404.
+    if (!url || /^data:/i.test(url)) return null;
+    if (probes[url]) return probes[url];
+
+    var rec = probes[url] = { state: 'pending', w: 0, h: 0 };
+    var img = new Image();
+    img.onload = function () {
+      rec.state = 'ok';
+      rec.w = img.naturalWidth;
+      rec.h = img.naturalHeight;
+      settle();
+    };
+    img.onerror = function () { rec.state = 'error'; settle(); };
+    img.src = url;
+    return rec;
+  }
+
+  function onSettle(fn) { if (typeof fn === 'function') settleCbs.push(fn); }
+
+  /* A vector scales to any size by definition, so "bigger than it displays"
+     is meaningless for one. The link check still applies. */
+  function isVector(url) { return /\.svgz?(\?|#|$)/i.test(String(url || '')); }
+
+  /* Three times, not two. A correct image on a 2× display genuinely is twice
+     its layout size, and warning about those would train people to ignore
+     this. At 3× something is actually wrong. */
+  var OVERSIZE = 3;
+
+  function imageFindings(frame, block, out) {
+    var doc = frame.contentDocument;
+    var broken = [], heavy = [], worstFactor = 0, worstDims = '';
+
+    Array.prototype.forEach.call(doc.querySelectorAll('img'), function (img) {
+      var src = img.getAttribute('src');
+      var rec = probeImage(src);
+      if (!rec || rec.state === 'pending') return;
+
+      if (rec.state === 'error') { broken.push(src); return; }
+      if (isVector(src)) return;
+
+      // The box the layout gives it, which CSS decides — so this is known
+      // whether or not the file itself has arrived.
+      var shown = img.getBoundingClientRect().width;
+      if (shown < 2 || !rec.w) return;
+
+      var factor = rec.w / shown;
+      if (factor >= OVERSIZE) {
+        heavy.push(src);
+        if (factor > worstFactor) {
+          worstFactor = factor;
+          worstDims = rec.w + '×' + rec.h + ' shown at about ' + Math.round(shown) + 'px wide';
+        }
+      }
+    });
+
+    if (broken.length) out.push({
+      level: 'error',
+      block: block,
+      title: broken.length === 1 ? 'An image link is not loading' : broken.length + ' image links are not loading',
+      detail: 'The browser could not fetch ' + shortUrl(broken[0]) +
+              (broken.length > 1 ? ' and ' + (broken.length - 1) + ' more' : '') +
+              '. This looks fine here if the old file is still cached, and blank on the live page.',
+      fix: 'Check the link is public and has not expired or been renamed.'
+    });
+
+    if (heavy.length) out.push({
+      level: 'warn',
+      block: block,
+      title: heavy.length === 1 ? 'An image is far larger than it displays' : heavy.length + ' images are far larger than they display',
+      detail: 'The worst is ' + worstDims + ' — about ' + Math.round(worstFactor) +
+              '× the width it needs, so visitors download pixels they never see.',
+      fix: 'Ask your image library for a smaller rendition, or add its resize parameters to the URL.'
+    });
+  }
+
+  function shortUrl(u) {
+    var s = String(u || '');
+    return s.length > 64 ? s.slice(0, 40) + '…' + s.slice(-18) : s;
+  }
+
   /* ---------------------------------------------------------------- run */
 
   function run(instances, tokens, opts) {
@@ -248,6 +360,7 @@ CB.Preflight = (function () {
       var frame = mount(built.html, built.css, opts.width || 1280);
       var root = frame.contentDocument.body.firstElementChild;
       if (root) textContrast(frame, root, name, out);
+      imageFindings(frame, name, out);
       frame.remove();
     });
 
@@ -277,5 +390,8 @@ CB.Preflight = (function () {
      carry its own copy which guessed white when it ran out of ancestors, and
      every piece of text over an image came back as a failure — 79 of them,
      none actionable. One implementation, so the two cannot drift again. */
-  return { run: run, ratio: ratio, backdrop: backdrop, parse: parse, visible: visible };
+  return {
+    run: run, ratio: ratio, backdrop: backdrop, parse: parse, visible: visible,
+    probeImage: probeImage, probes: probes, onSettle: onSettle
+  };
 })();
