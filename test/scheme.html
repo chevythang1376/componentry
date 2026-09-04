@@ -193,6 +193,45 @@ window.addEventListener('load', function () {
           missed.length ? missed.join(', ') : 'none', 'none');
   })();
 
+  /* --- the page's own ground ----------------------------------------------
+     Emitted separately and installed by hand, because a block that reached up
+     to body would be the exact failure the scoping rules exist to prevent. */
+  (function () {
+    var T = function (o) { return Object.assign({}, CB.DEFAULT_TOKENS, o); };
+
+    check('a dark project can paint the page behind its blocks',
+          CB.pageCss(T({ scheme: 'dark' })), 'body { background-color: #121010; }');
+    check('and a light one says so rather than emitting nothing',
+          CB.pageCss(T({ scheme: 'light' })), 'body { background-color: #ffffff; }');
+
+    var swap = CB.pageCss(T({ scheme: 'swapDark' }));
+    check('a swapping project moves the page too', /@keyframes cb-page-swap/.test(swap), true);
+    check('over the same range as the blocks, or the page would lag behind them',
+          (swap.match(/animation-range: ([^;]+)/) || [])[1], '10vh 70vh');
+    check('and off the same timeline', /animation-timeline: scroll\(root\)/.test(swap), true);
+    check('it is guarded like the blocks are',
+          /@supports \(animation-timeline: scroll\(\)\)/.test(swap), true);
+    check('it starts where the blocks start', /^body \{ background-color: #ffffff; \}/.test(swap), true);
+    check('and ends where they end', /to \{ background-color: #121010; \}/.test(swap), true);
+    check('swapping the other way runs dark to light',
+          /from \{ background-color: #121010; \}[\s\S]*to \{ background-color: #ffffff; \}/
+            .test(CB.pageCss(T({ scheme: 'swapLight' }))), true);
+
+    /* The selector is typed by hand and lands inside a rule, so a stray brace
+       must not be able to close it and start writing declarations of its own. */
+    check('a page can be scoped to one page rather than a whole site',
+          /^body\.page-id-42 \{/.test(CB.pageCss(T({ scheme: 'dark' }), { selector: 'body.page-id-42' })), true);
+    check('a wrapper element works too, since themes often paint one',
+          /^#page \{/.test(CB.pageCss(T({ scheme: 'dark' }), { selector: '#page' })), true);
+    check('a selector that would break out of the rule is refused',
+          CB.safeSelector('body { } html'), '');
+    check('and so is one smuggling in a comment', CB.safeSelector('body/*x*/'), '');
+    check('a refused selector falls back to body rather than emitting nonsense',
+          CB.pageCss(T({ scheme: 'dark' }), { selector: 'body {}' }),
+          'body { background-color: #121010; }');
+    check('an ordinary selector survives untouched', CB.safeSelector('body.page-id-42'), 'body.page-id-42');
+  })();
+
   /* The property that makes the swap safe. Custom properties that have not been
      registered with @property animate discretely — every declaration in the
      keyframe changes on the same frame at the midpoint — so the block is never

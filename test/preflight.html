@@ -89,6 +89,67 @@ window.addEventListener('load', function () {
   check('a decorative backdrop is not flagged',
         altFindings([inst('parallax-banner', { image: 'https://example.com/bg.jpg' })]).length, 0);
 
+  /* --- images that live at a URL ------------------------------------------
+     Two failures that cannot be seen from the markup: a link that has stopped
+     resolving, and a master far bigger than the box it is poured into. Both
+     depend on actually loading the file, so the findings are driven off the
+     probe cache — seeded here, rather than reaching the network from a test,
+     which would make the suite depend on somebody else's uptime. */
+  function imageFindings(list) {
+    return (CB.Preflight.run(list, Object.assign({}, CB.DEFAULT_TOKENS), {}) || [])
+      .filter(function (f) { return /image link|larger than/.test(f.title); });
+  }
+  function seed(url, rec) { CB.Preflight.probes[url] = rec; }
+
+  var GOOD = 'https://dam.example.com/right-size.jpg';
+  var DEAD = 'https://dam.example.com/expired.jpg';
+  var HUGE = 'https://dam.example.com/master.jpg';
+
+  // A card image lays out around 350px wide at the 1280px test width.
+  seed(GOOD, { state: 'ok', w: 700, h: 525 });
+  seed(DEAD, { state: 'error', w: 0, h: 0 });
+  seed(HUGE, { state: 'ok', w: 4000, h: 3000 });
+
+  function withCardImage(src) {
+    var cards = CB.defaults(CB.get('card-grid')).items.slice(0, 1);
+    cards[0].image = src;
+    cards[0].alt = 'Described, so only the image finding shows';
+    return imageFindings([inst('card-grid', { items: cards })]);
+  }
+
+  var dead = withCardImage(DEAD);
+  check('a link that no longer resolves is an error', dead.length ? dead[0].level : '', 'error');
+  check('and says so in the title', dead.length ? dead[0].title : '', 'An image link is not loading');
+  check('and warns that a cached copy hides it here',
+        dead.length ? /cached/.test(dead[0].detail) : false, true);
+
+  var huge = withCardImage(HUGE);
+  check('a master far bigger than its box is a warning', huge.length ? huge[0].level : '', 'warn');
+  check('and names the real size', huge.length ? /4000×3000/.test(huge[0].detail) : false, true);
+  check('and sends you to the image library, not to an uploader',
+        huge.length ? /rendition|resize/.test(huge[0].fix) : false, true);
+
+  /* The threshold has to leave a correct 2x image alone, or the warning gets
+     trained out of people on the images that were right all along. */
+  check('an image sized for a 2x display is left alone', withCardImage(GOOD).length, 0);
+
+  // Nothing to fetch and nothing that can 404.
+  check('an inline image is never probed', CB.Preflight.probeImage('data:image/png;base64,AAAA'), null);
+  check('and neither is an empty field', CB.Preflight.probeImage(''), null);
+
+  /* A vector has no natural size worth comparing — it scales to whatever box
+     it is given — so only the link check applies to one. */
+  var VEC = 'https://dam.example.com/logo.svg';
+  seed(VEC, { state: 'ok', w: 64, h: 64 });
+  check('a vector is not judged on its pixel size', withCardImage(VEC).length, 0);
+  seed(VEC, { state: 'error', w: 0, h: 0 });
+  check('but a broken vector link still counts', withCardImage(VEC).length, 1);
+
+  // Still in flight is not the same as fine, and must not report either way.
+  seed('https://dam.example.com/slow.jpg', { state: 'pending', w: 0, h: 0 });
+  check('an unfinished probe reports nothing yet',
+        withCardImage('https://dam.example.com/slow.jpg').length, 0);
+
 
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');

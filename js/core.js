@@ -890,6 +890,65 @@ window.CB = (function () {
       }`);
   }
 
+  /* The one thing an export deliberately will not do for you.
+
+     A block paints itself and stops there, because reaching up to body or
+     :root is precisely what makes a pasted component wreck the page around it.
+     The cost of that rule is that the page's own ground never moves: set the
+     project dark and you still get white down both sides of a centred content
+     column, white below the last block, and white in the overscroll at either
+     end. On a scroll swap it is worse, because the page is then the one thing
+     standing still while everything on it changes.
+
+     So this is emitted separately and installed deliberately — pasted into a
+     theme's own CSS by someone who means it — rather than smuggled into a
+     block where it would be a bug. Same grounds, same range, so the page and
+     the blocks move together.
+
+     What it cannot do is restyle the theme's header and footer. Their text
+     keeps whatever colour the theme gave it, which is why the selector is
+     yours to set: scoping this to one page's body class is usually right, and
+     darkening a whole site from here usually is not. */
+  function pageCss(t, opts) {
+    opts = opts || {};
+    var sel = safeSelector(opts.selector) || 'body';
+    var scheme = (t && t.scheme) || 'light';
+    var start = GROUNDS[baseScheme(scheme)].page;
+
+    if (!isSwap(scheme)) {
+      return sel + ' { background-color: ' + start + '; }';
+    }
+
+    var end = GROUNDS[scheme === 'swapDark' ? 'dark' : 'light'].page;
+    return dedent(`
+      ${sel} { background-color: ${start}; }
+      @keyframes cb-page-swap {
+        from { background-color: ${start}; }
+        to { background-color: ${end}; }
+      }
+      @supports (animation-timeline: scroll()) {
+        ${sel} {
+          animation: cb-page-swap ease-in-out both;
+          animation-timeline: scroll(root);
+          animation-range: 10vh 70vh;
+        }
+      }`);
+  }
+
+  /* A selector typed by hand lands inside a rule this file writes, so it is
+     checked rather than trusted: anything that could close the block and start
+     emitting declarations of its own is refused outright, and the caller falls
+     back to body. Not a security boundary — it is the author's own project —
+     but a typo that silently produced broken CSS would be blamed on the
+     export. */
+  function safeSelector(s) {
+    s = String(s == null ? '' : s).trim();
+    if (!s) return '';
+    if (!/^[A-Za-z0-9_\-.#>, [\]="':()]+$/.test(s)) return '';
+    if (/[{};@\\]|\/\*/.test(s)) return '';
+    return s;
+  }
+
   function revealCss(sel, cls, p) {
     var from = {
       fade: 'opacity: 0;',
@@ -1123,6 +1182,7 @@ window.CB = (function () {
     tokenCss: tokenCss, baseCss: baseCss, sharedCss: sharedCss, SCOPE: SCOPE,
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
     BG_MODES: BG_MODES, bgValue: bgValue,
+    pageCss: pageCss, safeSelector: safeSelector,
     fontImports: fontImports,
     familyFromImport: familyFromImport
   };

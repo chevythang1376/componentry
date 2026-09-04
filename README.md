@@ -300,11 +300,27 @@ and answers one question: if this were pasted right now, what would go wrong?
 | **Alt text** | Images you have replaced but not described |
 | **Empty blocks** | A list component with no items — exports as a dead band |
 | **Heavy images** | Uploads over ~180 kB, which cost twice: export *and* browser storage |
+| **Dead image links** | A URL that no longer resolves — invisible here, blank on the live page |
+| **Oversized images** | A master more than 3× the width of the box it is poured into |
 | **Embed cap** | Total over the target platform's limit, with the way out |
 | **Needs JavaScript** | Which blocks stop responding in a rich-text field |
 
 Findings name the block they came from and say what to do. A clean project collapses to a
 single line rather than making you read a report.
+
+The last two are for the common case of pointing image fields at a media library rather
+than uploading. Neither is knowable from the markup, so both are answered by actually
+loading the file. A dead link is the nastier one, because it is invisible in the builder —
+the browser shows the copy it cached this morning while the live page shows a blank box.
+An oversized one is invisible differently: a 4000px master in a 400px card looks perfect
+and costs the visitor ten times the bytes. The threshold is 3×, not 2×, because a correct
+image on a 2× display genuinely is twice its layout size and warning about those is how a
+check gets trained out of people.
+
+Loading an image is asynchronous and preflight is not, so probes fill a cache the run reads
+synchronously; anything still in flight is not reported that pass, and the panel refreshes
+when it settles. `naturalWidth` is readable cross-origin — only reading pixels back out of
+a canvas is blocked — so no CORS headers are needed on your media library.
 
 The alt check ignores placeholders. Every image field ships a generated placeholder, so
 checking for a blank alt regardless meant six warnings about twenty-two images that did
@@ -495,11 +511,31 @@ colour rather than as something happening. Sixty vh of travel is about two third
 screen: long enough to feel deliberate, short enough to finish while you are still looking
 at it, and identical on a two-screen page and a twenty-screen one.
 
-One thing the export deliberately cannot do is set the page's own background — a block only
-ever paints itself, because reaching up to `body` or `:root` is what makes a pasted block
-wreck the page around it. If your blocks do not cover the full page, the CSS to swap the
-background behind them is at the top of `test/swap-demo.html`, ready to paste into a
-theme's custom CSS. It is plain CSS, so a script-stripping editor keeps it.
+### The page behind the blocks
+
+A block paints itself and stops there, because reaching up to `body` or `:root` is exactly
+what makes a pasted component wreck the page around it. The cost of that rule is that the
+page's own ground never moves: set the project dark and you still get white down both sides
+of a centred content column, white below the last block, and white in the overscroll at
+either end. On a scroll swap it is worse, because the page is then the only thing standing
+still.
+
+So the export offers it **separately**. Choose any scheme but plain light and the export
+dialog grows a **Page background** pane — a few lines of CSS, on the same grounds and the
+same `10vh 70vh` range as the blocks, that you paste into the theme's own stylesheet. It is
+never part of the block, and nothing emits it into an embed; you install it deliberately or
+not at all. Plain CSS, so a script-stripping editor keeps it.
+
+Two things about it are worth knowing before you paste:
+
+**Scope it to one page.** The selector is yours to set and defaults to `body`, but most
+systems put a per-page class on the body — `body.page-id-42` — and that is usually the right
+target. If your theme paints its background on a wrapper instead, name that element.
+
+**It cannot recolour your header and footer.** Those belong to the theme, and their text
+keeps whatever colour the theme gave it. Darkening a whole site from here can leave a
+header unreadable, which is the reason the pane argues for a single page rather than
+`body` alone.
 
 ### Text colour
 
@@ -838,7 +874,8 @@ test/
                         is not offered at all; 31 assertions
   preflight.html        Asserts the findings are actionable: nothing fires on an
                         untouched project, everything fires once a real image
-                        goes in undescribed; 14 assertions
+                        goes in undescribed, a dead image link is an error and a
+                        correct 2x image is left alone; 26 assertions
   freshness.html        Asserts the build check corrects a genuinely stale page and,
                         just as importantly, leaves every other case alone; 14 assertions
   defaults.html         Pins what a brand new project ships as — Inter actually
@@ -855,8 +892,10 @@ test/
                         sweeps for the switch point with the least-bad worst
                         moment, failing unless the shipped value is that
                         optimum. Then checks the project-level swap reaches
-                        every block that follows the project, and no block that
-                        does not; 36 assertions
+                        every block that follows the project and no block that
+                        does not, and that the page-background CSS matches the
+                        blocks' range and refuses a selector that would break
+                        out of its own rule; 51 assertions
   swap-demo.html        Not a harness — a page you scroll, building six blocks all
                         set to swap, plus the paste-in CSS for the page background
                         behind them

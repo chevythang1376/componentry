@@ -699,7 +699,7 @@
 
   /* ------------------------------------------------------------ export */
 
-  var exportState = { format: 'embed', platform: 'generic', scope: 'all', minify: false, shared: true, editable: true };
+  var exportState = { format: 'embed', platform: 'generic', scope: 'all', minify: false, shared: true, editable: true, pageSelector: 'body' };
 
   function openExport() {
     if (!state.instances.length) { toast('Add a component first', true); return; }
@@ -718,7 +718,109 @@
   /* Checks the project as configured, not the component defaults — see
      js/preflight.js. Collapsed to a single line when there is nothing wrong,
      so a clean project does not make you read a report. */
+  /* Goes in the theme, once, by hand — so it is deliberately not part of the
+     code you paste into an embed field. Everything else in this dialog is
+     output; this is the one thing that asks a question back, because only the
+     person looking at the site knows which element their theme paints the
+     background on. */
+  function pageSetupPane(host) {
+    var swap = /^swap/.test(state.tokens.scheme || '');
+    var wrap = document.createElement('section');
+    wrap.className = 'pane';
+
+    var head = document.createElement('header');
+    head.className = 'pane__head';
+    head.innerHTML = '<span class="pane__title">Page background' +
+      '<span class="pane__size">one-time</span></span>';
+    var copy = document.createElement('button');
+    copy.className = 'btn btn--sm';
+    copy.type = 'button';
+    copy.textContent = 'Copy';
+    head.appendChild(copy);
+    wrap.appendChild(head);
+
+    var hint = document.createElement('p');
+    hint.className = 'pane__hint';
+    hint.innerHTML = 'Blocks paint themselves and stop there, so the page behind them keeps the ' +
+      'colour your theme gives it &mdash; visible down the sides of a centred column, below the ' +
+      'last block, and in the overscroll.' +
+      (swap ? ' On a scroll swap the page would be the only thing not moving.' : '') +
+      ' Paste this into your theme&rsquo;s custom CSS. It does not go in the embed.';
+    wrap.appendChild(hint);
+
+    var row = document.createElement('div');
+    row.className = 'ctrlgroup';
+    var lab = document.createElement('label');
+    lab.className = 'ctrlgroup__label';
+    lab.setAttribute('for', 'pageSelector');
+    lab.textContent = 'Applies to';
+    var input = document.createElement('input');
+    input.id = 'pageSelector';
+    input.className = 'ctl';
+    input.type = 'text';
+    input.value = exportState.pageSelector;
+    input.spellcheck = false;
+    input.setAttribute('aria-describedby', 'pageSelectorNote');
+    row.appendChild(lab);
+    row.appendChild(input);
+    wrap.appendChild(row);
+
+    var note = document.createElement('p');
+    note.className = 'pane__hint';
+    note.id = 'pageSelectorNote';
+    /* The honest limit, stated where the decision is made rather than left to
+       be discovered on the live site. This can move the ground; it cannot
+       recolour a header and footer the theme styles. */
+    note.innerHTML = 'Scope it to the single page where these blocks live &mdash; most systems put a ' +
+      'per-page class on the body, so <code>body.page-id-42</code> rather than <code>body</code>. ' +
+      'Darkening the whole site from here would leave your header and footer text ' +
+      'the colour the theme made it, which on a dark ground may be unreadable. ' +
+      'If your theme paints its background on a wrapper instead, name that element.';
+    wrap.appendChild(note);
+
+    var warn = document.createElement('p');
+    warn.className = 'pane__hint pane__hint--warn';
+    warn.hidden = true;
+    wrap.appendChild(warn);
+
+    var pre = document.createElement('pre');
+    pre.className = 'code';
+    var codeEl = document.createElement('code');
+    pre.appendChild(codeEl);
+    wrap.appendChild(pre);
+
+    function paint() {
+      var css = CB.pageCss(state.tokens, { selector: exportState.pageSelector });
+      codeEl.textContent = css;
+      /* A rejected selector is not silently swallowed — the code below would
+         say body while the field said something else, and the mismatch would
+         be blamed on the export rather than on the typo. */
+      var typed = exportState.pageSelector.trim();
+      var ok = !typed || CB.safeSelector(typed) !== '';
+      input.setAttribute('aria-invalid', ok ? 'false' : 'true');
+      warn.hidden = ok;
+      warn.textContent = ok ? '' :
+        'That selector has characters CSS will not accept here, so the code below falls back to body.';
+      copy.onclick = function () { copyText(css, copy); };
+    }
+
+    input.addEventListener('input', function () {
+      exportState.pageSelector = input.value;
+      paint();
+    });
+
+    paint();
+    host.appendChild(wrap);
+  }
+
+  /* Image links are checked by actually loading them, which cannot finish
+     inside a synchronous pass. The first run reports everything it already
+     knows and the probes report back a moment later, so hold on to what was
+     last examined and look again once they have. */
+  var lastPreflightInsts = null;
+
   function renderPreflight(insts) {
+    lastPreflightInsts = insts;
     var host = $('#preflight');
     var found;
     try {
@@ -859,6 +961,12 @@
         'A complete page — use this for iframe-based embeds, or to hand off a standalone file.');
       downloadName = 'component-page.html';
     }
+
+    /* The page's own ground, which no block will ever set for itself. Only
+       shown when the scheme actually needs it: on a light project the page is
+       already white and there is nothing to fix, and an extra pane on every
+       export would just be one more thing to read past. */
+    if (state.tokens.scheme && state.tokens.scheme !== 'light') pageSetupPane(host);
 
     $('#downloadBtn').onclick = function () {
       var blob = new Blob([downloadBody], { type: downloadType });
@@ -1031,6 +1139,13 @@
 
     $('#undo').addEventListener('click', undo);
     $('#redo').addEventListener('click', redo);
+
+    /* Only meaningful while the export dialog is open, which is the only place
+       preflight is shown — and guarded, because a probe settling after the
+       dialog closed would otherwise redraw a panel nobody is looking at. */
+    CB.Preflight.onSettle(function () {
+      if (lastPreflightInsts && $('#exportModal').open) renderPreflight(lastPreflightInsts);
+    });
     $('#saveBtn').addEventListener('click', function () { save(); });
     $('#exportBtn').addEventListener('click', openExport);
     $('#closeExport').addEventListener('click', function () { $('#exportModal').close(); });
