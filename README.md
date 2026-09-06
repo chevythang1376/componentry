@@ -58,6 +58,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Timeline | Alternating or single-column, staggered reveal |
 | | Pricing Table | Highlighted tier, monthly/annual switch, unavailable-feature syntax |
 | | Webinar Library | Recorded and upcoming sessions, newest first. Sorted when the code is generated, not in the browser, so the order survives an editor that strips scripts |
+| | Table | Paste cells straight from a spreadsheet. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
 | **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
 | | Image / Video Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay |
@@ -74,7 +75,6 @@ so the deploy that introduces it is the last one that can go stale.
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
 | | Spec Strip | Row of headline specs with hairline dividers |
-| | Compare Table | Products side by side, attribute by attribute. A real `<table>`, sticky attribute column, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
 
 ---
 
@@ -292,23 +292,46 @@ files mode puts the comment on the HTML pane, since that's the part you'd paste 
 
 ### Filling a long list
 
-Specs live in a spreadsheet. They always have. A comparison of four products across
-twenty attributes is eighty boxes through the inspector, which is the kind of job people
-start and abandon — so the component would have shipped and gone unused.
+Specs live in a spreadsheet. They always have. A table of four products across twenty
+attributes is eighty boxes through an inspector, which is the kind of job people start and
+abandon — so the component would have shipped and gone unused.
 
-Every list field therefore offers **Paste from a spreadsheet**. Copy the cells in Excel or
-Sheets and the clipboard carries tab-separated text; a CSV export gives commas and quotes.
-Both are read, and columns are matched to fields by the name somebody would have typed at
-the top of their sheet rather than by an internal key they have never seen. Toggles accept
-*yes* and *no*; number fields take numbers.
+**A table is edited as a table.** Collapsible per-row panels work for a list of cards,
+where each entry is read on its own; they are hopeless for a grid, where the whole point is
+reading down a column and across a row. So Table gets a real grid editor, and a paste
+anywhere in it lands as a rectangle — filling down and across from the cell you pasted
+into, and *growing* the table when the rectangle runs past its edge rather than truncating
+what somebody watched themselves copy. Paste into the header row and it names the columns
+in the same gesture.
+
+Everywhere else the same data arrives through a panel instead. Every list field offers
+**Paste from a spreadsheet**: Excel and Sheets put tab-separated text on the clipboard, a
+CSV export gives commas and quotes, and both are read. Columns are matched to fields by the
+name somebody would have typed at the top of their sheet rather than by an internal key
+they have never seen. Toggles accept *yes* and *no*; number fields take numbers.
 
 A column that matches nothing is **named, not guessed at** — the panel says which ones it
 is ignoring. And the count reports what was actually read, not how many fields the schema
 has: an early version answered "6 of 6 columns matched" to a single pasted sentence, which
 is exactly the number somebody checks before pressing Replace.
 
-It applies to every repeating list, not just the comparison — Webinar Library, Pricing,
-Spec Strip, Timeline, Gallery and Logo Marquee have the same problem, just less acutely.
+So it reaches every repeating list, not only the table — Webinar Library, Pricing, Spec
+Strip, Timeline, Gallery and Logo Marquee have the same problem, just less acutely.
+
+### A block that was replaced rather than removed
+
+Compare Table became a use of Table rather than a component of its own: a product
+comparison, a spec sheet and a grid of figures differ in what is in the cells, not in what
+a table is. Its four-column cap went with it, since that only existed because its cells
+were fixed `v1..v4` fields.
+
+A saved project names its blocks by id, though, so retiring one silently empties somebody's
+canvas — and *"it opened blank"* is the least debuggable bug there is. `CB.migrate()` runs
+wherever a project arrives from outside the session: restored from storage, opened from a
+file, or pasted back in as code. It runs **before** the unknown-component check, or a
+replaced block would be counted as missing and dropped on the way in. Products become
+columns after the label column, `v1..v4` become cells, and flags, highlights and groups
+come across with them.
 
 ### Preflight
 
@@ -897,10 +920,12 @@ test/
                         untouched project, everything fires once a real image
                         goes in undescribed, a dead image link is an error and a
                         correct 2x image is left alone; 26 assertions
-  paste-table.html      Asserts a spreadsheet lands as list items: tabs and quoted
-                        CSV, columns matched by the name somebody would have
-                        typed, types coerced, and a column count that describes
-                        the data rather than the schema; 30 assertions
+  paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
+                        quoted CSV, columns matched by the name somebody would
+                        have typed, a count that describes the data rather than
+                        the schema, a pasted rectangle that grows the grid
+                        instead of truncating it, and a saved Compare Table that
+                        still opens; 49 assertions
   freshness.html        Asserts the build check corrects a genuinely stale page and,
                         just as importantly, leaves every other case alone; 14 assertions
   defaults.html         Pins what a brand new project ships as — Inter actually

@@ -1058,4 +1058,335 @@
       return { html: html, css: css, js: '' };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Table                                                                  */
+  /*                                                                        */
+  /* One table, not one per purpose. A product comparison, a spec sheet and */
+  /* a plain grid of figures differ in what is in the cells, not in what a  */
+  /* table is — so the comparison is a use of this rather than a component  */
+  /* of its own. That also drops the four-column cap the comparison had,    */
+  /* which only existed because its cells were fixed v1..v4 fields.         */
+  /*                                                                        */
+  /* A real <table>. The tie between a row label and the cell under a       */
+  /* column heading is the whole content, and only a table hands that to a  */
+  /* screen reader intact.                                                  */
+  /* --------------------------------------------------------------------- */
+  CB.register({
+    id: 'table',
+    name: 'Table',
+    category: CAT,
+    icon: '▤',
+    blurb: 'Paste cells straight from a spreadsheet. Sticky row labels, optional product headers, and a zero-JS “only show differences” filter.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Compare the range' },
+      { k: 'sub', t: 'text', label: 'Standfirst', value: '' },
+
+      { t: 'section', label: 'Table' },
+      {
+        k: 'rows', t: 'grid', label: 'Cells', columnsKey: 'columns',
+        help: 'Paste a block of cells from Excel or Sheets straight into the grid — it fills ' +
+              'down and across from wherever you paste, adding rows and columns as it needs them.',
+        value: [
+          { group: 'Construction', cells: ['Conductor', 'Copper', 'Copper', 'Copper'] },
+          { group: '', cells: ['Insulation', 'PVC with nylon', 'XLPE', 'THHN in armour'] },
+          { group: '', cells: ['Jacket', 'None', 'None', 'Aluminium armour'] },
+          { group: 'Ratings', cells: ['Voltage rating', '600 V', '600 V', '600 V'] },
+          { group: '', cells: ['Temperature, dry', '90 °C', '90 °C', '90 °C'] },
+          { group: '', cells: ['Wet rated', 'Yes', 'Yes', 'Yes'] },
+          { group: '', cells: ['Sunlight resistant', 'No', 'Yes', 'No'] },
+          { group: '', cells: ['Direct burial', 'No', 'No', 'No'] }
+        ]
+      },
+      {
+        /* Edited inside the grid, which owns the column count — this exists so
+           the extras have somewhere to live and so a saved project carries
+           them. Hidden from the panel because two places to add a column is
+           one place too many. */
+        k: 'columns', t: 'columns', label: 'Columns',
+        fields: [
+          { k: 'label', t: 'text', label: 'Heading', value: '' },
+          { k: 'tagline', t: 'text', label: 'Sub-heading', value: '' },
+          { k: 'badge', t: 'text', label: 'Flag', value: '', help: 'A short marker above the heading — "Most specified", "New".' },
+          { k: 'featured', t: 'toggle', label: 'Highlight this column', value: false },
+          { k: 'image', t: 'image', label: 'Image', value: '' },
+          { k: 'alt', t: 'text', label: 'Alt text', value: '' },
+          { k: 'btnText', t: 'text', label: 'Button label', value: '', help: 'Sits under this column. Leave empty for no button.' },
+          { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' }
+        ],
+        value: [
+          { label: 'Attribute', tagline: '', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
+          { label: 'THHN / THWN-2', tagline: 'General purpose building wire', badge: 'Most specified', featured: true, image: '', alt: '', btnText: '', btnUrl: '#' },
+          { label: 'XHHW-2', tagline: 'Cross-linked, wet or dry', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
+          { label: 'MC Cable', tagline: 'Armoured, ready to pull', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' }
+        ]
+      },
+
+      { t: 'section', label: 'Reading' },
+      {
+        k: 'rowHeader', t: 'toggle', label: 'First column labels the row', value: true,
+        help: 'Makes it a row header rather than a cell, so a screen reader reads it with every ' +
+              'value across that row — and it stays put while the table scrolls sideways.'
+      },
+      {
+        k: 'marks', t: 'toggle', label: 'Yes and No become a tick and a dash', value: true,
+        help: 'A column is understood by shape long before it is read. The word still goes to a screen reader.'
+      },
+      {
+        k: 'differences', t: 'toggle', label: 'Offer "only show differences"', value: true,
+        help: 'A checkbox that hides every row where all the columns say the same thing. ' +
+              'It appears only when there is at least one such row, and needs no JavaScript.'
+      },
+      {
+        k: 'align', t: 'select', label: 'Number alignment', value: 'auto',
+        options: [['auto', 'Right-align columns that are mostly numbers'], ['left', 'Everything left']]
+      },
+
+      { t: 'section', label: 'Style' },
+      { k: 'zebra', t: 'toggle', label: 'Banded rows', value: true },
+      { k: 'showImages', t: 'toggle', label: 'Show column images', value: false },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 16, max: 140, step: 4, unit: 'px', value: 72 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var cols = (p.columns || []).filter(Boolean);
+      var rows = (p.rows || []).filter(function (r) {
+        return r && ((r.cells || []).some(function (x) { return String(x || '').trim(); }) || r.group);
+      });
+      var n = cols.length;
+
+      if (!n || !rows.length) {
+        return {
+          html: '<section class="' + c.cls + ' cb-tbl"><div class="cb-wrap">' +
+                '<p class="cb-tbl__empty">This table has no cells yet.</p></div></section>',
+          css: s + ' .cb-tbl__empty { color: var(--cb-muted); padding-block: 40px; }',
+          js: ''
+        };
+      }
+
+      var rowHead = !!p.rowHeader;
+      var chk = c.uid('tbl');
+      function at(r, i) { return String((r.cells || [])[i] == null ? '' : (r.cells || [])[i]).trim(); }
+
+      /* Yes and no earn a mark rather than the word, because a column is read
+         by shape first. The word still goes to a screen reader, which gets
+         nothing from a glyph. Detected from the value, so a pasted spreadsheet
+         needs no extra column saying what kind of row this is. */
+      function cell(v) {
+        var t = String(v == null ? '' : v).trim();
+        if (p.marks) {
+          if (/^(yes|y|true|included|standard)$/i.test(t)) {
+            return '<span class="cb-tbl__yes" aria-hidden="true">&#10003;</span><span class="cb-sr">Yes</span>';
+          }
+          if (/^(no|n|false|none|not available)$/i.test(t)) {
+            return '<span class="cb-tbl__no" aria-hidden="true">&#8211;</span><span class="cb-sr">No</span>';
+          }
+        }
+        if (!t) return '<span class="cb-tbl__no" aria-hidden="true">&#8211;</span><span class="cb-sr">Not stated</span>';
+        return c.esc(t);
+      }
+
+      /* Decided here, where every value is known, rather than in a script an
+         editor might strip — which is the whole reason the filter can be a
+         checkbox. The label column is not part of the comparison: it differs
+         on every row by definition. */
+      var firstData = rowHead ? 1 : 0;
+      function same(r) {
+        if (n - firstData < 2) return false;
+        var first = at(r, firstData).toLowerCase();
+        for (var i = firstData + 1; i < n; i++) {
+          if (at(r, i).toLowerCase() !== first) return false;
+        }
+        return true;
+      }
+      var offerFilter = p.differences && rows.some(function (r) {
+        return (r.cells || []).length && same(r) && !r.group0;
+      });
+
+      /* A column of figures reads far better right-aligned, and asking somebody
+         to set that per column is asking them to do arithmetic the values
+         already answer. Mostly-numeric wins it; a stray "n/a" does not lose it. */
+      var numeric = [];
+      for (var ci = 0; ci < n; ci++) {
+        if (p.align === 'left' || (rowHead && ci === 0)) { numeric.push(false); continue; }
+        var seen = 0, num = 0;
+        rows.forEach(function (r) {
+          var v = at(r, ci);
+          if (!v) return;
+          seen++;
+          if (/^[-+]?[$£€]?\s?[\d,]+(\.\d+)?\s?[%a-zA-Z°µ/]{0,6}$/.test(v)) num++;
+        });
+        numeric.push(seen >= 2 && num / seen >= 0.7);
+      }
+
+      var head = cols.map(function (col, i) {
+        var corner = rowHead && i === 0;
+        if (corner && !col.label) return '<td class="cb-tbl__corner"></td>';
+        var img = p.showImages && col.image
+          ? '<img class="cb-tbl__img" src="' + c.url(col.image) + '" alt="' + c.attr(col.alt) + '" loading="lazy" decoding="async">'
+          : '';
+        return c.dedent(`
+          <th scope="col" class="cb-tbl__col${col.featured ? ' is-featured' : ''}${corner ? ' cb-tbl__corner' : ''}${numeric[i] ? ' is-num' : ''}">
+            ${img}
+            ${col.badge ? '<span class="cb-tbl__badge">' + c.esc(col.badge) + '</span>' : ''}
+            <span class="cb-tbl__name">${c.esc(col.label)}</span>
+            ${col.tagline ? '<span class="cb-tbl__tag">' + c.esc(col.tagline) + '</span>' : ''}
+            ${c.actions([{ text: col.btnText, url: col.btnUrl }], { tight: true })}
+          </th>`);
+      }).join('\n');
+
+      var body = rows.map(function (r) {
+        var out = '';
+        if (r.group) {
+          out += '<tr class="cb-tbl__grouprow"><th scope="colgroup" colspan="' + n + '">' +
+                 c.esc(r.group) + '</th></tr>\n';
+        }
+        if (!(r.cells || []).some(function (x) { return String(x || '').trim(); })) return out;
+
+        var cells = '';
+        for (var i = 0; i < n; i++) {
+          var klass = 'cb-tbl__cell' + (cols[i] && cols[i].featured ? ' is-featured' : '') +
+                      (numeric[i] ? ' is-num' : '');
+          if (rowHead && i === 0) {
+            cells += '<th scope="row" class="cb-tbl__rowlab">' + c.esc(at(r, 0)) + '</th>';
+          } else {
+            cells += '<td class="' + klass + '">' + cell(at(r, i)) + '</td>';
+          }
+        }
+        out += '<tr' + (same(r) ? ' data-same="1"' : '') + '>' + cells + '</tr>';
+        return out;
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-tbl">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? c.dedent(`
+            <header class="cb-tbl__head">
+              ${p.eyebrow ? '<p class="cb-tbl__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-tbl__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-tbl__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>`) : ''}
+            ${offerFilter ? c.dedent(`
+            <div class="cb-tbl__filter">
+              <input type="checkbox" id="${chk}" class="cb-tbl__chk">
+              <label for="${chk}">Only show differences</label>
+            </div>`) : ''}
+            <div class="cb-tbl__scroll" tabindex="0" role="region" aria-label="${c.attr(p.title || 'Table')}">
+              <table class="cb-tbl__table">
+                <thead>
+                  <tr>
+        ${c.indent(head, 20)}
+                  </tr>
+                </thead>
+                <tbody>
+        ${c.indent(body, 18)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>`);
+
+      var colw = n >= 5 ? 140 : n === 4 ? 160 : 190;
+      var labw = rowHead ? 140 : 0;
+
+      var css = `
+        ${s}.cb-tbl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s} .cb-tbl__head { max-width: 660px; margin-bottom: 26px; }
+        ${s} .cb-tbl__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand); margin-bottom: 10px;
+        }
+        ${s} .cb-tbl__title {
+          font-size: calc(clamp(24px, 3.4vw, 36px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-tbl__sub { color: var(--cb-muted); margin-top: 10px; }
+
+        ${s} .cb-tbl__filter { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; font-size: .9em; }
+        ${s} .cb-tbl__chk { width: 16px; height: 16px; accent-color: var(--cb-brand); flex: none; }
+        ${s} .cb-tbl__filter label { color: var(--cb-muted); cursor: pointer; }
+
+        /* Horizontal, and inside its own box — never sticky to the viewport,
+           which is what puts a block in the same paint layer as a host site's
+           fixed header. */
+        ${s} .cb-tbl__scroll { overflow-x: auto; }
+        ${s} .cb-tbl__scroll:focus-visible { outline: 3px solid var(--cb-brand); outline-offset: 3px; }
+        ${s} .cb-tbl__table {
+          width: 100%; border-collapse: separate; border-spacing: 0;
+          min-width: ${labw + (n - (rowHead ? 1 : 0)) * colw}px; text-align: left;
+        }
+        ${rowHead ? `
+        ${s} .cb-tbl__corner, ${s} .cb-tbl__rowlab {
+          position: sticky; left: 0; z-index: 1;
+          background: ${c.bg(p)};
+          width: ${labw}px; min-width: ${labw}px;
+        }` : ''}
+        ${s} .cb-tbl__col {
+          vertical-align: bottom; padding: 0 16px 16px; min-width: ${colw}px;
+          border-bottom: 2px solid var(--cb-border);
+        }
+        ${s} .cb-tbl__img { width: 100%; max-width: 130px; aspect-ratio: 4/3; object-fit: contain; margin-bottom: 10px; }
+        ${s} .cb-tbl__badge {
+          display: inline-block; font-size: calc(.66em * var(--cb-eyebrow-scale, 1));
+          font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+          color: var(--cb-on-brand); background: var(--cb-brand);
+          padding: 3px 7px; border-radius: calc(var(--cb-radius) * .28); margin-bottom: 7px;
+        }
+        ${s} .cb-tbl__name {
+          display: block; font-size: 1.02em; font-weight: var(--cb-h-weight, 730);
+          line-height: calc(1.25 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-tbl__tag { display: block; font-size: .84em; color: var(--cb-muted); margin-top: 4px; font-weight: 400; }
+
+        ${s} .cb-tbl__grouprow th {
+          padding: 26px 16px 8px; text-align: left;
+          font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.11em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-muted);
+        }
+        ${s} .cb-tbl__rowlab {
+          padding: 13px 16px 13px 0; font-weight: 600; font-size: .92em;
+          border-bottom: 1px solid var(--cb-border); vertical-align: top;
+        }
+        ${s} .cb-tbl__cell {
+          padding: 13px 16px; font-size: .92em; vertical-align: top;
+          border-bottom: 1px solid var(--cb-border);
+          font-variant-numeric: tabular-nums;
+        }
+        ${s} .cb-tbl__cell.is-num, ${s} .cb-tbl__col.is-num { text-align: right; }
+        ${p.zebra ? `
+        ${s} .cb-tbl__table tbody tr:nth-of-type(even):not(.cb-tbl__grouprow) .cb-tbl__cell,
+        ${s} .cb-tbl__table tbody tr:nth-of-type(even):not(.cb-tbl__grouprow) .cb-tbl__rowlab {
+          background: var(--cb-subtle);
+        }` : ''}
+        ${s} .cb-tbl__cell.is-featured, ${s} .cb-tbl__col.is-featured {
+          background: color-mix(in srgb, var(--cb-brand) 7%, transparent);
+        }
+        ${s} .cb-tbl__col.is-featured { border-bottom-color: var(--cb-brand); }
+        ${s} .cb-tbl__yes { color: var(--cb-brand); font-weight: 700; }
+        ${s} .cb-tbl__no { color: var(--cb-muted); }
+
+        /* The whole reason the filter can be a checkbox: which rows are
+           identical is settled when the code is written, not in the browser. */
+        ${s} .cb-tbl__chk:checked ~ .cb-tbl__scroll tr[data-same="1"] { display: none; }
+
+        @media (max-width: 700px) {
+          ${rowHead ? `${s} .cb-tbl__corner, ${s} .cb-tbl__rowlab { width: 116px; min-width: 116px; }` : ''}
+          ${s} .cb-tbl__rowlab { font-size: .86em; padding-right: 12px; }
+          ${s} .cb-tbl__cell { font-size: .86em; padding: 11px 12px; }
+        }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
 })();

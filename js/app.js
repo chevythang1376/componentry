@@ -241,7 +241,7 @@
       return {
         name: data.name || 'Untitled project',
         tokens: Object.assign({}, CB.DEFAULT_TOKENS, data.tokens || {}),
-        instances: data.instances,
+        instances: CB.migrate(data.instances),
         selected: data.instances.length ? data.instances[0].uid : null
       };
     } catch (e) { return null; }
@@ -1091,6 +1091,10 @@
         ? 'That code has no editable copy in it. Only exports made with “Re-editable” on can come back.'
         : 'That is not a Componentry project or export.';
     }
+    /* Before the unknown-component check, or a block that was replaced rather
+       than removed gets counted as missing and silently dropped. */
+    data.instances = CB.migrate(data.instances);
+
     var unknown = data.instances.filter(function (i) { return !CB.get(i.type); });
     if (unknown.length === data.instances.length) return 'None of those components exist in this build.';
 

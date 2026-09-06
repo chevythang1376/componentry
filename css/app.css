@@ -439,6 +439,52 @@ input, select, textarea { font: inherit; color: inherit; }
 .paste__acts { display: flex; gap: 7px; }
 .paste__acts .btn { flex: 1 1 auto; justify-content: center; }
 .paste__acts .btn:disabled { opacity: .4; cursor: default; }
+
+/* The grid editor. A table is edited as a table — reading down a column is the
+   whole point, and collapsible per-row panels destroy exactly that. */
+.fld--grid { display: block; }
+.grid__scroll { overflow-x: auto; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; }
+table.grid { border-collapse: separate; border-spacing: 0; width: 100%; }
+table.grid th, table.grid td { padding: 0; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); }
+table.grid tr:last-child td { border-bottom: 0; }
+table.grid th:last-child, table.grid td:last-child { border-right: 0; }
+.grid__colhead { background: var(--sunken, rgba(0,0,0,.03)); vertical-align: top; min-width: 120px; }
+.grid__colhead.is-featured { background: var(--accent-soft); }
+.grid__gutter {
+  background: var(--sunken, rgba(0,0,0,.03));
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--dim); padding: 0 6px; white-space: nowrap; width: 1%;
+}
+.grid__in {
+  width: 100%; min-width: 110px; padding: 7px 8px;
+  border: 0; background: none; color: var(--ink);
+  font: inherit; font-size: 11.5px;
+}
+.grid__in:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.grid__in--head { font-weight: 650; }
+.grid__in--group { min-width: 76px; font-size: 10.5px; color: var(--dim); }
+.grid__colacts, .grid__rowacts { display: flex; gap: 2px; padding: 0 5px 5px; }
+.grid__rowacts { padding: 0 5px; }
+.grid__mini {
+  width: 20px; height: 20px; line-height: 1; padding: 0;
+  border: 0; border-radius: 5px; background: none; color: var(--dim);
+  font-size: 11px; cursor: pointer; flex: none;
+}
+.grid__mini:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-lift); }
+.grid__mini:disabled { opacity: .3; cursor: default; }
+.grid__bar { display: flex; gap: 7px; margin-top: 7px; }
+.grid__act {
+  flex: 1 1 auto; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px; border: 1px dashed var(--line); border-radius: 8px;
+  font-size: 12px; font-weight: 600; color: var(--dim); background: none; cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.grid__act:hover { border-color: var(--accent); color: var(--accent-lift); background: var(--accent-soft); }
+.grid__colopts { margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.grid__optshead {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 11.5px; font-weight: 700; color: var(--ink); margin-bottom: 8px;
+}
 .list__add span { font-size: 14px; line-height: 1; }
 
 /* ---------------------------------------------------------------- presets */

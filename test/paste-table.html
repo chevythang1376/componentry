@@ -36,13 +36,14 @@ function check(name, got, want) {
 window.addEventListener('load', function () {
   var I = CB.Inspector;
 
-  /* The real Compare Table row schema, so this tests what the component
-     actually declares rather than a convenient stand-in. */
-  var rowFields = null;
-  (CB.get('compare-table') || { props: [] }).props.forEach(function (f) {
-    if (f.k === 'rows') rowFields = f.fields;
+  /* A real list schema, so this tests what a component actually declares
+     rather than a convenient stand-in. Spec Strip's items are the shape every
+     repeating list has. */
+  var specFields = null;
+  (CB.get('spec-strip') || { props: [] }).props.forEach(function (f) {
+    if (f.k === 'items') specFields = f.fields;
   });
-  check('the compare table exposes a row schema to import into', !!rowFields, true);
+  check('a real component exposes a list schema to import into', !!specFields, true);
 
   var toy = [
     { k: 'label', t: 'text', label: 'Attribute', value: '' },
@@ -120,16 +121,88 @@ window.addEventListener('load', function () {
   check('and only the fields that exist are filled', wide.matched, 5);
 
   // --- the real schema -----------------------------------------------------
-  if (rowFields) {
+  if (specFields) {
     var real = I.importRows(
-      'Attribute\tStarts a group\tColumn 1\tColumn 2\tColumn 3\n' +
-      'Conductor\tConstruction\tCopper\tCopper\tAluminium\n' +
-      'Wet rated\t\tYes\tYes\tNo', rowFields, true);
-    check('a real spreadsheet fills a real compare table', real.items.length, 2);
-    check('every column of it lands', real.matched + ' of ' + real.columns, '5 of 5');
-    check('including the group that starts a band', real.items[0].group, 'Construction');
-    check('and the unused fourth column stays empty', real.items[0].v4, '');
+      'Value\tLabel\tNote\n' +
+      '12 AWG\tConductor\tSolid copper\n' +
+      '600 V\tRating\t', specFields, true);
+    check('a real spreadsheet fills a real component list', real.items.length, 2);
+    check('every column of it lands', real.matched + ' of ' + real.columns, '3 of 3');
+    check('and the values reach the right fields', real.items[0].label, 'Conductor');
   }
+
+  /* --- the grid ------------------------------------------------------------
+     A table is pasted as a rectangle, so it has to land as one: filling down
+     and across from the cell you pasted into, and growing the table rather
+     than truncating what somebody watched themselves copy. */
+  var colFields = null;
+  (CB.get('table') || { props: [] }).props.forEach(function (f) {
+    if (f.k === 'columns') colFields = f.fields;
+  });
+  check('the table declares what a column carries', !!colFields, true);
+
+  function grid(nc, nr) {
+    var cols = [], rows = [];
+    for (var c = 0; c < nc; c++) cols.push(I.blankColumn(colFields));
+    for (var r = 0; r < nr; r++) rows.push({ group: '', cells: new Array(nc).join('.').split('.') });
+    I.squareUp(cols, rows);
+    return { cols: cols, rows: rows };
+  }
+
+  var g = grid(3, 2);
+  I.applyPaste(g.cols, g.rows, 0, 0, 'a\tb\tc\nd\te\tf', colFields);
+  check('a rectangle lands from the cell you pasted into', g.rows[0].cells.join(','), 'a,b,c');
+  check('and continues down', g.rows[1].cells.join(','), 'd,e,f');
+
+  /* Growing rather than truncating. Somebody watched themselves copy those
+     cells; dropping the overflow silently is the worst possible answer. */
+  var wide = grid(2, 1);
+  I.applyPaste(wide.cols, wide.rows, 0, 0, 'a\tb\tc\td', colFields);
+  check('a paste wider than the table grows it', wide.cols.length, 4);
+  check('and every row is squared up to the new width',
+        wide.rows.every(function (r) { return r.cells.length === 4; }), true);
+
+  var tall = grid(2, 1);
+  I.applyPaste(tall.cols, tall.rows, 0, 0, 'a\tb\nc\td\ne\tf', colFields);
+  check('a paste taller than the table adds rows', tall.rows.length, 3);
+  check('landing in order', tall.rows[2].cells.join(','), 'e,f');
+
+  var off = grid(4, 3);
+  I.applyPaste(off.cols, off.rows, 1, 2, 'x\ty', colFields);
+  check('pasting into the middle starts there', off.rows[1].cells.join(','), ',,x,y');
+  check('and leaves the rows above alone', off.rows[0].cells.join(','), ',,,');
+
+  /* Pasting a sheet that includes its own header row into the top-left should
+     name the columns in the same gesture — row -1 is the header. */
+  var hd = grid(3, 1);
+  I.applyPaste(hd.cols, hd.rows, -1, 0, 'Attribute\tTHHN\tXHHW\nConductor\tCopper\tCopper', colFields);
+  check('pasting into the header names the columns',
+        hd.cols.map(function (c) { return c.label; }).join(','), 'Attribute,THHN,XHHW');
+  check('and the row under it still lands', hd.rows[0].cells.join(','), 'Conductor,Copper,Copper');
+
+  check('nothing to paste changes nothing',
+        I.applyPaste(g.cols, g.rows, 0, 0, '', colFields), false);
+
+  // --- what a saved compare table becomes ----------------------------------
+  var old = {
+    uid: 'u1', cls: 'cb-compare-table-x', type: 'compare-table',
+    props: {
+      title: 'Compare the range', differences: true, zebra: true,
+      products: [{ name: 'THHN', featured: true, badge: 'Most specified' }, { name: 'XHHW-2' }],
+      rows: [{ label: 'Conductor', group: 'Construction', v1: 'Copper', v2: 'Copper' },
+             { label: 'Wet rated', group: '', v1: 'No', v2: 'Yes' }]
+    }
+  };
+  var moved = CB.migrate([old])[0];
+  check('a saved compare table opens as a table', moved.type, 'table');
+  check('keeping the instance it was', moved.uid + '/' + moved.cls, 'u1/cb-compare-table-x');
+  check('its products become columns after the label column',
+        moved.props.columns.map(function (c) { return c.label; }).join(','), 'Attribute,THHN,XHHW-2');
+  check('the flag survives', moved.props.columns[1].badge, 'Most specified');
+  check('and the highlight', moved.props.columns[1].featured, true);
+  check('its rows become cells', moved.props.rows[0].cells.join(','), 'Conductor,Copper,Copper');
+  check('groups survive', moved.props.rows[0].group, 'Construction');
+  check('and it still builds', /<table/.test(CB.build(moved, CB.DEFAULT_TOKENS).html), true);
 
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
