@@ -92,8 +92,33 @@
     catch (e) { jsErrors.push(CB.all()[i].id + ': ' + e.message); }
   });
 
+  /* Layout stability. Every image that is actually laid out must have a known
+     box before its file arrives, or the page jumps as it loads — which is the
+     visitor-facing half of Cumulative Layout Shift and the easiest of the Core
+     Web Vitals to get wrong by omission.
+
+     A ratio, explicit attributes, a stated height, or an absolute fill all
+     count. Naively looking only for aspect-ratio reports two thirds of the
+     library as broken when the space is reserved by a fixed-height parent. */
+  var shifty = [];
+  Array.prototype.forEach.call(document.querySelectorAll('img'), function (im) {
+    var r = im.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return;              // not laid out; cannot shift
+    var cs = getComputedStyle(im);
+    if (cs.aspectRatio !== 'auto') return;
+    if (im.hasAttribute('width') && im.hasAttribute('height')) return;
+    if (cs.height !== 'auto' && parseFloat(cs.height) > 0) return;
+    var holder = im.closest('.tst-holder, [class^=cb-]');
+    shifty.push((holder && holder.className || 'img').toString().split(' ')[0]);
+  });
+  if (shifty.length) {
+    errors.push(shifty.length + ' image(s) reserve no space: ' +
+                shifty.filter(function (v, i, a) { return a.indexOf(v) === i; }).slice(0, 4).join(', '));
+  }
+
   window.__test = {
     errors: errors, jsErrors: jsErrors, sizes: sizes,
+    shifty: shifty.length,
     count: CB.all().length
   };
 
@@ -103,7 +128,8 @@
     '<strong>Componentry export smoke test</strong>' +
     '<span><code>' + CB.all().length + '</code> components</span>' +
     '<span class="' + (bad ? 'tst-bad' : 'tst-ok') + '">' +
-      (bad ? bad + ' failure(s): ' + errors.concat(jsErrors).join(' · ') : 'all rendered and initialised') +
+      (bad ? bad + ' failure(s): ' + errors.concat(jsErrors).join(' · ')
+           : 'all rendered, initialised, and reserving space for their images') +
     '</span>';
 })();
 </script>

@@ -153,7 +153,7 @@
         }
         ${s} .cb-fin__eyebrow {
           font-size: calc(.76em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
-          color: var(--cb-brand);
+          color: var(--cb-brand-ink, var(--cb-brand));
         }
         ${s} .cb-fin__title { font-size: calc(clamp(30px, 5vw, 54px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.025em + var(--cb-h-track, 0em)); line-height: calc(1.05 + var(--cb-h-leading, 0)); text-wrap: balance; }
         ${s} .cb-fin__sub { color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; font-size: 1.05em; }
@@ -208,7 +208,7 @@
         ${s} .cb-fin__radio:checked + .cb-fin__dot { outline-color: ${dark ? '#fff' : 'var(--cb-brand)'}; }
         /* Keyboard focus has to be visible on a visually hidden input. */
         ${s} .cb-fin__radio:focus-visible + .cb-fin__dot {
-          outline-color: var(--cb-brand); outline-width: 3px; outline-offset: 6px;
+          outline-color: var(--cb-brand-ink, var(--cb-brand)); outline-width: 3px; outline-offset: 6px;
         }
 
         ${dark ? c.pin([s + ' .cb-fin__title', s + ' .cb-fin__label'], 'var(--cb-on-dark, #ffffff)') : ''}
@@ -367,7 +367,7 @@
         ${s} .cb-psc__head { max-width: 640px; margin-bottom: clamp(32px, 6vw, 72px); }
         ${s} .cb-psc__eyebrow {
           font-size: calc(.76em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
-          color: var(--cb-brand); margin-bottom: 10px;
+          color: ${dark ? 'var(--cb-brand-on-dark, var(--cb-brand))' : 'var(--cb-brand-ink, var(--cb-brand))'}; margin-bottom: 10px;
         }
         ${s} .cb-psc__title { font-size: calc(clamp(32px, 5.5vw, 60px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.025em + var(--cb-h-track, 0em)); line-height: calc(1.04 + var(--cb-h-leading, 0)); text-wrap: balance; }
 
@@ -409,7 +409,7 @@
         ${s} .cb-psc__stepShot { display: none; }
         ${s} .cb-psc__num {
           font-size: .82em; font-weight: 700; letter-spacing: .16em;
-          color: var(--cb-brand); font-variant-numeric: tabular-nums;
+          color: ${dark ? 'var(--cb-brand-on-dark, var(--cb-brand))' : 'var(--cb-brand-ink, var(--cb-brand))'}; font-variant-numeric: tabular-nums;
         }
         ${s} .cb-psc__stepTitle { font-size: calc(clamp(24px, 3.4vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 780); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
         ${s} .cb-psc__stepText { font-size: 1.05em; color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; }

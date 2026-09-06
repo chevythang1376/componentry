@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Interactive Diagram (hotspot map)
 
    Where this differs from the usual hotspot library:
@@ -308,7 +308,7 @@ ${c.indent(panels, 16)}
           border: 1px solid var(--cb-border); background: var(--cb-surface);
           font-size: 21px; line-height: 1; transition: all .2s ease;
         }
-        ${s} .cb-hs__step:hover { background: var(--cb-brand); color: var(--cb-on-brand); border-color: var(--cb-brand); }
+        ${s} .cb-hs__step:hover { background: var(--cb-brand); color: var(--cb-on-brand); border-color: var(--cb-brand-ink, var(--cb-brand)); }
         ${s} .cb-hs__count { font-size: .88em; font-weight: 650; color: var(--cb-muted); font-variant-numeric: tabular-nums; min-width: 6ch; text-align: center; }
 
         ${s} .cb-hs__panel {
@@ -329,7 +329,7 @@ ${c.indent(panels, 16)}
         }
         ${s} .cb-hs__dTitle { font-size: calc(clamp(19px, 2.2vw, 24px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 760); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); line-height: calc(1.2 + var(--cb-h-leading, 0)); }
         ${s} .cb-hs__dText { color: var(--cb-muted); }
-        ${s} .cb-hs__dLink { color: var(--cb-brand); font-weight: 650; text-decoration: none; width: max-content; margin-top: 4px; }
+        ${s} .cb-hs__dLink { color: var(--cb-brand-ink, var(--cb-brand)); font-weight: 650; text-decoration: none; width: max-content; margin-top: 4px; }
         ${s} .cb-hs__dLink:hover { text-decoration: underline; }
 
         /* Nothing checked — which a duplicated radio group would cause — still

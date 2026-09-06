@@ -380,7 +380,7 @@ and answers one question: if this were pasted right now, what would go wrong?
 
 | Check | Catches |
 |---|---|
-| **Contrast** | Text under 3:1 against its own background, judged on the rendered block |
+| **Contrast** | Text below WCAG 2.2 AA against its own background — 4.5:1, or 3:1 once it is large — judged on the rendered block |
 | **Alt text** | Images you have replaced but not described |
 | **Empty blocks** | A list with no items, or a table whose every cell is blank — exports as a dead band |
 | **Heavy images** | Uploads over ~180 kB, which cost twice: export *and* browser storage |
@@ -942,7 +942,9 @@ js/components/
   product.js            finish-switcher, pinned-product, spec-strip
   diagram.js            hotspot-diagram
 test/
-  gallery.html          Renders all 30 through the real export path; reports failures
+  gallery.html          Renders all 30 through the real export path; reports failures,
+                        and fails if any laid-out image reserves no space for
+                        itself — the omission half of Cumulative Layout Shift
   hostile-host.html     Pastes exports into a deliberately awful theme; 165 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         240 round-trips, then functionally probes what survives
@@ -986,16 +988,18 @@ test/
                         that circles and pills are left alone, and fails if any
                         container drifts onto a bare pixel radius; 19 assertions
   scheme.html           Audits every block for contrast in light *and* dark, checks
-                        the scheme reaches the ground and not only the text, and
-                        pins the discrete-swap behaviour the scroll option rests
-                        on. Then samples the real transition off the element and
+                        the scheme reaches the ground and not only the text at
+                        WCAG AA, pins the discrete-swap behaviour the scroll
+                        option rests on, and fixes the AA thresholds themselves
+                        so they cannot slip back to one number. Then samples the
+                        real transition off the element and
                         sweeps for the switch point with the least-bad worst
                         moment, failing unless the shipped value is that
                         optimum. Then checks the project-level swap reaches
                         every block that follows the project and no block that
                         does not, and that the page-background CSS matches the
                         blocks' range and refuses a selector that would break
-                        out of its own rule; 51 assertions
+                        out of its own rule; 63 assertions
   swap-demo.html        Not a harness — a page you scroll, building six blocks all
                         set to swap, plus the paste-in CSS for the page background
                         behind them

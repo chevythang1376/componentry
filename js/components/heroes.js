@@ -376,7 +376,7 @@
         }
         ${s} .cb-sh__eyebrow {
           font-size: calc(.78em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
-          color: var(--cb-brand);
+          color: var(--cb-brand-ink, var(--cb-brand));
         }
         ${s} .cb-sh__title { font-size: calc(clamp(28px, 4.4vw, 46px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.12 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance; }
         ${s} .cb-sh__sub { color: var(--cb-muted); font-size: 1.05em; max-width: 52ch; }

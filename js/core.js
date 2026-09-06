@@ -182,6 +182,71 @@ window.CB = (function () {
     return !!v && v !== '#ffffff' && v !== '#fff' && v !== 'white';
   }
 
+  /* A brand colour is chosen to be seen, not to be read at 12px.
+
+     Southwire's copper sits at 4.33:1 on the tinted band and 3.76:1 on a dark
+     surface — fine for a heading, which WCAG allows 3:1, and short of the 4.5:1
+     that small text needs. That is not a fault in the colour; it is what brand
+     colours are for. It is a fault in using one as body ink without adjusting
+     it, and it accounted for every one of the 41 contrast failures in the
+     library.
+
+     So the accent is nudged along its own lightness until it conforms, keeping
+     hue and saturation, which is what keeps it recognisably the brand rather
+     than a different colour that happens to pass. Where it already conforms,
+     nothing moves at all. */
+  function hexToHsl(hex) {
+    var h = String(hex || '').trim().replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (!/^[0-9a-f]{6}$/i.test(h)) return null;
+    var n = parseInt(h, 16);
+    var r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    var l = (mx + mn) / 2, s = 0, hue = 0;
+    if (d) {
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      hue = mx === r ? ((g - b) / d + (g < b ? 6 : 0))
+          : mx === g ? ((b - r) / d + 2)
+          : ((r - g) / d + 4);
+      hue *= 60;
+    }
+    return { h: hue, s: s, l: l };
+  }
+
+  function hslToHex(o) {
+    var h = ((o.h % 360) + 360) % 360 / 360, s = clamp(o.s, 0, 1), l = clamp(o.l, 0, 1);
+    function hue(p, q, t) {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    }
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    var rgb = s === 0 ? [l, l, l] : [hue(p, q, h + 1 / 3), hue(p, q, h), hue(p, q, h - 1 / 3)];
+    return '#' + rgb.map(function (v) {
+      var x = Math.round(v * 255).toString(16);
+      return x.length === 1 ? '0' + x : x;
+    }).join('');
+  }
+
+  function toContrast(hex, bgHex, target) {
+    var base = hexToHsl(hex);
+    if (!base || relLum(bgHex) === null) return hex;
+    if (contrast(hex, bgHex) >= target) return hex;
+
+    // Move away from the background: lighten on a dark ground, darken on a
+    // light one. Anything else is walking towards the problem.
+    var up = relLum(bgHex) < 0.5;
+    for (var i = 1; i <= 100; i++) {
+      var candidate = hslToHex({ h: base.h, s: base.s, l: base.l + (up ? i : -i) / 100 });
+      if (contrast(candidate, bgHex) >= target) return candidate;
+    }
+    // Nothing along that axis reaches it — take whichever end is furthest.
+    return up ? '#ffffff' : '#000000';
+  }
+
   function readableInk(bg, light, dark) {
     light = light || '#ffffff';
     dark = dark || '#141210';
@@ -447,6 +512,12 @@ window.CB = (function () {
         --cb-page: ${GROUNDS[baseScheme(t.scheme)].page};
         --cb-band: ${GROUNDS[baseScheme(t.scheme)].band};
         --cb-on-brand: ${t.onBrand};
+        /* The accent, adjusted until small text on it conforms. Two of them,
+           because a block sitting on the scheme's own ground and one painting
+           its own dark surface are different problems — the same split the ink
+           tokens already make. */
+        --cb-brand-ink: ${toContrast(t.brand, GROUNDS[baseScheme(t.scheme)].band, 4.5)};
+        --cb-brand-on-dark: ${toContrast(t.brand, t.deep || '#141210', 4.5)};
         /* Emitted only once this is moved off white, so that until it is, every
            block keeps the exact literal it was designed with. Those literals are
            not interchangeable — captions sit at .6, .7, .72 and .82 depending on
@@ -818,7 +889,10 @@ window.CB = (function () {
         return '--cb-' + k + ': ' + n[k] + ';';
       }).concat([
         '--cb-page: ' + g.page + ';',
-        '--cb-band: ' + g.band + ';'
+        '--cb-band: ' + g.band + ';',
+        /* Derived from this scheme's own ground, so a block that swaps carries
+           a conforming accent into the scheme it lands in. */
+        '--cb-brand-ink: ' + toContrast((t || {}).brand || '#96694c', g.band, 4.5) + ';'
       ]).join(' ');
     }
 
@@ -1195,7 +1269,7 @@ window.CB = (function () {
       esc: esc, attr: attr, rich: rich, url: url, num: num, clamp: clamp,
       rgba: rgba, ph: ph, uid: uid, wrap: wrap, dedent: dedent, indent: indent, pin: pin,
       bg: bgValue,
-      readableInk: readableInk, contrast: contrast,
+      readableInk: readableInk, contrast: contrast, toContrast: toContrast, relLum: relLum,
       actions: actions
     };
 
@@ -1238,7 +1312,7 @@ window.CB = (function () {
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
     isPlaceholder: isPlaceholder,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
-    readableInk: readableInk, contrast: contrast,
+    readableInk: readableInk, contrast: contrast, toContrast: toContrast, relLum: relLum,
     actions: actions, ctaFields: ctaFields,
     tokenCss: tokenCss, baseCss: baseCss, sharedCss: sharedCss, SCOPE: SCOPE,
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
