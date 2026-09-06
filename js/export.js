@@ -316,7 +316,74 @@ CB.Export = (function () {
         if (Math.abs(y - lastY) < 2) return;
         lastY = y;
         parent.postMessage({ cbScroll: y }, "*");
-      }, { passive: true });`;
+      }, { passive: true });
+
+      /* ---- motion, on a clock you control -------------------------------
+         A scroll-driven reveal is only ever seen in passing, and only in the
+         direction you happened to scroll. That makes it the one thing in the
+         editor you cannot actually look at: it has already happened, and
+         nothing puts it back. Judging a stagger by scrolling up and down
+         guessing is not judging it.
+
+         So the editor can borrow every scroll-driven animation onto the
+         document clock, where it can be played, scrubbed and played again.
+         Their real timelines are kept and handed back on release, so this
+         only ever changes what you are looking at, never what you export. */
+      var cbHeld = null;
+
+      function cbScrollDriven() {
+        return document.getAnimations().filter(function (a) {
+          return a.timeline && a.timeline !== document.timeline;
+        });
+      }
+
+      function cbHold() {
+        if (cbHeld) return cbHeld;
+        cbHeld = cbScrollDriven().map(function (a) {
+          var rec = { a: a, timeline: a.timeline, timing: a.effect.getTiming() };
+          try {
+            a.timeline = document.timeline;
+            a.effect.updateTiming({ duration: 1200, delay: 0, endDelay: 0, iterations: 1, fill: "both" });
+            a.pause();
+          } catch (err) { rec.failed = true; }
+          return rec;
+        });
+        return cbHeld;
+      }
+
+      function cbRelease() {
+        if (!cbHeld) return;
+        cbHeld.forEach(function (r) {
+          try {
+            r.a.effect.updateTiming(r.timing);
+            r.a.timeline = r.timeline;
+          } catch (err) {}
+        });
+        cbHeld = null;
+      }
+
+      window.addEventListener("message", function (e) {
+        var d = e.data || {};
+        if (typeof d.cbScrub === "number") {
+          cbHold().forEach(function (r) { if (!r.failed) { r.a.pause(); r.a.currentTime = d.cbScrub * 1200; } });
+        }
+        if (d.cbPlay) {
+          cbHold().forEach(function (r) {
+            if (r.failed) return;
+            r.a.currentTime = 0;
+            r.a.play();
+          });
+        }
+        if (d.cbReleaseMotion) cbRelease();
+      });
+
+      /* Tell the editor whether there is any motion here to control, so the
+         control can stay out of the way on a canvas that has none. */
+      function cbReport() {
+        parent.postMessage({ cbMotionCount: cbHeld ? cbHeld.length : cbScrollDriven().length }, "*");
+      }
+      cbReport();
+      setTimeout(cbReport, 400);`;
 
     var body = html.length ? html.join('\n') :
       '<div class="cb-empty"><div><strong>Nothing on the canvas yet</strong>' +

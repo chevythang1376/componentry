@@ -6,7 +6,7 @@
 <title>Componentry — web component builder</title>
 <meta name="description" content="Build, edit and export self-contained web design components for any WYSIWYG editor.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2396694c'/%3E%3Cpath d='M9 11h14M9 16h9M9 21h12' stroke='white' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/app.css?v=20260906ab">
+<link rel="stylesheet" href="css/app.css?v=20260906ac">
 </head>
 <body>
 
@@ -87,6 +87,18 @@
       </div>
 
       <div class="canvas__right">
+        <!-- Only shown once the canvas actually has scroll-driven motion on it. -->
+        <div id="motionBar" class="motion" hidden>
+          <button id="motionPlay" class="icon icon--wide" type="button" title="Play the scroll animations through once">
+            <span aria-hidden="true">▶</span> Replay
+          </button>
+          <label class="sr" for="motionScrub">Scrub the scroll animations</label>
+          <input id="motionScrub" class="motion__scrub" type="range" min="0" max="100" value="100"
+                 title="Scrub the scroll animations">
+          <button id="motionRelease" class="icon" type="button" title="Hand the animations back to the scroll">
+            <span aria-hidden="true">↺</span>
+          </button>
+        </div>
         <button id="canvasToggle" class="icon icon--wide" type="button" data-mode="light" title="Canvas: light">
           <span aria-hidden="true">◐</span> Canvas
         </button>
@@ -215,20 +227,20 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <span class="sr" id="year"></span>
 
-<script src="js/freshness.js?v=20260906ab"></script>
+<script src="js/freshness.js?v=20260906ac"></script>
 <script>window.CBFresh && CBFresh.check();</script>
-<script src="js/core.js?v=20260906ab"></script>
-<script src="js/components/heroes.js?v=20260906ab"></script>
-<script src="js/components/content.js?v=20260906ab"></script>
-<script src="js/components/interactive.js?v=20260906ab"></script>
-<script src="js/components/media.js?v=20260906ab"></script>
-<script src="js/components/modern.js?v=20260906ab"></script>
-<script src="js/components/product.js?v=20260906ab"></script>
-<script src="js/components/diagram.js?v=20260906ab"></script>
-<script src="js/inspector.js?v=20260906ab"></script>
-<script src="js/export.js?v=20260906ab"></script>
-<script src="js/preflight.js?v=20260906ab"></script>
-<script src="js/app.js?v=20260906ab"></script>
+<script src="js/core.js?v=20260906ac"></script>
+<script src="js/components/heroes.js?v=20260906ac"></script>
+<script src="js/components/content.js?v=20260906ac"></script>
+<script src="js/components/interactive.js?v=20260906ac"></script>
+<script src="js/components/media.js?v=20260906ac"></script>
+<script src="js/components/modern.js?v=20260906ac"></script>
+<script src="js/components/product.js?v=20260906ac"></script>
+<script src="js/components/diagram.js?v=20260906ac"></script>
+<script src="js/inspector.js?v=20260906ac"></script>
+<script src="js/export.js?v=20260906ac"></script>
+<script src="js/preflight.js?v=20260906ac"></script>
+<script src="js/app.js?v=20260906ac"></script>
 </body>
 </html>
 
