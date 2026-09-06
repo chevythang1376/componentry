@@ -318,19 +318,28 @@ and likely mistake, so preflight checks for it. Counting rows would call an unto
 full — its blank rows are there to be typed into — so the check asks whether any cell has
 anything in it.
 
-Everywhere else the same data arrives through a panel instead. Every list field offers
-**Paste from a spreadsheet**: Excel and Sheets put tab-separated text on the clipboard, a
-CSV export gives commas and quotes, and both are read. Columns are matched to fields by the
-name somebody would have typed at the top of their sheet rather than by an internal key
-they have never seen. Toggles accept *yes* and *no*; number fields take numbers.
+Elsewhere the same data arrives through a panel instead — but **only on the lists that want
+it**. It started out on all twenty-one, which put "Paste from a spreadsheet" under every
+list of cards and tiles to genuinely help about five, and on a list of pictures it reads as
+a claim that the block takes tabular data. A list now opts in, so the decision sits with
+whoever knows the shape of the content.
+
+The rule: a list offers it when it **routinely runs long, or arrives already written down
+somewhere else** — webinars, milestones, questions, logos, specs. Three cards with images
+do not.
+
+Where it is offered: Excel and Sheets put tab-separated text on the clipboard, a CSV export
+gives commas and quotes, and both are read. Columns are matched to fields by the name
+somebody would have typed at the top of their sheet rather than by an internal key they
+have never seen. Toggles accept *yes* and *no*; number fields take numbers.
 
 A column that matches nothing is **named, not guessed at** — the panel says which ones it
 is ignoring. And the count reports what was actually read, not how many fields the schema
 has: an early version answered "6 of 6 columns matched" to a single pasted sentence, which
 is exactly the number somebody checks before pressing Replace.
 
-So it reaches every repeating list, not only the table — Webinar Library, Pricing, Spec
-Strip, Timeline, Gallery and Logo Marquee have the same problem, just less acutely.
+`test/paste-table.html` pins which lists offer it, so the answer stays a decision rather
+than drifting back to "all of them".
 
 ### A block that was replaced rather than removed
 
@@ -964,8 +973,9 @@ test/
                         have typed, a count that describes the data rather than
                         the schema, a pasted rectangle that grows the grid
                         instead of truncating it, and a saved Compare Table that
-                        still opens, a whole-table import, and what a brand
-                        new table ships as; 63 assertions
+                        still opens, a whole-table import, what a brand new
+                        table ships as, and which lists offer the paste panel
+                        at all; 73 assertions
   freshness.html        Asserts the build check corrects a genuinely stale page and,
                         just as importantly, leaves every other case alone; 14 assertions
   defaults.html         Pins what a brand new project ships as — Inter actually

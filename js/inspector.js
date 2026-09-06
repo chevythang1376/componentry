@@ -367,7 +367,19 @@ CB.Inspector = (function () {
       rows.lastChild.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
     box.appendChild(add);
-    box.appendChild(pastePanel(field, props, paint, onInput));
+
+    /* Offered where the list declares it, not on every list there is.
+
+       It started out on all of them, which put "Paste from a spreadsheet"
+       under twenty-one lists to genuinely help about five — and on a list of
+       cards or tiles it reads as a claim that the block takes tabular data,
+       which it does not. A schema flag puts the decision with whoever knows
+       the shape of the content.
+
+       The rule: a list opts in when it routinely runs long, or arrives
+       already written down somewhere else. Webinars, milestones, questions,
+       logos and specs do. Three cards with images do not. */
+    if (field.paste) box.appendChild(pastePanel(field, props, paint, onInput));
 
     return box;
   }

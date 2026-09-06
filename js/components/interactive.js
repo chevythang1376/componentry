@@ -23,7 +23,7 @@
 
       { t: 'section', label: 'Items' },
       {
-        k: 'items', t: 'list', label: 'Questions',
+        k: 'items', t: 'list', label: 'Questions', paste: true,
         itemLabel: 'q',
         fields: [
           { k: 'q', t: 'text', label: 'Question', value: 'New question' },

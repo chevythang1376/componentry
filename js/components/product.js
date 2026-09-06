@@ -479,7 +479,7 @@
 
       { t: 'section', label: 'Specs' },
       {
-        k: 'items', t: 'list', label: 'Specs', itemLabel: 'label',
+        k: 'items', t: 'list', label: 'Specs', itemLabel: 'label', paste: true,
         fields: [
           { k: 'value', t: 'text', label: 'Value', value: '12 AWG' },
           { k: 'label', t: 'text', label: 'Label', value: 'Conductor' },

@@ -490,7 +490,7 @@
 
       { t: 'section', label: 'Milestones' },
       {
-        k: 'items', t: 'list', label: 'Milestones', itemLabel: 'title',
+        k: 'items', t: 'list', label: 'Milestones', itemLabel: 'title', paste: true,
         fields: [
           { k: 'date', t: 'text', label: 'Date / step', value: 'Step' },
           { k: 'title', t: 'text', label: 'Title', value: 'Milestone' },
@@ -864,7 +864,7 @@
         help: 'Gives whichever webinar sorts to the top a wider image and a row of its own.'
       },
       {
-        k: 'items', t: 'list', label: 'Webinars', itemLabel: 'title',
+        k: 'items', t: 'list', label: 'Webinars', itemLabel: 'title', paste: true,
         fields: [
           { k: 'image', t: 'image', label: 'Thumbnail', value: CB.ph(800, 450, '', '#96694c', '#2b241f') },
           { k: 'alt', t: 'text', label: 'Alt text', value: '' },
