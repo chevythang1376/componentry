@@ -367,8 +367,212 @@ CB.Inspector = (function () {
       rows.lastChild.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
     box.appendChild(add);
+    box.appendChild(pastePanel(field, props, paint, onInput));
 
     return box;
+  }
+
+  /* ------------------------------------------------------- paste a table
+
+     Specs live in a spreadsheet. They always have. Filling a comparison of
+     four products across twenty attributes through this inspector is eighty
+     boxes, which is the kind of job people start and abandon — so the
+     component would ship and go unused.
+
+     Copying out of Excel or Sheets puts tab-separated text on the clipboard,
+     so that is the format this reads first; comma-separated is accepted too,
+     quotes and all, because that is what a CSV export gives you. */
+  function splitRow(line, d) {
+    if (d === '\t') return line.split('\t').map(function (c) { return c.trim(); });
+    var out = [], cur = '', quoted = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (quoted) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; } else quoted = false;
+        } else cur += ch;
+      } else if (ch === '"') quoted = true;
+      else if (ch === d) { out.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
+  function parseTable(text) {
+    var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n')
+      .filter(function (l) { return l.trim(); });
+    if (!lines.length) return [];
+    // A tab anywhere means it came from a spreadsheet, where commas are data.
+    var delim = lines.join('').indexOf('\t') > -1 ? '\t' : ',';
+    return lines.map(function (l) { return splitRow(l, delim); });
+  }
+
+  function normKey(s) { return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, ''); }
+
+  /* Headers are matched to fields by their visible label, because that is what
+     somebody would have typed at the top of their sheet — not by the internal
+     key, which they have never seen. Both are tried anyway. A column that
+     matches nothing is left out rather than guessed at, and the panel says
+     which, so a silent mismatch cannot look like a successful import. */
+  function mapHeaders(headers, fields) {
+    return headers.map(function (h) {
+      var n = normKey(h);
+      if (!n) return null;
+      var hit = null;
+      fields.forEach(function (f) {
+        if (hit) return;
+        if (normKey(f.label) === n || normKey(f.k) === n) hit = f;
+      });
+      return hit ? hit.k : null;
+    });
+  }
+
+  function coerce(sub, raw) {
+    var v = String(raw == null ? '' : raw).trim();
+    if (!sub) return v;
+    if (sub.t === 'toggle') return /^(yes|y|true|1|on|✓)$/i.test(v);
+    if (sub.t === 'range') { var n = parseFloat(v); return isNaN(n) ? sub.value : n; }
+    return v;
+  }
+
+  /* The whole import, with no DOM in it — the panel below only collects the
+     text and shows what this says about it. Kept separate so it can be tested
+     against real spreadsheet output rather than by driving a textarea. */
+  function importRows(text, fields, useHeaders) {
+    fields = fields || [];
+    var empty = { items: [], matched: 0, columns: 0, unmatched: [] };
+    var table = parseTable(text);
+    if (!table.length) return empty;
+
+    var order, body, unmatched = [];
+    if (useHeaders && table.length > 1) {
+      order = mapHeaders(table[0], fields);
+      table[0].forEach(function (h, i) { if (!order[i] && h) unmatched.push(h); });
+      body = table.slice(1);
+    } else {
+      // No headers to go on, so columns land in the order the fields are
+      // declared — which is the order they appear in the panel.
+      order = fields.map(function (f) { return f.k; });
+      body = table;
+    }
+
+    /* Counted from the data, not from the fields. Reporting "6 of 6 matched"
+       for a single pasted sentence describes the form rather than what was
+       actually read, and a count that flatters the paste is worse than none:
+       it is the number someone checks before pressing Replace. */
+    var cols = 0;
+    body.forEach(function (r) { cols = Math.max(cols, r.length); });
+    if (useHeaders && table.length > 1) cols = Math.max(cols, table[0].length);
+    order = order.slice(0, cols);
+
+    var matched = order.filter(Boolean).length;
+    if (!matched) return { items: [], matched: 0, columns: cols, unmatched: unmatched };
+
+    var items = body.map(function (cells) {
+      var item = {};
+      fields.forEach(function (f) { item[f.k] = f.value; });
+      cells.forEach(function (cell, i) {
+        var key = order[i];
+        if (!key) return;
+        var sub = null;
+        fields.forEach(function (f) { if (f.k === key) sub = f; });
+        item[key] = coerce(sub, cell);
+      });
+      return item;
+    });
+
+    return { items: items, matched: matched, columns: cols, unmatched: unmatched };
+  }
+
+  function pastePanel(field, props, paint, onInput) {
+    var fields = field.fields || [];
+    var wrap = el('div', 'paste');
+
+    var open = el('button', 'paste__open');
+    open.type = 'button';
+    open.textContent = 'Paste from a spreadsheet';
+    wrap.appendChild(open);
+
+    var panel = el('div', 'paste__body');
+    panel.hidden = true;
+    wrap.appendChild(panel);
+
+    var ta = el('textarea', 'paste__ta');
+    ta.rows = 5;
+    ta.placeholder = 'Copy the cells in Excel or Sheets, then paste here.\n' +
+      'Include the header row and the columns are matched by name.';
+    ta.spellcheck = false;
+    panel.appendChild(ta);
+
+    var opts = el('label', 'paste__opt');
+    var hdr = document.createElement('input');
+    hdr.type = 'checkbox';
+    hdr.checked = true;
+    var hlab = document.createElement('span');
+    hlab.textContent = 'First row is column names';
+    opts.appendChild(hdr); opts.appendChild(hlab);
+    panel.appendChild(opts);
+
+    var report = el('p', 'paste__report');
+    panel.appendChild(report);
+
+    var acts = el('div', 'paste__acts');
+    var append = el('button', 'btn btn--sm');
+    append.type = 'button';
+    append.textContent = 'Add to list';
+    var replace = el('button', 'btn btn--sm');
+    replace.type = 'button';
+    replace.textContent = 'Replace list';
+    acts.appendChild(append); acts.appendChild(replace);
+    panel.appendChild(acts);
+
+    function plan() {
+      var r = importRows(ta.value, fields, hdr.checked);
+      if (!r.items.length && !r.matched) {
+        return { items: [], ok: false, note: r.columns ? 'None of those columns match this list’s fields.' : '' };
+      }
+      var note = r.items.length + (r.items.length === 1 ? ' row' : ' rows') + ', ' +
+                 r.matched + ' of ' + r.columns + (r.columns === 1 ? ' column' : ' columns') + ' matched';
+      if (r.unmatched.length) note += ' — ignoring ' + r.unmatched.slice(0, 3).join(', ') +
+        (r.unmatched.length > 3 ? ' and ' + (r.unmatched.length - 3) + ' more' : '');
+      return { items: r.items, note: note, ok: r.items.length > 0 };
+    }
+
+    function refresh() {
+      var r = plan();
+      report.textContent = ta.value.trim() ? r.note : '';
+      report.classList.toggle('is-bad', !!ta.value.trim() && !r.ok);
+      append.disabled = replace.disabled = !r.ok;
+    }
+
+    function commit(mode) {
+      var r = plan();
+      if (!r.ok) return;
+      var arr = props[field.k] || (props[field.k] = []);
+      if (mode === 'replace') arr.length = 0;
+      r.items.forEach(function (it) { arr.push(it); });
+      ta.value = '';
+      panel.hidden = true;
+      open.setAttribute('aria-expanded', 'false');
+      refresh();
+      paint();
+      onInput();
+    }
+
+    open.setAttribute('aria-expanded', 'false');
+    open.addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      open.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+      if (!panel.hidden) ta.focus();
+    });
+    ta.addEventListener('input', refresh);
+    hdr.addEventListener('change', refresh);
+    append.addEventListener('click', function () { commit('append'); });
+    replace.addEventListener('click', function () { commit('replace'); });
+    refresh();
+
+    return wrap;
   }
 
   /* -------------------------------------------------------------- render */
@@ -414,5 +618,5 @@ CB.Inspector = (function () {
     applyConditions();
   }
 
-  return { render: render };
+  return { render: render, importRows: importRows, parseTable: parseTable };
 })();

@@ -557,6 +557,49 @@ window.CBProbe = (function () {
     t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
   });
 
+  register('compare-table', function (root, t) {
+    var table = q(root, '.cb-cmp__table');
+    var cols = qa(root, '.cb-cmp__prod');
+    var rowLabels = qa(root, '.cb-cmp__rowlab');
+
+    t.ok('renders a real table', !!table && table.tagName === 'TABLE');
+    /* The whole content here is the tie between a row label and the cell under
+       a column heading. A grid of divs looks identical and hands a screen
+       reader nothing, so the scopes are the component working, not a detail. */
+    t.ok('columns are column headers', cols.length >= 2 &&
+         cols.every(function (c) { return c.tagName === 'TH' && c.getAttribute('scope') === 'col'; }),
+         cols.length + ' columns');
+    t.ok('attributes are row headers', rowLabels.length >= 3 &&
+         rowLabels.every(function (r) { return r.tagName === 'TH' && r.getAttribute('scope') === 'row'; }),
+         rowLabels.length + ' rows');
+
+    // Every row must carry a cell per column, or the table is misaligned and
+    // the value under a heading is not the value for that product.
+    var bodyRows = qa(root, 'tbody tr').filter(function (r) { return !r.classList.contains('cb-cmp__grouprow'); });
+    t.ok('every row has a cell per column',
+         bodyRows.every(function (r) { return qa(r, '.cb-cmp__cell').length === cols.length; }));
+
+    // A tick alone says nothing to a screen reader.
+    var marks = qa(root, '.cb-cmp__yes, .cb-cmp__no');
+    t.ok('yes and no carry a word as well as a glyph',
+         marks.length > 0 && marks.every(function (m) {
+           return m.getAttribute('aria-hidden') === 'true' &&
+                  m.nextElementSibling && m.nextElementSibling.classList.contains('cb-sr');
+         }), marks.length + ' marks');
+
+    // The filter is a checkbox precisely so it survives an editor that strips
+    // scripts; identical rows are marked when the code is generated.
+    var chk = q(root, '.cb-cmp__chk');
+    if (chk) {
+      t.ok('the differences filter is a real checkbox', chk.type === 'checkbox');
+      t.ok('and there are marked rows for it to hide', qa(root, 'tr[data-same="1"]').length > 0);
+    }
+
+    t.ok('the label column stays put while the table scrolls',
+         getComputedStyle(rowLabels[0]).position === 'sticky');
+    t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
+  });
+
   register('hotspot-diagram', function (root, t) {
     var pins = qa(root, '.cb-hs__pin');
     var radios = qa(root, '.cb-hs__radio');

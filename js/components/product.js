@@ -578,4 +578,292 @@
       return { html: html, css: css, js: '' };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Compare Table                                                          */
+  /*                                                                        */
+  /* The block that helps somebody choose, rather than another one that     */
+  /* shows. A specifier deciding between two cable constructions is reading */
+  /* across a row, and doing it in two browser tabs until this exists.      */
+  /*                                                                        */
+  /* A real <table>, not a grid of divs: the tie between a row label and    */
+  /* the cell under a column header is the whole content here, and only a   */
+  /* table hands that to a screen reader intact.                            */
+  /* --------------------------------------------------------------------- */
+  CB.register({
+    id: 'compare-table',
+    name: 'Compare Table',
+    category: CAT,
+    icon: '▤',
+    blurb: 'Products side by side, attribute by attribute — the block someone reads to decide. Sticky labels, zero JS.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Compare the range' },
+      { k: 'sub', t: 'text', label: 'Standfirst', value: '' },
+
+      { t: 'section', label: 'Products' },
+      {
+        k: 'products', t: 'list', label: 'Columns', itemLabel: 'name',
+        help: 'Up to four. Past four it stops being a comparison and starts being a catalogue, ' +
+              'so anything beyond the fourth is left out.',
+        fields: [
+          { k: 'name', t: 'text', label: 'Product', value: 'THHN / THWN-2' },
+          { k: 'tagline', t: 'text', label: 'One-line summary', value: '' },
+          { k: 'badge', t: 'text', label: 'Flag', value: '', help: 'A short marker above the name — "Most specified", "New". Leave empty for none.' },
+          { k: 'featured', t: 'toggle', label: 'Highlight this column', value: false },
+          { k: 'image', t: 'image', label: 'Image', value: '' },
+          { k: 'alt', t: 'text', label: 'Alt text', value: '' }
+        ].concat(CB.ctaFields({ help: 'Sits under this column. Leave empty for no button.' })),
+        value: [
+          { name: 'THHN / THWN-2', tagline: 'General purpose building wire', badge: 'Most specified', featured: true, image: '', alt: '', btnText: '', btnUrl: '#' },
+          { name: 'XHHW-2', tagline: 'Cross-linked, wet or dry', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
+          { name: 'MC Cable', tagline: 'Armoured, ready to pull', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' }
+        ]
+      },
+
+      { t: 'section', label: 'Rows' },
+      {
+        k: 'rows', t: 'list', label: 'Attributes', itemLabel: 'label',
+        help: '"Yes" and "No" become a tick and a dash. Fill in Group on the first row of a set ' +
+              'to start a new banded section.',
+        fields: [
+          { k: 'label', t: 'text', label: 'Attribute', value: 'Conductor' },
+          { k: 'group', t: 'text', label: 'Starts a group', value: '', help: 'Leave empty to continue the group above.' },
+          { k: 'v1', t: 'text', label: 'Column 1', value: '' },
+          { k: 'v2', t: 'text', label: 'Column 2', value: '' },
+          { k: 'v3', t: 'text', label: 'Column 3', value: '' },
+          { k: 'v4', t: 'text', label: 'Column 4', value: '' }
+        ],
+        value: [
+          { label: 'Conductor', group: 'Construction', v1: 'Copper', v2: 'Copper', v3: 'Copper', v4: '' },
+          { label: 'Insulation', group: '', v1: 'PVC with nylon', v2: 'XLPE', v3: 'THHN in armour', v4: '' },
+          { label: 'Jacket', group: '', v1: 'None', v2: 'None', v3: 'Aluminium armour', v4: '' },
+          { label: 'Voltage rating', group: 'Ratings', v1: '600 V', v2: '600 V', v3: '600 V', v4: '' },
+          { label: 'Temperature, dry', group: '', v1: '90 °C', v2: '90 °C', v3: '90 °C', v4: '' },
+          { label: 'Wet rated', group: '', v1: 'Yes', v2: 'Yes', v3: 'Yes', v4: '' },
+          { label: 'Sunlight resistant', group: '', v1: 'No', v2: 'Yes', v3: 'No', v4: '' },
+          { label: 'Direct burial', group: '', v1: 'No', v2: 'No', v3: 'No', v4: '' }
+        ]
+      },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'differences', t: 'toggle', label: 'Offer "only show differences"', value: true,
+        help: 'Adds a checkbox that hides every row where all the columns say the same thing. ' +
+              'It appears only when there is at least one such row.'
+      },
+      { k: 'zebra', t: 'toggle', label: 'Banded rows', value: true },
+      { k: 'showImages', t: 'toggle', label: 'Show column images', value: false },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 16, max: 140, step: 4, unit: 'px', value: 72 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var products = (p.products || []).filter(function (x) { return x && x.name; }).slice(0, 4);
+      var rows = (p.rows || []).filter(function (x) { return x && (x.label || x.group); });
+      var n = products.length;
+
+      if (!n) {
+        return {
+          html: '<section class="' + c.cls + ' cb-cmp"><div class="cb-wrap">' +
+                '<p class="cb-cmp__empty">Add at least one column.</p></div></section>',
+          css: s + ' .cb-cmp__empty { color: var(--cb-muted); padding-block: 40px; }',
+          js: ''
+        };
+      }
+
+      var keys = ['v1', 'v2', 'v3', 'v4'].slice(0, n);
+      var chk = c.uid('cmp');
+
+      /* Yes and no earn a mark rather than the word, because a column reading
+         "Yes / Yes / No" is understood by shape long before it is read as
+         language. The word still goes to a screen reader, which gets nothing
+         from a glyph. Detected from the value rather than declared in a field,
+         so a pasted spreadsheet needs no extra column saying what kind of row
+         this is. */
+      function cell(v) {
+        var t = String(v == null ? '' : v).trim();
+        if (/^(yes|y|true|included|standard)$/i.test(t)) {
+          return '<span class="cb-cmp__yes" aria-hidden="true">&#10003;</span><span class="cb-sr">Yes</span>';
+        }
+        if (/^(no|n|false|x|none|not available)$/i.test(t)) {
+          return '<span class="cb-cmp__no" aria-hidden="true">&#8211;</span><span class="cb-sr">No</span>';
+        }
+        if (!t) return '<span class="cb-cmp__no" aria-hidden="true">&#8211;</span><span class="cb-sr">Not stated</span>';
+        return c.esc(t);
+      }
+
+      /* Worked out here, where every value is known, rather than in a script
+         an editor might strip. The checkbox only has to hide what is already
+         marked. */
+      function same(r) {
+        if (n < 2) return false;
+        var first = String(r[keys[0]] == null ? '' : r[keys[0]]).trim().toLowerCase();
+        return keys.every(function (k) {
+          return String(r[k] == null ? '' : r[k]).trim().toLowerCase() === first;
+        });
+      }
+
+      var sameCount = rows.filter(function (r) { return r.label && same(r); }).length;
+      var offerFilter = p.differences && sameCount > 0;
+
+      var head = products.map(function (pr) {
+        var img = p.showImages && pr.image
+          ? '<img class="cb-cmp__img" src="' + c.url(pr.image) + '" alt="' + c.attr(pr.alt) + '" loading="lazy" decoding="async">'
+          : '';
+        return c.dedent(`
+          <th scope="col" class="cb-cmp__prod${pr.featured ? ' is-featured' : ''}">
+            ${img}
+            ${pr.badge ? '<span class="cb-cmp__badge">' + c.esc(pr.badge) + '</span>' : ''}
+            <span class="cb-cmp__name">${c.esc(pr.name)}</span>
+            ${pr.tagline ? '<span class="cb-cmp__tag">' + c.esc(pr.tagline) + '</span>' : ''}
+            ${c.actions([{ text: pr.btnText, url: pr.btnUrl }], { tight: true })}
+          </th>`);
+      }).join('\n');
+
+      var body = rows.map(function (r) {
+        var out = '';
+        if (r.group) {
+          out += '<tr class="cb-cmp__grouprow"><th scope="colgroup" colspan="' + (n + 1) + '">' +
+                 c.esc(r.group) + '</th></tr>\n';
+        }
+        if (!r.label) return out;
+        out += '<tr' + (same(r) ? ' data-same="1"' : '') + '>' +
+               '<th scope="row" class="cb-cmp__rowlab">' + c.esc(r.label) + '</th>' +
+               keys.map(function (k, i) {
+                 return '<td class="cb-cmp__cell' + (products[i].featured ? ' is-featured' : '') + '">' +
+                        cell(r[k]) + '</td>';
+               }).join('') +
+               '</tr>';
+        return out;
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-cmp">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? c.dedent(`
+            <header class="cb-cmp__head">
+              ${p.eyebrow ? '<p class="cb-cmp__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-cmp__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-cmp__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>`) : ''}
+            ${offerFilter ? c.dedent(`
+            <div class="cb-cmp__filter">
+              <input type="checkbox" id="${chk}" class="cb-cmp__chk">
+              <label for="${chk}">Only show differences</label>
+            </div>`) : ''}
+            <div class="cb-cmp__scroll" tabindex="0" role="region" aria-label="${c.attr(p.title || 'Comparison')}">
+              <table class="cb-cmp__table">
+                <thead>
+                  <tr>
+                    <td class="cb-cmp__corner"></td>
+        ${c.indent(head, 20)}
+                  </tr>
+                </thead>
+                <tbody>
+        ${c.indent(body, 18)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>`);
+
+      var colw = n >= 4 ? 150 : n === 3 ? 170 : 200;
+
+      var css = `
+        ${s}.cb-cmp { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s} .cb-cmp__head { max-width: 660px; margin-bottom: 26px; }
+        ${s} .cb-cmp__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand); margin-bottom: 10px;
+        }
+        ${s} .cb-cmp__title {
+          font-size: calc(clamp(24px, 3.4vw, 36px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-cmp__sub { color: var(--cb-muted); margin-top: 10px; }
+
+        ${s} .cb-cmp__filter { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; font-size: .9em; }
+        ${s} .cb-cmp__chk { width: 16px; height: 16px; accent-color: var(--cb-brand); flex: none; }
+        ${s} .cb-cmp__filter label { color: var(--cb-muted); cursor: pointer; }
+
+        /* Horizontal, and inside its own box — never sticky to the viewport,
+           which is what puts a block in the same paint layer as a host site's
+           fixed header. */
+        ${s} .cb-cmp__scroll { overflow-x: auto; }
+        ${s} .cb-cmp__scroll:focus-visible { outline: 3px solid var(--cb-brand); outline-offset: 3px; }
+        ${s} .cb-cmp__table {
+          width: 100%; border-collapse: separate; border-spacing: 0;
+          min-width: ${140 + n * colw}px; text-align: left;
+        }
+        ${s} .cb-cmp__corner, ${s} .cb-cmp__rowlab {
+          position: sticky; left: 0; z-index: 1;
+          background: ${c.bg(p)};
+          width: 140px; min-width: 140px;
+        }
+        ${s} .cb-cmp__prod {
+          vertical-align: bottom; padding: 0 16px 16px; min-width: ${colw}px;
+          border-bottom: 2px solid var(--cb-border);
+        }
+        ${s} .cb-cmp__img { width: 100%; max-width: 130px; aspect-ratio: 4/3; object-fit: contain; margin-bottom: 10px; }
+        ${s} .cb-cmp__badge {
+          display: inline-block; font-size: calc(.66em * var(--cb-eyebrow-scale, 1));
+          font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+          color: var(--cb-on-brand); background: var(--cb-brand);
+          padding: 3px 7px; border-radius: calc(var(--cb-radius) * .28); margin-bottom: 7px;
+        }
+        ${s} .cb-cmp__name {
+          display: block; font-size: 1.02em; font-weight: var(--cb-h-weight, 730);
+          line-height: calc(1.25 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-cmp__tag { display: block; font-size: .84em; color: var(--cb-muted); margin-top: 4px; font-weight: 400; }
+
+        ${s} .cb-cmp__grouprow th {
+          padding: 26px 16px 8px; text-align: left;
+          font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.11em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-muted);
+        }
+        ${s} .cb-cmp__rowlab {
+          padding: 13px 16px 13px 0; font-weight: 600; font-size: .92em;
+          border-bottom: 1px solid var(--cb-border); vertical-align: top;
+        }
+        ${s} .cb-cmp__cell {
+          padding: 13px 16px; font-size: .92em; vertical-align: top;
+          border-bottom: 1px solid var(--cb-border);
+          font-variant-numeric: tabular-nums;
+        }
+        ${p.zebra ? `
+        ${s} .cb-cmp__table tbody tr:nth-of-type(even):not(.cb-cmp__grouprow) .cb-cmp__cell,
+        ${s} .cb-cmp__table tbody tr:nth-of-type(even):not(.cb-cmp__grouprow) .cb-cmp__rowlab {
+          background: var(--cb-subtle);
+        }` : ''}
+        ${s} .cb-cmp__cell.is-featured, ${s} .cb-cmp__prod.is-featured {
+          background: color-mix(in srgb, var(--cb-brand) 7%, transparent);
+        }
+        ${s} .cb-cmp__prod.is-featured { border-bottom-color: var(--cb-brand); }
+        ${s} .cb-cmp__yes { color: var(--cb-brand); font-weight: 700; }
+        ${s} .cb-cmp__no { color: var(--cb-muted); }
+
+        /* The whole reason the filter can be a checkbox: which rows are
+           identical is settled when the code is written, not in the browser. */
+        ${s} .cb-cmp__chk:checked ~ .cb-cmp__scroll tr[data-same="1"] { display: none; }
+
+        @media (max-width: 700px) {
+          ${s} .cb-cmp__corner, ${s} .cb-cmp__rowlab { width: 116px; min-width: 116px; }
+          ${s} .cb-cmp__rowlab { font-size: .86em; padding-right: 12px; }
+          ${s} .cb-cmp__cell { font-size: .86em; padding: 11px 12px; }
+        }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
 })();

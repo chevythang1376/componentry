@@ -43,7 +43,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 ---
 
-## The 27 components
+## The 28 components
 
 | Category | Component | Notes |
 |---|---|---|
@@ -74,6 +74,7 @@ so the deploy that introduces it is the last one that can go stale.
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
 | | Spec Strip | Row of headline specs with hairline dividers |
+| | Compare Table | Products side by side, attribute by attribute. A real `<table>`, sticky attribute column, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
 
 ---
 
@@ -288,6 +289,26 @@ image used twice or blocks reordered can't mis-map. That brings the cost to **12
 
 Switch it off with **Re-editable** if you'd rather ship the smallest possible code. Split
 files mode puts the comment on the HTML pane, since that's the part you'd paste back.
+
+### Filling a long list
+
+Specs live in a spreadsheet. They always have. A comparison of four products across
+twenty attributes is eighty boxes through the inspector, which is the kind of job people
+start and abandon — so the component would have shipped and gone unused.
+
+Every list field therefore offers **Paste from a spreadsheet**. Copy the cells in Excel or
+Sheets and the clipboard carries tab-separated text; a CSV export gives commas and quotes.
+Both are read, and columns are matched to fields by the name somebody would have typed at
+the top of their sheet rather than by an internal key they have never seen. Toggles accept
+*yes* and *no*; number fields take numbers.
+
+A column that matches nothing is **named, not guessed at** — the panel says which ones it
+is ignoring. And the count reports what was actually read, not how many fields the schema
+has: an early version answered "6 of 6 columns matched" to a single pasted sentence, which
+is exactly the number somebody checks before pressing Replace.
+
+It applies to every repeating list, not just the comparison — Webinar Library, Pricing,
+Spec Strip, Timeline, Gallery and Logo Marquee have the same problem, just less acutely.
 
 ### Preflight
 
@@ -858,10 +879,10 @@ js/components/
   product.js            finish-switcher, pinned-product, spec-strip
   diagram.js            hotspot-diagram
 test/
-  gallery.html          Renders all 27 through the real export path; reports failures
+  gallery.html          Renders all 28 through the real export path; reports failures
   hostile-host.html     Pastes exports into a deliberately awful theme; 165 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
-                        200 round-trips, then functionally probes what survives
+                        224 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,
                         gradients, clip-path, backdrop-filter, images, scroll
                         timelines) and reports text that becomes unreadable.
@@ -876,6 +897,10 @@ test/
                         untouched project, everything fires once a real image
                         goes in undescribed, a dead image link is an error and a
                         correct 2x image is left alone; 26 assertions
+  paste-table.html      Asserts a spreadsheet lands as list items: tabs and quoted
+                        CSV, columns matched by the name somebody would have
+                        typed, types coerced, and a column count that describes
+                        the data rather than the schema; 30 assertions
   freshness.html        Asserts the build check corrects a genuinely stale page and,
                         just as importantly, leaves every other case alone; 14 assertions
   defaults.html         Pins what a brand new project ships as — Inter actually

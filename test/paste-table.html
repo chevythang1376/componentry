@@ -1,0 +1,141 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — paste a table</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 76ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+</style>
+<h1>Paste a table</h1>
+<p class="sub">Specs live in a spreadsheet, so filling a comparison by hand through the
+inspector is the job people abandon. Copying cells out of Excel or Sheets puts
+tab-separated text on the clipboard; a CSV export gives commas and quotes. Both have to
+land as list items, and — just as importantly — the panel has to report honestly what it
+read, because that count is what somebody checks before pressing Replace.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js',
+   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js',
+   'inspector.js'].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+
+window.addEventListener('load', function () {
+  var I = CB.Inspector;
+
+  /* The real Compare Table row schema, so this tests what the component
+     actually declares rather than a convenient stand-in. */
+  var rowFields = null;
+  (CB.get('compare-table') || { props: [] }).props.forEach(function (f) {
+    if (f.k === 'rows') rowFields = f.fields;
+  });
+  check('the compare table exposes a row schema to import into', !!rowFields, true);
+
+  var toy = [
+    { k: 'label', t: 'text', label: 'Attribute', value: '' },
+    { k: 'v1', t: 'text', label: 'Column 1', value: '' },
+    { k: 'v2', t: 'text', label: 'Column 2', value: '' },
+    { k: 'on', t: 'toggle', label: 'Featured', value: false },
+    { k: 'size', t: 'range', label: 'Size', value: 10 }
+  ];
+
+  // --- what a spreadsheet actually puts on the clipboard -------------------
+  var tsv = 'Attribute\tColumn 1\tColumn 2\n' +
+            'Conductor\tCopper\tAluminium\n' +
+            'Voltage rating\t600 V\t600 V';
+  var r = I.importRows(tsv, toy, true);
+  check('tab-separated text becomes rows', r.items.length, 2);
+  check('and the header row is not one of them', r.items[0].label, 'Conductor');
+  check('columns are matched by the name a person would have typed', r.items[0].v2, 'Aluminium');
+  check('the count describes the data, not the schema', r.matched + ' of ' + r.columns, '3 of 3');
+  check('fields the paste did not mention keep their default', r.items[0].on, false);
+
+  // --- a CSV export, where a comma can be inside a value --------------------
+  var csv = 'Attribute,Column 1,Column 2\n' +
+            '"Temperature, dry",90 °C,90 °C\n' +
+            'Jacket,"PVC, nylon",XLPE';
+  var c = I.importRows(csv, toy, true);
+  check('commas inside quotes do not split a cell', c.items[0].label, 'Temperature, dry');
+  check('nor in a later column', c.items[1].v1, 'PVC, nylon');
+  check('and the quotes themselves are not kept', /"/.test(c.items[1].v1), false);
+
+  // --- a column nobody can place ------------------------------------------
+  var extra = I.importRows('Attribute\tColumn 1\tSupplier notes\nGauge\t12 AWG\tinternal', toy, true);
+  check('an unmatched column is named rather than dropped in silence',
+        extra.unmatched.join(','), 'Supplier notes');
+  check('it is left out of the item', extra.items[0].internal === undefined, true);
+  check('and the count says so', extra.matched + ' of ' + extra.columns, '2 of 3');
+
+  /* The count is the number somebody checks before replacing a list, so it has
+     to describe what was read. Counting the schema's fields instead reported
+     "6 of 6 columns matched" for a single pasted sentence. */
+  var prose = I.importRows('just one line of prose with no delimiters', toy, false);
+  check('one column of data is reported as one column', prose.columns, 1);
+  check('and still makes a row rather than refusing outright', prose.items.length, 1);
+
+  // --- no header row ------------------------------------------------------
+  var bare = I.importRows('Conductor\tCopper\tAluminium', toy, false);
+  check('without headers, columns land in the order the fields are declared',
+        bare.items[0].label + '/' + bare.items[0].v1 + '/' + bare.items[0].v2,
+        'Conductor/Copper/Aluminium');
+
+  /* A single row cannot be a header and a body at once — treating it as a
+     header would import nothing and look like a failed paste. */
+  var lone = I.importRows('Conductor\tCopper\tAluminium', toy, true);
+  check('a lone row is data even when headers are asked for', lone.items.length, 1);
+
+  // --- types ---------------------------------------------------------------
+  var typed = I.importRows('Attribute\tFeatured\tSize\nX\tyes\t18', toy, true);
+  check('a toggle takes yes as true', typed.items[0].on, true);
+  check('and a number field takes a number, not a string', typed.items[0].size === 18, true);
+  var off = I.importRows('Attribute\tFeatured\nX\tno', toy, true);
+  check('no is false', off.items[0].on, false);
+
+  // --- shape edge cases ----------------------------------------------------
+  check('empty input imports nothing', I.importRows('', toy, true).items.length, 0);
+  check('and neither does whitespace', I.importRows('  \n \n', toy, true).items.length, 0);
+  var ragged = I.importRows('Attribute\tColumn 1\tColumn 2\nA\tonly one', toy, true);
+  check('a short row keeps the defaults for what it did not supply', ragged.items[0].v2, '');
+  var blanks = I.importRows('Attribute\tColumn 1\nA\tx\n\nB\ty', toy, true);
+  check('a blank line between rows is skipped, not imported as an empty item', blanks.items.length, 2);
+  check('values are trimmed', I.importRows('  spaced  ', toy, false).items[0].label, 'spaced');
+
+  /* More data columns than the list has fields. The extra ones have nowhere to
+     go, and the report has to admit that rather than claim a clean import. */
+  var wide = I.importRows('a\tb\tc\td\te\tf\tg\th', toy, false);
+  check('surplus columns are counted but not invented into fields', wide.columns, 8);
+  check('and only the fields that exist are filled', wide.matched, 5);
+
+  // --- the real schema -----------------------------------------------------
+  if (rowFields) {
+    var real = I.importRows(
+      'Attribute\tStarts a group\tColumn 1\tColumn 2\tColumn 3\n' +
+      'Conductor\tConstruction\tCopper\tCopper\tAluminium\n' +
+      'Wet rated\t\tYes\tYes\tNo', rowFields, true);
+    check('a real spreadsheet fills a real compare table', real.items.length, 2);
+    check('every column of it lands', real.matched + ' of ' + real.columns, '5 of 5');
+    check('including the group that starts a band', real.items[0].group, 'Construction');
+    check('and the unused fourth column stays empty', real.items[0].v4, '');
+  }
+
+  document.getElementById('out').textContent = log.join('\n');
+  var bar = document.getElementById('bar');
+  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
+                         : (pass + '/' + pass + ' passed — a spreadsheet lands as list items, honestly counted');
+  document.title = fail ? 'PASTE FAIL ' + fail : 'PASTE OK ' + pass;
+});
+</script>
