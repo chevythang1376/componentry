@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Modern layout — bento grid, sticky stacking cards
 
    Both are deliberately JavaScript-free. The conformance matrix showed that
@@ -674,6 +674,217 @@
         }` : '';
 
       return { html: html, css: css + reveal, js: '' };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /* Split Reveal                                                           */
+  /*                                                                        */
+  /* A panel that opens like a set of blinds as you scroll, uncovering the   */
+  /* message behind it. Every slat is a plain element rotated on its own     */
+  /* slice of the scroll, so the whole thing is CSS.                        */
+  /*                                                                        */
+  /* The slats are decoration over content that is already there, never a    */
+  /* container for it. Text living on a rotating face would be split across  */
+  /* slats and unreadable, and would vanish outright wherever the animation  */
+  /* does not run. So the content sits underneath in normal flow, and the    */
+  /* slats only ever take themselves away.                                   */
+  /* --------------------------------------------------------------------- */
+  CB.register({
+    id: 'split-reveal',
+    name: 'Split Reveal',
+    category: CAT,
+    icon: '▥',
+    blurb: 'A cover that opens like blinds as you scroll, uncovering the message behind it. Zero JS, and the message is there whether it opens or not.',
+    props: [
+      { t: 'section', label: 'Behind the cover' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'New for 2026' },
+      { k: 'title', t: 'text', label: 'Heading', value: 'Rated for the pull, not the brochure.' },
+      { k: 'sub', t: 'textarea', label: 'Copy', value: 'Independently tested to the standards our customers are held to.' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: 'See the test data',
+        help: 'Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+      { k: 'image', t: 'image', label: 'Background image', value: '',
+        help: 'Sits behind the copy. Leave empty for a plain ground.' },
+      { k: 'alt', t: 'text', label: 'Alt text', value: '' },
+
+      { t: 'section', label: 'The cover' },
+      {
+        k: 'coverMode', t: 'select', label: 'Cover is', value: 'brand',
+        options: [['brand', 'The brand colour'], ['deep', 'Dark'], ['custom', 'A colour I pick'], ['image', 'An image']]
+      },
+      { k: 'cover', t: 'color', label: 'Cover colour', value: '#96694c', when: { coverMode: ['custom'] } },
+      { k: 'coverImage', t: 'image', label: 'Cover image', value: '', when: { coverMode: ['image'] } },
+      { k: 'coverAlt', t: 'text', label: 'Cover alt text', value: '', when: { coverMode: ['image'] } },
+      { k: 'coverText', t: 'text', label: 'Word across the cover', value: '',
+        help: 'Optional. Splits across the slats and goes with them — decoration, so it is kept from screen readers.' },
+
+      { t: 'section', label: 'Motion' },
+      {
+        k: 'slats', t: 'range', label: 'Slats', min: 2, max: 14, step: 1, value: 7,
+        help: 'More slats is a finer opening and more elements on the page.'
+      },
+      {
+        k: 'axis', t: 'select', label: 'They open', value: 'vertical',
+        options: [['vertical', 'Upward, like blinds'], ['horizontal', 'Sideways, like doors']]
+      },
+      {
+        k: 'order', t: 'select', label: 'In order', value: 'across',
+        options: [['across', 'One after another'], ['centre', 'From the middle out'], ['together', 'All at once']]
+      },
+      { k: 'stagger', t: 'range', label: 'Stagger', min: 0, max: 8, step: 1, value: 3 },
+
+      { t: 'section', label: 'Style' },
+      { k: 'minHeight', t: 'range', label: 'Height', min: 240, max: 720, step: 20, unit: 'px', value: 420 },
+      { k: 'align', t: 'select', label: 'Alignment', value: 'left', options: [['left', 'Left'], ['center', 'Centre']] },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 4, unit: 'px', value: 0 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var count = c.clamp(Math.round(c.num(p.slats, 7)), 2, 14);
+      var vertical = p.axis !== 'horizontal';
+      var word = String(p.coverText || '').trim();
+
+      /* Which slat moves when. Kept here rather than in a selector so the CSS
+         stays one rule with an index, whatever the order. */
+      function delayIndex(i) {
+        if (p.order === 'together') return 0;
+        if (p.order === 'centre') return Math.abs(i - (count - 1) / 2);
+        return i;
+      }
+      var step = c.num(p.stagger, 3);
+
+      var coverFill = p.coverMode === 'custom' ? (p.cover || '#96694c')
+        : p.coverMode === 'deep' ? 'var(--cb-deep, #141210)'
+        : p.coverMode === 'image' ? 'var(--cb-subtle)'
+        : 'var(--cb-brand)';
+
+      var slats = '';
+      for (var i = 0; i < count; i++) {
+        var pos = (i / count * 100).toFixed(4);
+        var seg = word ? c.esc(word.charAt(Math.floor(i * word.length / count)) || '') : '';
+        slats += '<span class="cb-spl__slat" style="--i:' + delayIndex(i).toFixed(2) + '; --pos:' + pos + '%;">' +
+                 (word ? '<span class="cb-spl__glyph">' + seg + '</span>' : '') +
+                 '</span>';
+      }
+
+      var media = p.image
+        ? '<img class="cb-spl__img" src="' + c.url(p.image) + '" alt="' + c.attr(p.alt) + '" loading="lazy" decoding="async">'
+        : '';
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-spl">
+          <div class="cb-spl__stage">
+            ${media}
+            <div class="cb-spl__inner">
+              <div class="cb-wrap">
+                ${p.eyebrow ? '<p class="cb-spl__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+                ${p.title ? '<h2 class="cb-spl__title">' + c.rich(p.title) + '</h2>' : ''}
+                ${p.sub ? '<p class="cb-spl__sub">' + c.rich(p.sub) + '</p>' : ''}
+                ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.align === 'center' ? 'center' : '' })}
+              </div>
+            </div>
+            <div class="cb-spl__cover" aria-hidden="true">
+        ${c.indent(slats, 8)}
+            </div>
+          </div>
+        </section>`);
+
+      var dark = p.coverMode === 'deep' || p.coverMode === 'brand' || p.coverMode === 'custom';
+      var onMedia = !!p.image;
+
+      var css = `
+        ${s}.cb-spl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 0)}px; }
+        ${s} .cb-spl__stage {
+          position: relative; overflow: hidden;
+          min-height: ${c.num(p.minHeight, 420)}px;
+          display: flex; align-items: center;
+          border-radius: var(--cb-radius);
+          background: ${onMedia ? 'var(--cb-subtle)' : 'var(--cb-band, #f7f4f1)'};
+        }
+        ${s} .cb-spl__img {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          object-fit: cover; z-index: 0;
+        }
+        ${s} .cb-spl__inner {
+          position: relative; z-index: 1; width: 100%;
+          padding-block: 48px; text-align: ${p.align === 'center' ? 'center' : 'left'};
+          ${onMedia ? 'background: linear-gradient(90deg, rgba(20,18,16,.72), rgba(20,18,16,.28));' : ''}
+        }
+        ${s} .cb-spl__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: ${onMedia ? 'var(--cb-on-dark, #ffffff)' : 'var(--cb-brand)'}; margin-bottom: 12px;
+          ${onMedia ? 'opacity: .82;' : ''}
+        }
+        ${s} .cb-spl__title {
+          font-size: calc(clamp(26px, 4vw, 42px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.12 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+          max-width: 20ch; ${p.align === 'center' ? 'margin-inline: auto;' : ''}
+          ${onMedia ? 'color: var(--cb-on-dark, #ffffff);' : ''}
+        }
+        ${s} .cb-spl__sub {
+          margin-top: 14px; max-width: 52ch;
+          ${p.align === 'center' ? 'margin-inline: auto;' : ''}
+          color: ${onMedia ? 'var(--cb-on-dark-muted, rgba(255,255,255,.82))' : 'var(--cb-muted)'};
+        }
+        ${onMedia ? c.pin([s + ' .cb-spl__title', s + ' .cb-spl__eyebrow'], 'var(--cb-on-dark, #ffffff)') : ''}
+
+        ${s} .cb-spl__cover {
+          position: absolute; inset: 0; z-index: 2;
+          pointer-events: none;
+          /* Gone unless a scroll timeline puts it back. A cover that needs an
+             animation to get out of the way would otherwise sit on top of the
+             message in every browser that cannot run one. */
+          display: none;
+        }
+        ${s} .cb-spl__slat {
+          position: absolute;
+          background: ${coverFill};
+          ${p.coverMode === 'image' && p.coverImage ? `
+          background-image: url("${c.url(p.coverImage)}");
+          background-size: ${vertical ? 'auto ' + count * 100 + '%' : count * 100 + '% auto'};
+          background-position: ${vertical ? '50% var(--pos)' : 'var(--pos) 50%'};` : ''}
+          display: flex; align-items: center; justify-content: center;
+          ${vertical
+            ? `left: 0; right: 0; top: var(--pos); height: calc(100% / ${count} + 1px); transform-origin: 50% 0%;`
+            : `top: 0; bottom: 0; left: var(--pos); width: calc(100% / ${count} + 1px); transform-origin: 0% 50%;`}
+        }
+        ${s} .cb-spl__glyph {
+          font-size: calc(clamp(22px, 4vw, 46px) * var(--cb-h-scale, 1));
+          font-weight: var(--cb-h-weight, 800); letter-spacing: .04em;
+          color: ${dark ? 'var(--cb-on-dark, #ffffff)' : 'var(--cb-ink)'};
+        }
+
+        @keyframes cb-spl-${c.id} {
+          from { transform: ${vertical ? 'rotateX(0deg)' : 'rotateY(0deg)'}; opacity: 1; }
+          80% { opacity: 1; }
+          to { transform: ${vertical ? 'rotateX(-92deg)' : 'rotateY(92deg)'}; opacity: 0; }
+        }
+        /* The cover is only ever shown where it can also be taken away. Its
+           finished state is "open", so even a timeline-less run that jumps
+           straight to the end leaves the message uncovered. */
+        @supports (animation-timeline: view()) {
+          ${s} .cb-spl__cover { display: block; perspective: 900px; }
+          ${s} .cb-spl__slat {
+            animation: cb-spl-${c.id} linear both;
+            animation-timeline: view();
+            animation-range: entry calc(24% + var(--i) * ${step}%) cover calc(34% + var(--i) * ${step}%);
+            backface-visibility: hidden;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          ${s} .cb-spl__cover { display: none; }
+        }`;
+
+      return { html: html, css: css, js: '' };
     }
   });
 })();
