@@ -1060,6 +1060,180 @@
   });
 
   /* --------------------------------------------------------------------- */
+  /* Kinetic Text Reveal                                                    */
+  /*                                                                        */
+  /* A statement that assembles itself as it scrolls in. The splitting is    */
+  /* done here, when the code is generated, rather than by a script in the   */
+  /* browser — which is the whole reason this can be a CSS-only effect where */
+  /* every library version of it needs JavaScript.                          */
+  /*                                                                        */
+  /* Splitting text into spans is also how these effects wreck a screen     */
+  /* reader, which will happily read a headline out one letter at a time.    */
+  /* So the heading carries the whole sentence as its label and the split    */
+  /* pieces are hidden from the accessibility tree entirely.                */
+  /* --------------------------------------------------------------------- */
+  CB.register({
+    id: 'kinetic-text',
+    name: 'Kinetic Text Reveal',
+    category: CAT,
+    icon: '✶',
+    blurb: 'A statement that assembles as it scrolls in, by line, word or letter. Zero JS — the split happens when the code is written.',
+    props: [
+      { t: 'section', label: 'Words' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
+      {
+        k: 'text', t: 'textarea', label: 'Statement',
+        value: 'Built to be pulled,\nrated to be trusted.',
+        help: 'Each new line is its own line on the page — that is what “by line” staggers.'
+      },
+      { k: 'sub', t: 'text', label: 'Supporting line', value: '' },
+
+      { t: 'section', label: 'Motion' },
+      {
+        k: 'unit', t: 'select', label: 'Reveal by', value: 'word',
+        options: [['line', 'Line'], ['word', 'Word'], ['char', 'Letter']],
+        help: 'Letter suits a short statement. On a long one it is a lot of movement at once.'
+      },
+      {
+        k: 'from', t: 'select', label: 'Coming from', value: 'up',
+        options: [['up', 'Below'], ['down', 'Above'], ['left', 'The left'], ['right', 'The right'], ['none', 'Nowhere — fade only']]
+      },
+      { k: 'distance', t: 'range', label: 'Travel', min: 0, max: 80, step: 2, unit: 'px', value: 26 },
+      { k: 'blur', t: 'range', label: 'Blur it starts with', min: 0, max: 20, step: 1, unit: 'px', value: 6 },
+      {
+        k: 'stagger', t: 'range', label: 'Stagger', min: 0, max: 10, step: 1, unit: '', value: 4,
+        help: 'How far apart the pieces arrive. Spread across the scroll, and capped so the last piece ' +
+              'always finishes while the block is still on screen.'
+      },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: '_heading', t: 'select', label: 'Heading level', value: '2',
+        options: [['2', 'H2 — top-level section'], ['3', 'H3 — nested'], ['p', 'Not a heading']]
+      },
+      { k: 'size', t: 'range', label: 'Size', min: 20, max: 96, step: 2, unit: 'px', value: 46 },
+      { k: 'align', t: 'select', label: 'Alignment', value: 'left', options: [['left', 'Left'], ['center', 'Centre']] },
+      { k: 'measure', t: 'range', label: 'Line length', min: 12, max: 40, step: 1, unit: 'ch', value: 22 },
+      { k: 'btnText', t: 'text', label: 'Button label', value: '',
+        help: 'Sits under the statement. Leave empty for no button.' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 16, max: 200, step: 4, unit: 'px', value: 96 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var raw = String(p.text == null ? '' : p.text);
+      var lines = raw.split('\n').filter(function (l) { return l.trim(); });
+      if (!lines.length) lines = [''];
+
+      var tag = p._heading === 'p' ? 'p' : 'h' + (p._heading === '3' ? 3 : 2);
+      var n = 0;
+
+      /* One span per piece, numbered, so the CSS can shift each one's slice of
+         the scroll without a rule per index. */
+      function piece(txt, joinAfter) {
+        return '<span class="cb-kt__u" style="--i:' + (n++) + '">' + c.esc(txt) + '</span>' + (joinAfter || '');
+      }
+
+      var body = lines.map(function (line) {
+        var inner;
+        if (p.unit === 'line') {
+          inner = piece(line);
+        } else if (p.unit === 'char') {
+          /* Words stay whole so a letter reveal cannot break one across a line
+             break, which is what makes these effects look broken on a phone. */
+          inner = line.split(/\s+/).filter(Boolean).map(function (w) {
+            return '<span class="cb-kt__w">' +
+                   w.split('').map(function (ch) { return piece(ch); }).join('') +
+                   '</span>';
+          }).join(' ');
+        } else {
+          inner = line.split(/\s+/).filter(Boolean).map(function (w) { return piece(w); }).join(' ');
+        }
+        return '<span class="cb-kt__line">' + inner + '</span>';
+      }).join('');
+
+      /* Capped so the last piece still finishes inside the block's own pass
+         through the viewport. A long statement with a generous stagger would
+         otherwise leave its final words arriving after you have scrolled past. */
+      var SPREAD = 34;
+      var step = n > 1 ? Math.min(c.num(p.stagger, 4), SPREAD / (n - 1)) : 0;
+
+      var off = {
+        up: '0, ' + c.num(p.distance, 26) + 'px',
+        down: '0, -' + c.num(p.distance, 26) + 'px',
+        left: '-' + c.num(p.distance, 26) + 'px, 0',
+        right: c.num(p.distance, 26) + 'px, 0',
+        none: '0, 0'
+      }[p.from || 'up'] || ('0, ' + c.num(p.distance, 26) + 'px');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-kt">
+          <div class="cb-wrap">
+            ${p.eyebrow ? '<p class="cb-kt__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+            <${tag} class="cb-kt__text" aria-label="${c.attr(lines.join(' '))}">
+              <span aria-hidden="true">${body}</span>
+            </${tag}>
+            ${p.sub ? '<p class="cb-kt__sub">' + c.rich(p.sub) + '</p>' : ''}
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.align === 'center' ? 'center' : '' })}
+          </div>
+        </section>`);
+
+      var css = `
+        ${s}.cb-kt { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 96)}px; }
+        ${s} .cb-kt .cb-wrap { text-align: ${p.align === 'center' ? 'center' : 'left'}; }
+        ${s} .cb-kt__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand); margin-bottom: 16px;
+        }
+        ${s} .cb-kt__text {
+          font-size: calc(${c.num(p.size, 46)}px * var(--cb-h-scale, 1));
+          font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.1 + var(--cb-h-leading, 0));
+          letter-spacing: calc(-.025em + var(--cb-h-track, 0em));
+          max-width: ${c.num(p.measure, 22)}ch;
+          ${p.align === 'center' ? 'margin-inline: auto;' : ''}
+          text-wrap: balance;
+        }
+        ${s} .cb-kt__line { display: block; }
+        ${s} .cb-kt__w { display: inline-block; white-space: nowrap; }
+        /* Inline-block so a transform applies at all, and a hair of vertical
+           padding so descenders are not clipped while the piece is moving. */
+        ${s} .cb-kt__u { display: inline-block; padding-block: .06em; will-change: transform, opacity, filter; }
+        ${s} .cb-kt__sub {
+          color: var(--cb-muted); margin-top: 18px; max-width: 56ch;
+          ${p.align === 'center' ? 'margin-inline: auto;' : ''}
+        }
+
+        /* Read at rest. The animation only exists where a scroll timeline does,
+           and its finished state is the readable one — so a browser without
+           them, or a harness that strips animation-timeline and leaves this
+           running on a zero-length time timeline, lands on legible text rather
+           than on nothing. */
+        @keyframes cb-kt-${c.id} {
+          from { opacity: 0; transform: translate(${off}); filter: blur(${c.num(p.blur, 6)}px); }
+          to { opacity: 1; transform: none; filter: blur(0); }
+        }
+        @supports (animation-timeline: view()) {
+          ${s} .cb-kt__u {
+            animation: cb-kt-${c.id} linear both;
+            animation-timeline: view();
+            animation-range: entry calc(14% + var(--i) * ${step}%) entry calc(62% + var(--i) * ${step}%);
+          }
+        }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
   /* Table                                                                  */
   /*                                                                        */
   /* One table, not one per purpose. A product comparison, a spec sheet and */

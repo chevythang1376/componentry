@@ -567,6 +567,79 @@ window.CBProbe = (function () {
     t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
   });
 
+  /* Both of these split content up to animate it, which is exactly how these
+     effects wreck a page: a screen reader reading a headline letter by letter,
+     or a cover that needs an animation to get out of the way sitting on top of
+     the message forever. So the probes are about what survives the effect, not
+     about whether it looks nice. */
+  register('kinetic-text', function (root, t) {
+    var pieces = qa(root, '.cb-kt__u');
+    var head = q(root, '.cb-kt__text');
+    t.ok('the statement is split into pieces', pieces.length >= 2, pieces.length + ' pieces');
+    t.ok('each piece knows its place in the order',
+         pieces.every(function (p) { return p.style.getPropertyValue('--i') !== ''; }));
+
+    /* The whole sentence, in one piece, for anything that is not looking at
+       it. Without this a screen reader reads a headline out one word — or one
+       letter — at a time. */
+    t.ok('a screen reader still gets the whole sentence',
+         !!head && (head.getAttribute('aria-label') || '').split(/\s+/).length >= 2,
+         head ? head.getAttribute('aria-label') : 'no heading');
+    t.ok('and not the pieces as well',
+         !!pieces[0].closest('[aria-hidden="true"]'));
+
+    /* Whatever the motion does on the way, it has to end readable — that is
+       the state a browser without scroll timelines lands on. */
+    var anims = pieces[0].getAnimations ? pieces[0].getAnimations() : [];
+    if (anims.length) {
+      anims.forEach(function (a) {
+        a.timeline = root.ownerDocument.timeline;
+        a.effect.updateTiming({ duration: 100, fill: 'both' });
+        a.pause();
+        a.currentTime = 100;
+      });
+      var cs = getComputedStyle(pieces[0]);
+      /* blur(0px) rather than none: the property is still declared, it just
+         does nothing. Insisting on `none` would fail a piece of text that is
+         perfectly legible. */
+      t.ok('and it finishes readable',
+           +cs.opacity === 1 && /^(none|blur\(0px\))$/.test(cs.filter),
+           'opacity ' + cs.opacity + ', filter ' + cs.filter);
+    }
+    t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
+  });
+
+  register('split-reveal', function (root, t) {
+    var slats = qa(root, '.cb-spl__slat');
+    var cover = q(root, '.cb-spl__cover');
+    var title = q(root, '.cb-spl__title');
+
+    t.ok('the cover is made of slats', slats.length >= 2, slats.length + ' slats');
+    t.ok('the cover is decoration, not content',
+         !!cover && cover.getAttribute('aria-hidden') === 'true');
+
+    /* The message lives underneath in normal flow. If it were inside the cover
+       it would be split across rotating faces and gone wherever the animation
+       does not run. */
+    t.ok('the message is not inside the cover', !!title && !cover.contains(title));
+    t.ok('and it is laid out whether the cover opens or not',
+         !!title && title.getBoundingClientRect().height > 0);
+
+    var anims = slats[0].getAnimations ? slats[0].getAnimations() : [];
+    if (anims.length) {
+      anims.forEach(function (a) {
+        a.timeline = root.ownerDocument.timeline;
+        a.effect.updateTiming({ duration: 100, fill: 'both' });
+        a.pause();
+        a.currentTime = 100;
+      });
+      t.ok('and the cover ends out of the way',
+           +getComputedStyle(slats[0]).opacity === 0,
+           'opacity ' + getComputedStyle(slats[0]).opacity);
+    }
+    t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
+  });
+
   sample('table', {
     title: 'Compare the range',
     columns: [

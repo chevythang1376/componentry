@@ -43,7 +43,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 ---
 
-## The 28 components
+## The 30 components
 
 | Category | Component | Notes |
 |---|---|---|
@@ -58,6 +58,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Timeline | Alternating or single-column, staggered reveal |
 | | Pricing Table | Highlighted tier, monthly/annual switch, unavailable-feature syntax |
 | | Webinar Library | Recorded and upcoming sessions, newest first. Sorted when the code is generated, not in the browser, so the order survives an editor that strips scripts |
+| | Kinetic Text Reveal | A statement that assembles as it scrolls in, by line, word or letter. The split happens when the code is generated, not by a script in the browser — so it is the CSS-only version of an effect every library builds with JavaScript. The whole sentence stays on the heading as its accessible name, and the pieces are hidden from the accessibility tree |
 | | Table | Ships empty and offers **Import cells** first — paste a block from a spreadsheet and it builds the table. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
 | **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
@@ -71,6 +72,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Video Embed (lite) | Click-to-load facade — nothing loads from YouTube until you press play |
 | **Modern Layout** | Bento Grid | Asymmetric tiles with mixed spans and per-tile tones. Zero JS |
 | | Sticky Stacking Cards | Cards pin and stack on scroll, built on `position: sticky`. Zero JS |
+| | Split Reveal | A cover that opens like blinds as you scroll, uncovering the message behind it. The message sits underneath in normal flow and the slats only ever take themselves away, so it reads whether the cover opens or not. Zero JS |
 | | Mosaic Grid | Flush checkerboard of colour tiles and photos. Type is sized against the tile rather than the viewport. Each tile carries its own colour, copy, text colour and button style, and picks readable ink unless told otherwise. Zero JS |
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
@@ -914,10 +916,10 @@ js/components/
   product.js            finish-switcher, pinned-product, spec-strip
   diagram.js            hotspot-diagram
 test/
-  gallery.html          Renders all 28 through the real export path; reports failures
+  gallery.html          Renders all 30 through the real export path; reports failures
   hostile-host.html     Pastes exports into a deliberately awful theme; 165 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
-                        224 round-trips, then functionally probes what survives
+                        240 round-trips, then functionally probes what survives
   degrade.html          Removes one CSS capability at a time (background-clip,
                         gradients, clip-path, backdrop-filter, images, scroll
                         timelines) and reports text that becomes unreadable.
