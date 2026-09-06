@@ -58,7 +58,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Timeline | Alternating or single-column, staggered reveal |
 | | Pricing Table | Highlighted tier, monthly/annual switch, unavailable-feature syntax |
 | | Webinar Library | Recorded and upcoming sessions, newest first. Sorted when the code is generated, not in the browser, so the order survives an editor that strips scripts |
-| | Table | Paste cells straight from a spreadsheet. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
+| | Table | Ships empty and offers **Import cells** first — paste a block from a spreadsheet and it builds the table. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
 | **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
 | | Image / Video Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay |
@@ -296,13 +296,25 @@ Specs live in a spreadsheet. They always have. A table of four products across t
 attributes is eighty boxes through an inspector, which is the kind of job people start and
 abandon — so the component would have shipped and gone unused.
 
-**A table is edited as a table.** Collapsible per-row panels work for a list of cards,
+**Table ships empty**, and offers **Import cells** as the first thing on it. Sample rows in
+a table are not the same as sample copy in a hero: the whole content is somebody's own
+data, so anything preloaded is only ever something to delete first — and a table nobody
+cleared properly ships a cable spec into an unrelated page. Paste a block in, say whether
+the first row names the columns, and it builds the table. *Add rows* keeps the columns you
+have already set up and brings the rows in underneath.
+
+**A table is also edited as a table.** Collapsible per-row panels work for a list of cards,
 where each entry is read on its own; they are hopeless for a grid, where the whole point is
-reading down a column and across a row. So Table gets a real grid editor, and a paste
+reading down a column and across a row. So there is a real grid editor, and a paste
 anywhere in it lands as a rectangle — filling down and across from the cell you pasted
 into, and *growing* the table when the rectangle runs past its edge rather than truncating
 what somebody watched themselves copy. Paste into the header row and it names the columns
 in the same gesture.
+
+Shipping empty has one consequence worth naming: "you never filled this in" becomes a real
+and likely mistake, so preflight checks for it. Counting rows would call an untouched table
+full — its blank rows are there to be typed into — so the check asks whether any cell has
+anything in it.
 
 Everywhere else the same data arrives through a panel instead. Every list field offers
 **Paste from a spreadsheet**: Excel and Sheets put tab-separated text on the clipboard, a
@@ -342,7 +354,7 @@ and answers one question: if this were pasted right now, what would go wrong?
 |---|---|
 | **Contrast** | Text under 3:1 against its own background, judged on the rendered block |
 | **Alt text** | Images you have replaced but not described |
-| **Empty blocks** | A list component with no items — exports as a dead band |
+| **Empty blocks** | A list with no items, or a table whose every cell is blank — exports as a dead band |
 | **Heavy images** | Uploads over ~180 kB, which cost twice: export *and* browser storage |
 | **Dead image links** | A URL that no longer resolves — invisible here, blank on the live page |
 | **Oversized images** | A master more than 3× the width of the box it is poured into |
@@ -918,14 +930,16 @@ test/
                         is not offered at all; 31 assertions
   preflight.html        Asserts the findings are actionable: nothing fires on an
                         untouched project, everything fires once a real image
-                        goes in undescribed, a dead image link is an error and a
-                        correct 2x image is left alone; 26 assertions
+                        goes in undescribed, a dead image link is an error, a
+                        correct 2x image is left alone, and an untouched table
+                        is caught before it ships; 31 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
                         the schema, a pasted rectangle that grows the grid
                         instead of truncating it, and a saved Compare Table that
-                        still opens; 49 assertions
+                        still opens, a whole-table import, and what a brand
+                        new table ships as; 63 assertions
   freshness.html        Asserts the build check corrects a genuinely stale page and,
                         just as importantly, leaves every other case alone; 14 assertions
   defaults.html         Pins what a brand new project ships as — Inter actually

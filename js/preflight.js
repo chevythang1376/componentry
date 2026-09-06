@@ -344,14 +344,33 @@ CB.Preflight = (function () {
       // A block with nothing in it renders as dead space.
       (function () {
         (def.props || []).forEach(function (f) {
-          if (f.t !== 'list') return;
-          var items = (inst.props && inst.props[f.k]) || CB.defaults(def)[f.k] || [];
-          if (!items.length) out.push({
+          if (f.t === 'list') {
+            var items = (inst.props && inst.props[f.k]) || CB.defaults(def)[f.k] || [];
+            if (!items.length) out.push({
+              level: 'error',
+              block: name,
+              title: 'Nothing in ' + String(f.label || f.k).toLowerCase(),
+              detail: 'This block has no items, so it exports as an empty band.',
+              fix: 'Add at least one, or remove the block.'
+            });
+            return;
+          }
+
+          /* A grid ships with blank rows waiting to be filled, so counting them
+             would call an untouched table full. What matters is whether any
+             cell has anything in it. */
+          if (f.t !== 'grid') return;
+          var rows = (inst.props && inst.props[f.k]) || CB.defaults(def)[f.k] || [];
+          var filled = rows.some(function (r) {
+            return r && ((r.cells || []).some(function (v) { return String(v == null ? '' : v).trim(); }) ||
+                         String(r.group || '').trim());
+          });
+          if (!filled) out.push({
             level: 'error',
             block: name,
-            title: 'Nothing in ' + String(f.label || f.k).toLowerCase(),
-            detail: 'This block has no items, so it exports as an empty band.',
-            fix: 'Add at least one, or remove the block.'
+            title: 'This table is empty',
+            detail: 'Every cell is blank, so it exports as an empty band.',
+            fix: 'Use Import cells to bring a block of them in from a spreadsheet, or type into the grid.'
           });
         });
       })();

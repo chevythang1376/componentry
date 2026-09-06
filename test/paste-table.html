@@ -183,6 +183,44 @@ window.addEventListener('load', function () {
   check('nothing to paste changes nothing',
         I.applyPaste(g.cols, g.rows, 0, 0, '', colFields), false);
 
+  /* --- importing a whole table ---------------------------------------------
+     The path the component ships expecting, since it starts empty: the data is
+     already in a spreadsheet and typing it again is the job people abandon. */
+  var imp = I.importGrid('Attribute\tTHHN\tXHHW\nConductor\tCopper\tCopper\nWet rated\tYes\tYes', true, colFields);
+  check('a header row becomes the columns',
+        imp.columns.map(function (c) { return c.label; }).join(','), 'Attribute,THHN,XHHW');
+  check('and is not also imported as a row', imp.rows.length, 2);
+  check('the body lands in order', imp.rows[1].cells.join(','), 'Wet rated,Yes,Yes');
+  check('columns carry the full schema, not just a label', 'featured' in imp.columns[0], true);
+
+  var noHead = I.importGrid('a\tb\nc\td', false, colFields);
+  check('without a header row every line is data', noHead.rows.length, 2);
+  check('and the columns are left unnamed rather than guessed',
+        noHead.columns.map(function (c) { return c.label; }).join(''), '');
+
+  /* A sheet whose last column has blanks copies as ragged rows. Squaring up on
+     the widest is what keeps a value under the heading it belongs to. */
+  var ragged = I.importGrid('Attribute\tA\tB\nOne\tx\ty\nTwo\tz', true, colFields);
+  check('a ragged copy still squares up', ragged.width, 3);
+  check('the short row is padded, not shifted', ragged.rows[1].cells.join(','), 'Two,z,');
+
+  check('nothing in, nothing out', I.importGrid('', true, colFields).rows.length, 0);
+
+  /* --- what a new table ships as ------------------------------------------
+     Sample rows in a table are not the same as sample copy in a hero: the whole
+     content is somebody's own data, so anything preloaded is only ever
+     something to delete first. */
+  var fresh = CB.defaults(CB.get('table'));
+  check('a new table has columns to type into', fresh.columns.length > 0, true);
+  check('and rows', fresh.rows.length > 0, true);
+  check('but not a single filled cell',
+        fresh.rows.some(function (r) {
+          return (r.cells || []).some(function (v) { return String(v || '').trim(); });
+        }), false);
+  check('nor a heading somebody has to clear', fresh.title, '');
+  check('and it says so rather than rendering a bare band',
+        /table is empty/i.test(CB.build({ type: 'table', cls: 'cb-e', props: fresh }, CB.DEFAULT_TOKENS).html), true);
+
   // --- what a saved compare table becomes ----------------------------------
   var old = {
     uid: 'u1', cls: 'cb-compare-table-x', type: 'compare-table',

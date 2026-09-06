@@ -151,6 +151,32 @@ window.addEventListener('load', function () {
         withCardImage('https://dam.example.com/slow.jpg').length, 0);
 
 
+  /* --- a table that ships empty -------------------------------------------
+     Table starts blank on purpose, because its whole content is somebody's own
+     data. That makes "you never filled this in" a real and likely mistake, and
+     counting rows would call an untouched table full — its blank rows are
+     there to be typed into. */
+  function emptyFindings(list) {
+    return (CB.Preflight.run(list, Object.assign({}, CB.DEFAULT_TOKENS), {}) || [])
+      .filter(function (f) { return /empty/i.test(f.title); });
+  }
+  var blank = emptyFindings([inst('table')]);
+  check('an untouched table is flagged before it ships', blank.length, 1);
+  check('as an error, not a suggestion', blank.length ? blank[0].level : '', 'error');
+  check('and it points at the import rather than at typing it all again',
+        blank.length ? /Import cells/.test(blank[0].fix) : false, true);
+
+  var filledRows = CB.defaults(CB.get('table')).rows.map(function (r) { return r; });
+  filledRows[0] = { group: '', cells: ['Conductor', 'Copper', 'Copper'] };
+  check('one filled cell is enough to count as used',
+        emptyFindings([inst('table', { rows: filledRows })]).length, 0);
+
+  /* A group with no cells under it is still content somebody typed. */
+  var groupOnly = CB.defaults(CB.get('table')).rows.map(function (r) { return r; });
+  groupOnly[0] = { group: 'Construction', cells: ['', '', ''] };
+  check('a group heading on its own counts too',
+        emptyFindings([inst('table', { rows: groupOnly })]).length, 0);
+
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
   bar.className = 'bar ' + (fail ? 'bad' : 'ok');

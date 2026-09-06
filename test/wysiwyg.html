@@ -349,7 +349,7 @@
             uid: def.id + '-' + path.id,
             cls: 'cb-' + def.id + '-' + path.id + Math.random().toString(36).slice(2, 5),
             type: def.id,
-            props: CB.defaults(def)
+            props: Object.assign(CB.defaults(def), CBProbe.sampleFor(def.id))
           };
           var source = CB.Export.embed(CB.Export.parts([inst], CB.DEFAULT_TOKENS), {});
 

@@ -1081,23 +1081,23 @@
     props: [
       { t: 'section', label: 'Heading' },
       { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
-      { k: 'title', t: 'text', label: 'Section title', value: 'Compare the range' },
+      { k: 'title', t: 'text', label: 'Section title', value: '' },
       { k: 'sub', t: 'text', label: 'Standfirst', value: '' },
 
       { t: 'section', label: 'Table' },
       {
+        /* Ships empty. Sample rows in a table are not the same as sample copy
+           in a hero: the whole content is somebody's own data, so anything here
+           is only ever something to delete first — and a table nobody cleared
+           properly ships a cable spec into an unrelated page. Import is the
+           first thing offered instead. */
         k: 'rows', t: 'grid', label: 'Cells', columnsKey: 'columns',
-        help: 'Paste a block of cells from Excel or Sheets straight into the grid — it fills ' +
-              'down and across from wherever you paste, adding rows and columns as it needs them.',
+        help: 'Import a block of cells from Excel or Sheets, or type straight into the grid. ' +
+              'Pasting into a cell fills down and across from there, adding rows and columns as it needs them.',
         value: [
-          { group: 'Construction', cells: ['Conductor', 'Copper', 'Copper', 'Copper'] },
-          { group: '', cells: ['Insulation', 'PVC with nylon', 'XLPE', 'THHN in armour'] },
-          { group: '', cells: ['Jacket', 'None', 'None', 'Aluminium armour'] },
-          { group: 'Ratings', cells: ['Voltage rating', '600 V', '600 V', '600 V'] },
-          { group: '', cells: ['Temperature, dry', '90 °C', '90 °C', '90 °C'] },
-          { group: '', cells: ['Wet rated', 'Yes', 'Yes', 'Yes'] },
-          { group: '', cells: ['Sunlight resistant', 'No', 'Yes', 'No'] },
-          { group: '', cells: ['Direct burial', 'No', 'No', 'No'] }
+          { group: '', cells: ['', '', ''] },
+          { group: '', cells: ['', '', ''] },
+          { group: '', cells: ['', '', ''] }
         ]
       },
       {
@@ -1117,10 +1117,9 @@
           { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' }
         ],
         value: [
-          { label: 'Attribute', tagline: '', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
-          { label: 'THHN / THWN-2', tagline: 'General purpose building wire', badge: 'Most specified', featured: true, image: '', alt: '', btnText: '', btnUrl: '#' },
-          { label: 'XHHW-2', tagline: 'Cross-linked, wet or dry', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
-          { label: 'MC Cable', tagline: 'Armoured, ready to pull', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' }
+          { label: '', tagline: '', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
+          { label: '', tagline: '', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
+          { label: '', tagline: '', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' }
         ]
       },
 
@@ -1167,7 +1166,8 @@
       if (!n || !rows.length) {
         return {
           html: '<section class="' + c.cls + ' cb-tbl"><div class="cb-wrap">' +
-                '<p class="cb-tbl__empty">This table has no cells yet.</p></div></section>',
+                '<p class="cb-tbl__empty">This table is empty. Import a block of cells from a ' +
+                'spreadsheet, or type into the grid.</p></div></section>',
           css: s + ' .cb-tbl__empty { color: var(--cb-muted); padding-block: 40px; }',
           js: ''
         };
