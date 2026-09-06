@@ -480,6 +480,7 @@ table.grid th:last-child, table.grid td:last-child { border-right: 0; }
   transition: border-color .15s, color .15s, background .15s;
 }
 .grid__act:hover { border-color: var(--accent); color: var(--accent-lift); background: var(--accent-soft); }
+.grid__act--import { border-style: solid; }
 .grid__colopts { margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
 .grid__optshead {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

@@ -38,6 +38,10 @@
     document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
   });
 </script>
+<!-- For the sample content a deliberately empty component needs. Same
+     timestamp treatment, and it lives beside this file rather than under js/,
+     so bump.sh never rewrites it. -->
+<script>document.write('<scr' + 'ipt src="probes.js?t=' + Date.now() + '"><\/scr' + 'ipt>');</script>
 <script>
 /* Renders every component through the real export pipeline, into the real
    document — so what you interact with here is exactly what a user pastes. */
@@ -51,7 +55,7 @@
       uid: 'test' + n,
       cls: 'cb-' + def.id + '-' + Math.random().toString(36).slice(2, 7),
       type: def.id,
-      props: CB.defaults(def)
+      props: Object.assign(CB.defaults(def), CBProbe.sampleFor(def.id))
     };
     var built;
     try {

@@ -11,6 +11,16 @@ window.CBProbe = (function () {
   var probes = {};
   function register(id, fn) { probes[id] = fn; }
 
+  /* Sample content for a component that ships deliberately empty.
+
+     Table starts blank because its whole content is the author's own data, and
+     preloaded rows would only ever be something to delete first. That leaves a
+     probe nothing to examine, so the probe brings its own — clearly test data,
+     declared here rather than smuggled into what the component ships as. */
+  var samples = {};
+  function sample(id, props) { samples[id] = props; }
+  function sampleFor(id) { return samples[id] || {}; }
+
   function click(el) {
     if (!el) return false;
     el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -557,6 +567,22 @@ window.CBProbe = (function () {
     t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
   });
 
+  sample('table', {
+    title: 'Compare the range',
+    columns: [
+      { label: 'Attribute', tagline: '', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
+      { label: 'THHN', tagline: 'Building wire', badge: 'Most specified', featured: true, image: '', alt: '', btnText: '', btnUrl: '#' },
+      { label: 'XHHW-2', tagline: 'Wet or dry', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' }
+    ],
+    rows: [
+      { group: 'Construction', cells: ['Conductor', 'Copper', 'Copper'] },
+      { group: '', cells: ['Insulation', 'PVC with nylon', 'XLPE'] },
+      { group: 'Ratings', cells: ['Voltage rating', '600 V', '600 V'] },
+      { group: '', cells: ['Wet rated', 'Yes', 'Yes'] },
+      { group: '', cells: ['Sunlight resistant', 'No', 'Yes'] }
+    ]
+  });
+
   register('table', function (root, t) {
     var table = q(root, '.cb-tbl__table');
     var cols = qa(root, '.cb-tbl__col');
@@ -678,5 +704,8 @@ window.CBProbe = (function () {
     return Promise.resolve(out).then(function () { return results; });
   }
 
-  return { register: register, run: run, has: function (id) { return !!probes[id]; } };
+  return {
+    register: register, run: run, sample: sample, sampleFor: sampleFor,
+    has: function (id) { return !!probes[id]; }
+  };
 })();

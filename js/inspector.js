@@ -501,6 +501,40 @@ CB.Inspector = (function () {
     return true;
   }
 
+  /* A whole table in one go, rather than a rectangle placed into an existing
+     one. This is the path the component ships expecting: it starts empty,
+     because the entire content of a table is somebody's own data and sample
+     rows are only ever something to delete first.
+
+     The width is taken from the widest row, so a ragged copy — which is what
+     you get when the last column of a sheet has blanks — still produces a
+     square table rather than rows of different lengths. */
+  function importGrid(text, useHeaders, colFields) {
+    var table = parseTable(text);
+    if (!table.length) return { columns: [], rows: [], width: 0 };
+
+    var width = 0;
+    table.forEach(function (r) { width = Math.max(width, r.length); });
+
+    var head = (useHeaders && table.length > 1) ? table[0] : null;
+    var body = head ? table.slice(1) : table;
+
+    var columns = [];
+    for (var i = 0; i < width; i++) {
+      var col = blankColumn(colFields);
+      col.label = head ? (head[i] == null ? '' : head[i]) : '';
+      columns.push(col);
+    }
+
+    var rows = body.map(function (cells) {
+      var r = { group: '', cells: [] };
+      for (var i = 0; i < width; i++) r.cells.push(cells[i] == null ? '' : cells[i]);
+      return r;
+    });
+
+    return { columns: columns, rows: rows, width: width };
+  }
+
   function gridEditor(field, props, onInput, def) {
     var colsKey = field.columnsKey || 'columns';
     /* The per-column extras — image, flag, button — are declared by the
@@ -696,10 +730,99 @@ CB.Inspector = (function () {
       squareUp(cols(), rows());
       paint(); onInput();
     });
+    var importBtn = el('button', 'grid__act grid__act--import');
+    importBtn.type = 'button';
+    importBtn.textContent = 'Import cells';
     bar.appendChild(addRow);
     bar.appendChild(addCol);
+    bar.appendChild(importBtn);
     box.appendChild(bar);
 
+    /* The first thing offered on an empty table, because the data is already
+       in a spreadsheet and typing it again is the job people abandon. */
+    var imp = el('div', 'paste__body');
+    imp.hidden = true;
+    box.appendChild(imp);
+
+    var ta = el('textarea', 'paste__ta');
+    ta.rows = 5;
+    ta.spellcheck = false;
+    ta.placeholder = 'Copy the cells in Excel or Sheets, then paste here.\n' +
+      'Include the header row and it names the columns.';
+    imp.appendChild(ta);
+
+    var optLab = el('label', 'paste__opt');
+    var hdr = document.createElement('input');
+    hdr.type = 'checkbox';
+    hdr.checked = true;
+    var hdrText = document.createElement('span');
+    hdrText.textContent = 'First row is column names';
+    optLab.appendChild(hdr); optLab.appendChild(hdrText);
+    imp.appendChild(optLab);
+
+    var report = el('p', 'paste__report');
+    imp.appendChild(report);
+
+    var impActs = el('div', 'paste__acts');
+    var replaceBtn = el('button', 'btn btn--sm');
+    replaceBtn.type = 'button';
+    replaceBtn.textContent = 'Replace table';
+    var appendBtn = el('button', 'btn btn--sm');
+    appendBtn.type = 'button';
+    appendBtn.textContent = 'Add rows';
+    impActs.appendChild(replaceBtn); impActs.appendChild(appendBtn);
+    imp.appendChild(impActs);
+
+    function previewImport() {
+      var r = importGrid(ta.value, hdr.checked, colFields);
+      var ok = r.rows.length > 0 && r.width > 0;
+      report.textContent = !ta.value.trim() ? '' :
+        ok ? r.rows.length + (r.rows.length === 1 ? ' row' : ' rows') + ' × ' +
+             r.width + (r.width === 1 ? ' column' : ' columns')
+           : 'Nothing to import from that.';
+      report.classList.toggle('is-bad', !!ta.value.trim() && !ok);
+      replaceBtn.disabled = appendBtn.disabled = !ok;
+      return r;
+    }
+
+    importBtn.addEventListener('click', function () {
+      imp.hidden = !imp.hidden;
+      importBtn.setAttribute('aria-expanded', imp.hidden ? 'false' : 'true');
+      if (!imp.hidden) ta.focus();
+    });
+    ta.addEventListener('input', previewImport);
+    hdr.addEventListener('change', previewImport);
+
+    replaceBtn.addEventListener('click', function () {
+      var r = previewImport();
+      if (!r.rows.length) return;
+      props[colsKey] = r.columns;
+      props[field.k] = r.rows;
+      finishImport();
+    });
+
+    /* Keeps the columns already set up — their headings, images and flags —
+       and only brings the rows in underneath, widening if the paste is wider. */
+    appendBtn.addEventListener('click', function () {
+      var r = previewImport();
+      if (!r.rows.length) return;
+      while (cols().length < r.width) cols().push(blankColumn(colFields));
+      r.rows.forEach(function (row) { rows().push(row); });
+      squareUp(cols(), rows());
+      finishImport();
+    });
+
+    function finishImport() {
+      ta.value = '';
+      previewImport();
+      imp.hidden = true;
+      importBtn.setAttribute('aria-expanded', 'false');
+      openCol = -1;
+      paint(); paintColOpts(); onInput();
+    }
+
+    importBtn.setAttribute('aria-expanded', 'false');
+    previewImport();
     paint();
     return box;
   }
@@ -895,6 +1018,7 @@ CB.Inspector = (function () {
 
   return {
     render: render, importRows: importRows, parseTable: parseTable,
-    applyPaste: applyPaste, squareUp: squareUp, blankColumn: blankColumn
+    applyPaste: applyPaste, squareUp: squareUp, blankColumn: blankColumn,
+    importGrid: importGrid
   };
 })();
