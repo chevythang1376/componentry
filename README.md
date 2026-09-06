@@ -347,6 +347,23 @@ replaced block would be counted as missing and dropped on the way in. Products b
 columns after the label column, `v1..v4` become cells, and flags, highlights and groups
 come across with them.
 
+### Looking at motion twice
+
+A scroll-driven reveal happens once, on the way past, in whichever direction you happened to
+be going. That makes it the one thing in the editor you cannot actually examine: by the time
+you have seen it, it has already finished, and nothing puts it back. Judging a stagger by
+scrolling up and down guessing is not judging it.
+
+So the canvas bar grows a **Replay** button and a scrubber whenever the canvas has any
+scroll-driven motion on it — and stays out of the way when it does not. They borrow every
+scroll-driven animation onto the document clock, where it can be played, held anywhere in
+the middle, and played again. The scrubber is the useful half: the middle of a reveal is
+exactly the part scrolling past at speed never lets you see.
+
+Their real timelines are kept and handed back when you release, so this only ever changes
+what you are looking at. It is preview chrome, like the block outlines — none of it is in
+the export.
+
 ### Preflight
 
 The export dialog checks the project **as you configured it**, not at component defaults,
@@ -939,7 +956,9 @@ test/
                         timelines exist but never advance — a block nobody
                         scrolls to, a preview frame that does not scroll. Asserts
                         no reveal is load-bearing for legibility, and that both
-                        ranges stay inside a phase that can complete; 14 assertions
+                        ranges stay inside a phase that can complete — then
+                        drives the preview's motion bridge, which is what makes
+                        a reveal watchable twice; 23 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than

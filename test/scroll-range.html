@@ -22,7 +22,8 @@ altogether, which is the case that already works. This one drives a real scrolle
 <iframe id="f"></iframe>
 <script>
   ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js',
-   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js'
+   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js',
+   'export.js'
   ].forEach(function (f) {
     document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
   });
@@ -141,6 +142,55 @@ window.addEventListener('load', function () {
         /animation-range: entry [^;]*entry [^;]*;/.test(css2), true);
   check('and the cover is never shown without a timeline to move it',
         /\.cb-spl__cover \{[^}]*display: none;/.test(css2), true);
+
+  /* --- motion you can look at twice ----------------------------------------
+     A scroll-driven reveal happens once, on the way past, in whichever
+     direction you were going — so the editor cannot show it to you again, and
+     judging a stagger becomes guesswork. The preview bridge can borrow every
+     scroll-driven animation onto the document clock so it can be replayed and
+     scrubbed, then hand them back.
+
+     Driven here by calling into a same-origin copy of the bridge rather than
+     through postMessage, so the assertions do not depend on message timing. */
+  (function () {
+    var doc = CB.Export.previewDoc(
+      [{ uid: 'a', cls: 'cb-kt-p', type: 'kinetic-text', props: CB.defaults(CB.get('kinetic-text')) },
+       { uid: 'b', cls: 'cb-spl-p', type: 'split-reveal', props: CB.defaults(CB.get('split-reveal')) }],
+      CB.DEFAULT_TOKENS, { canvas: 'light', outline: true, selected: 'a', names: {} });
+
+    var d = f.contentDocument;
+    d.open(); d.write(doc); d.close();
+    var pw = f.contentWindow;
+
+    check('the preview carries the motion bridge', typeof pw.cbHold, 'function');
+
+    var found = pw.cbScrollDriven();
+    check('and finds the scroll-driven animations on the canvas', found.length > 0, true,
+          found.length + ' found');
+
+    var held = pw.cbHold();
+    check('holding them moves every one onto the document clock',
+          held.every(function (r) { return r.failed || r.a.timeline === d.timeline; }), true);
+    check('and remembers the timeline it took them from',
+          held.every(function (r) { return !!r.timeline && r.timeline !== d.timeline; }), true);
+
+    var piece = d.querySelector('.cb-kt__u');
+    function at(t) {
+      held.forEach(function (r) { if (!r.failed) { r.a.pause(); r.a.currentTime = t * 1200; } });
+      return +(+pw.getComputedStyle(piece).opacity).toFixed(2);
+    }
+    /* The point of the control: the middle of the reveal, which scrolling past
+       it at speed never lets you see. */
+    check('scrubbing to the start shows the reveal not yet begun', at(0), 0);
+    check('scrubbing to the middle shows it part way', at(0.5) > 0 && at(0.5) < 1, true);
+    check('scrubbing to the end shows it arrived', at(1), 1);
+
+    pw.cbRelease();
+    check('handing them back restores the real timelines',
+          found.every(function (a) { return a.timeline !== d.timeline; }), true);
+    check('and a second hold works after a release', pw.cbHold().length > 0, true);
+    pw.cbRelease();
+  })();
 
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');

@@ -678,8 +678,41 @@
     if (frame.contentWindow) frame.contentWindow.postMessage({ cbScrollTo: uid }, '*');
   }
 
+  /* Motion you can actually look at.
+
+     A scroll-driven reveal happens once, on the way past, in whichever
+     direction you happened to be going — so the editor cannot show it to you
+     twice, which makes judging a stagger guesswork. Replay borrows every
+     scroll-driven animation onto a clock and runs it; the scrubber holds it
+     anywhere in the middle. Handing them back restores the scroll behaviour,
+     and none of it touches what gets exported. */
+  function motion(msg) {
+    var f = $('#preview');
+    if (f && f.contentWindow) f.contentWindow.postMessage(msg, '*');
+  }
+
+  function wireMotion() {
+    var bar = $('#motionBar');
+    if (!bar) return;
+    $('#motionPlay').addEventListener('click', function () {
+      $('#motionScrub').value = 100;
+      motion({ cbPlay: 1 });
+    });
+    $('#motionScrub').addEventListener('input', function () {
+      motion({ cbScrub: +$('#motionScrub').value / 100 });
+    });
+    $('#motionRelease').addEventListener('click', function () {
+      motion({ cbReleaseMotion: 1 });
+      $('#motionScrub').value = 100;
+    });
+  }
+
   window.addEventListener('message', function (e) {
     var d = e.data || {};
+    if (typeof d.cbMotionCount === 'number') {
+      var bar = $('#motionBar');
+      if (bar) bar.hidden = d.cbMotionCount === 0;
+    }
     if (d.cbSelect) {
       var uid = d.cbSelect;
       if (indexOf(uid) > -1 && uid !== state.selected) {
@@ -1133,6 +1166,8 @@
     $$('#deviceBar [data-device]').forEach(function (b) {
       b.addEventListener('click', function () { setDevice(b.dataset.device); });
     });
+
+    wireMotion();
 
     $('#canvasToggle').addEventListener('click', function () {
       canvasMode = canvasMode === 'light' ? 'grid' : canvasMode === 'grid' ? 'dark' : 'light';

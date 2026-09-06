@@ -607,6 +607,15 @@ table.grid th:last-child, table.grid td:last-child { border-right: 0; }
 .pane__size { font-size: 11px; color: var(--dim); font-family: var(--mono); font-weight: 400; }
 .pane__hint { margin: 0 0 7px; font-size: 11.5px; color: var(--dim); line-height: 1.5; }
 .pane__hint--warn { color: var(--danger); }
+
+/* Motion controls. A scroll-driven reveal is otherwise the one thing in the
+   editor you cannot look at twice. */
+.motion { display: flex; align-items: center; gap: 6px; }
+.motion__scrub {
+  width: 110px; accent-color: var(--accent); cursor: pointer;
+  background: none; border: 0; padding: 0;
+}
+.motion__scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .pane__hint code { font-family: var(--mono); font-size: 11px; }
 
 .code {
