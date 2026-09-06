@@ -103,7 +103,7 @@
       var hoverCss = {
         lift: `${s} .cb-cg__card:hover .cb-cg__inner { transform: translateY(-6px); box-shadow: 0 28px 50px -28px rgba(20,18,16,.45); }`,
         zoom: `${s} .cb-cg__card:hover .cb-cg__media img { transform: scale(1.07); }`,
-        border: `${s} .cb-cg__card:hover .cb-cg__inner { border-color: var(--cb-brand); box-shadow: 0 0 0 1px var(--cb-brand), 0 20px 40px -30px var(--cb-brand); }`,
+        border: `${s} .cb-cg__card:hover .cb-cg__inner { border-color: var(--cb-brand-ink, var(--cb-brand)); box-shadow: 0 0 0 1px var(--cb-brand), 0 20px 40px -30px var(--cb-brand); }`,
         none: ''
       }[p.hover] || '';
 
@@ -150,7 +150,7 @@
         ${s} .cb-cg__body { display: flex; flex-direction: column; gap: 10px; padding: 22px; flex: 1 1 auto; }
         ${s} .cb-cg__tag {
           align-self: flex-start; font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em));
-          text-transform: uppercase; color: ${overlay ? '#fff' : 'var(--cb-brand)'};
+          text-transform: uppercase; color: ${overlay ? '#fff' : 'var(--cb-brand-ink, var(--cb-brand))'};
           ${overlay ? 'background: rgba(255,255,255,.16); padding: 4px 9px; border-radius: 999px;' : ''}
         }
         ${s} .cb-cg__t { font-size: 1.18em; font-weight: var(--cb-h-weight, 730); line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em)); }
@@ -165,7 +165,7 @@
           margin-top: auto; padding-top: 12px; font-size: .86em;
         }
         ${s} .cb-cg__meta { color: var(--cb-muted); }
-        ${s} .cb-cg__cta { color: ${overlay ? '#fff' : 'var(--cb-brand)'}; font-weight: 650; margin-left: auto; }
+        ${s} .cb-cg__cta { color: ${overlay ? '#fff' : 'var(--cb-brand-ink, var(--cb-brand))'}; font-weight: 650; margin-left: auto; }
         @media (max-width: 900px) { ${s} .cb-cg__grid { grid-template-columns: repeat(${Math.min(2, c.clamp(c.num(p.cols, 3), 1, 4))}, minmax(0, 1fr)); } }
         @media (max-width: 560px) { ${s} .cb-cg__grid { grid-template-columns: 1fr; } }`;
 
@@ -254,9 +254,9 @@
         </section>`);
 
       var iconCss = {
-        tint: `background: color-mix(in srgb, var(--cb-brand) 14%, transparent); color: var(--cb-brand); border-radius: 50%;`,
+        tint: `background: color-mix(in srgb, var(--cb-brand) 14%, transparent); color: var(--cb-brand-ink, var(--cb-brand)); border-radius: 50%;`,
         solid: `background: var(--cb-brand); color: var(--cb-on-brand); border-radius: 50%;`,
-        square: `background: color-mix(in srgb, var(--cb-brand) 14%, transparent); color: var(--cb-brand); border-radius: calc(var(--cb-radius) * .8);`,
+        square: `background: color-mix(in srgb, var(--cb-brand) 14%, transparent); color: var(--cb-brand-ink, var(--cb-brand)); border-radius: calc(var(--cb-radius) * .8);`,
         bare: `background: none; padding: 0; width: auto; height: auto; font-size: 32px;`
       }[p.iconStyle] || '';
 
@@ -376,13 +376,13 @@
         </section>`);
 
       var numColor = {
-        brand: 'color: var(--cb-brand);',
+        brand: 'color: var(--cb-brand-ink, var(--cb-brand));',
         ink: 'color: var(--cb-ink);',
         /* A real colour first. If background-clip is stripped by a CSS filter or
            unsupported, the number stays readable instead of vanishing into a
            solid gradient box — `color: transparent` alone is only safe when the
            clip is guaranteed, so the transparency is gated behind @supports. */
-        gradient: 'color: var(--cb-brand); background: linear-gradient(120deg, var(--cb-brand), var(--cb-brand-2)); -webkit-background-clip: text; background-clip: text;'
+        gradient: 'color: var(--cb-brand-ink, var(--cb-brand)); background: linear-gradient(120deg, var(--cb-brand), var(--cb-brand-2)); -webkit-background-clip: text; background-clip: text;'
       }[p.numColor] || '';
 
       var css = `
@@ -580,7 +580,7 @@
         ${s} .cb-tl__item:nth-child(even) .cb-tl__marker { right: auto; left: -48px; }
         ${s} .cb-tl__item:nth-child(odd) { text-align: right; }
         ${s} .cb-tl__item:nth-child(odd) .cb-tl__x { margin-left: auto; }` : ''}
-        ${s} .cb-tl__date { font-size: calc(.78em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-brand); }
+        ${s} .cb-tl__date { font-size: calc(.78em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-brand-ink, var(--cb-brand)); }
         ${s} .cb-tl__t { font-size: 1.15em; font-weight: var(--cb-h-weight, 730); margin-top: 6px; letter-spacing: calc(-.01em + var(--cb-h-track, 0em)); }
         ${s} .cb-tl__x { color: var(--cb-muted); margin-top: 6px; max-width: 46ch; font-size: .96em; }
         ${p.reveal ? `
@@ -741,7 +741,7 @@
         }
         ${s} .cb-pr__plan:hover { transform: translateY(-4px); box-shadow: 0 24px 50px -34px rgba(20,18,16,.55); }
         ${s} .cb-pr__plan.is-featured {
-          border-color: var(--cb-brand); border-width: 2px;
+          border-color: var(--cb-brand-ink, var(--cb-brand)); border-width: 2px;
           box-shadow: 0 24px 60px -32px var(--cb-brand);
         }
         ${s} .cb-pr__badge {
@@ -762,7 +762,7 @@
           border: 1px solid var(--cb-border);
         }
         ${s} .cb-pr__plan.is-featured .cb-pr__cta {
-          background: var(--cb-brand); border-color: var(--cb-brand);
+          background: var(--cb-brand); border-color: var(--cb-brand-ink, var(--cb-brand));
           box-shadow: 0 8px 20px -10px var(--cb-brand);
         }
         ${c.pin([s + ' .cb-pr__cta'], 'var(--cb-ink)')}
@@ -1036,7 +1036,7 @@
         ${s} .cb-wb__body { display: flex; flex-direction: column; gap: 9px; padding: 22px; flex: 1 1 auto; }
         ${s} .cb-wb__label {
           align-self: flex-start; font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
-          letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-brand);
+          letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-brand-ink, var(--cb-brand));
         }
         ${s} .cb-wb__t {
           font-size: 1.12em; font-weight: var(--cb-h-weight, 730);
@@ -1196,7 +1196,7 @@
         ${s} .cb-kt__eyebrow {
           font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
           letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
-          color: var(--cb-brand); margin-bottom: 16px;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 16px;
         }
         ${s} .cb-kt__text {
           font-size: calc(${c.num(p.size, 46)}px * var(--cb-h-scale, 1));
@@ -1483,7 +1483,7 @@
         ${s} .cb-tbl__eyebrow {
           font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
           letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
-          color: var(--cb-brand); margin-bottom: 10px;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 10px;
         }
         ${s} .cb-tbl__title {
           font-size: calc(clamp(24px, 3.4vw, 36px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
@@ -1492,7 +1492,7 @@
         ${s} .cb-tbl__sub { color: var(--cb-muted); margin-top: 10px; }
 
         ${s} .cb-tbl__filter { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; font-size: .9em; }
-        ${s} .cb-tbl__chk { width: 16px; height: 16px; accent-color: var(--cb-brand); flex: none; }
+        ${s} .cb-tbl__chk { width: 16px; height: 16px; accent-color: var(--cb-brand-ink, var(--cb-brand)); flex: none; }
         ${s} .cb-tbl__filter label { color: var(--cb-muted); cursor: pointer; }
 
         /* Horizontal, and inside its own box — never sticky to the viewport,
@@ -1551,8 +1551,8 @@
         ${s} .cb-tbl__cell.is-featured, ${s} .cb-tbl__col.is-featured {
           background: color-mix(in srgb, var(--cb-brand) 7%, transparent);
         }
-        ${s} .cb-tbl__col.is-featured { border-bottom-color: var(--cb-brand); }
-        ${s} .cb-tbl__yes { color: var(--cb-brand); font-weight: 700; }
+        ${s} .cb-tbl__col.is-featured { border-bottom-color: var(--cb-brand-ink, var(--cb-brand)); }
+        ${s} .cb-tbl__yes { color: var(--cb-brand-ink, var(--cb-brand)); font-weight: 700; }
         ${s} .cb-tbl__no { color: var(--cb-muted); }
 
         /* The whole reason the filter can be a checkbox: which rows are

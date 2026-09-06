@@ -131,22 +131,41 @@ CB.Preflight = (function () {
       if (!bg) return;                        // over imagery — not judgeable
 
       var r = ratio(fg, bg);
-      // 3:1 is the WCAG large-text bar; below it nothing is readable at any size.
-      if (r >= 3) return;
+      var need = required(cs);
+      if (r >= need) return;
       count++;
-      if (!worst || r < worst.r) worst = { r: r, text: text };
+      if (!worst || (r - need) < (worst.r - worst.need)) worst = { r: r, text: text, need: need };
     });
 
     if (!worst) return;
+    /* Failing the 3:1 floor is unreadable at any size and always an error.
+       Between 3 and 4.5 the text can be made out but does not conform, which is
+       a different conversation — so it is reported as one. */
+    var hard = worst.r < 3;
     out.push({
-      level: worst.r < 2 ? 'error' : 'warn',
+      level: hard ? 'error' : 'warn',
       block: label,
-      title: (worst.r < 2 ? 'Text is unreadable' : 'Text is hard to read') +
+      title: (hard ? 'Text is too faint to read' : 'Text is below AA') +
              (count > 1 ? ' (' + count + ' places)' : ''),
       detail: '“' + worst.text.slice(0, 42) + (worst.text.length > 42 ? '…' : '') + '” sits at ' +
-              worst.r.toFixed(1) + ':1 against its background. Aim for 4.5:1.',
+              worst.r.toFixed(1) + ':1 against its background, and needs ' +
+              worst.need + ':1 at that size and weight.',
       fix: 'Adjust this block’s colours, or the palette in Design tokens.'
     });
+  }
+
+  /* What WCAG 2.2 AA actually asks for, which depends on the type rather than
+     being one number.
+
+     Large text is easier to read at the same contrast, so it is allowed 3:1 —
+     but "large" is a specific thing: 24px, or 18.66px once it is bold. Below
+     that the bar is 4.5:1. Checking everything at 3:1 was checking everything
+     against the exemption, which passed body copy that does not conform. */
+  function required(cs) {
+    var px = parseFloat(cs.fontSize) || 16;
+    var w = cs.fontWeight;
+    var bold = w === 'bold' || w === 'bolder' || (parseInt(w, 10) || 400) >= 700;
+    return (px >= 24 || (bold && px >= 18.66)) ? 3 : 4.5;
   }
 
   /* ------------------------------------------------------- image probes
@@ -411,6 +430,7 @@ CB.Preflight = (function () {
      none actionable. One implementation, so the two cannot drift again. */
   return {
     run: run, ratio: ratio, backdrop: backdrop, parse: parse, visible: visible,
-    probeImage: probeImage, probes: probes, onSettle: onSettle
+    probeImage: probeImage, probes: probes, onSettle: onSettle,
+    required: required
   };
 })();

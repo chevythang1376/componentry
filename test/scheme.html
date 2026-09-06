@@ -66,7 +66,12 @@ window.addEventListener('load', function () {
         var back = P.backdrop(el, r.root, w);
         if (!back) return;                       // over imagery: not knowable, not guessed
         judged++;
-        if (P.ratio(P.parse(w.getComputedStyle(el).color), back) < 3) {
+        /* WCAG 2.2 AA, which is a different bar depending on the type: 4.5:1
+           for body copy, 3:1 once it is large. Judging everything at 3:1 was
+           judging everything against the large-text exemption, and passed 41
+           places that did not conform. */
+        var cs = w.getComputedStyle(el);
+        if (P.ratio(P.parse(cs.color), back) < P.required(cs)) {
           problems.push(def.id + ' ' + (el.className || el.tagName).toString().split(' ')[0]);
         }
       });
@@ -75,8 +80,33 @@ window.addEventListener('load', function () {
   }
 
   var light = auditAll('light'), dark = auditAll('dark');
-  check('every block is readable in light', light.problems.length ? light.problems.slice(0, 4).join(', ') : 'none', 'none');
-  check('every block is readable in dark', dark.problems.length ? dark.problems.slice(0, 4).join(', ') : 'none', 'none');
+  check('every block meets AA in light', light.problems.length ? light.problems.slice(0, 4).join(', ') : 'none', 'none');
+  check('every block meets AA in dark', dark.problems.length ? dark.problems.slice(0, 4).join(', ') : 'none', 'none');
+
+  /* The bar itself, so the thresholds cannot quietly slip back to one number. */
+  function need(px, weight) { return P.required({ fontSize: px + 'px', fontWeight: String(weight) }); }
+  check('body copy needs 4.5:1', need(16, 400), 4.5);
+  check('and still does at 23px', need(23, 400), 4.5);
+  check('large text is allowed 3:1 from 24px', need(24, 400), 3);
+  check('bold text counts as large from 18.66px', need(18.66, 700), 3);
+  check('but not at 18px bold', need(18, 700), 4.5);
+  check('nor at 20px regular', need(20, 400), 4.5);
+
+  /* The accent, nudged until small text on it conforms — hue kept, so it is
+     still the brand rather than a colour that happens to pass. */
+  var band = '#f7f4f1', deepGround = '#141210';
+  check('the raw brand fails AA as small text on the band',
+        CB.contrast('#96694c', band) < 4.5, true);
+  check('the derived accent passes on the band',
+        CB.contrast(CB.toContrast('#96694c', band, 4.5), band) >= 4.5, true);
+  check('and on a dark ground',
+        CB.contrast(CB.toContrast('#96694c', deepGround, 4.5), deepGround) >= 4.5, true);
+  check('a colour that already conforms is left exactly alone',
+        CB.toContrast('#141210', band, 4.5), '#141210');
+  check('it darkens on a light ground',
+        CB.relLum(CB.toContrast('#96694c', band, 4.5)) < CB.relLum('#96694c'), true);
+  check('and lightens on a dark one',
+        CB.relLum(CB.toContrast('#96694c', deepGround, 4.5)) > CB.relLum('#96694c'), true);
   check('and both were actually judged, not skipped', light.judged > 200 && dark.judged > 200, true);
 
   // --- the scheme reaches the ground, not only the text --------------------
