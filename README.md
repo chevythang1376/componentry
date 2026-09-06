@@ -72,7 +72,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Video Embed (lite) | Click-to-load facade — nothing loads from YouTube until you press play |
 | **Modern Layout** | Bento Grid | Asymmetric tiles with mixed spans and per-tile tones. Zero JS |
 | | Sticky Stacking Cards | Cards pin and stack on scroll, built on `position: sticky`. Zero JS |
-| | Split Reveal | A cover that opens like blinds as you scroll, uncovering the message behind it. The message sits underneath in normal flow and the slats only ever take themselves away, so it reads whether the cover opens or not. Zero JS |
+| | Split Reveal | A panel that opens like blinds as you scroll. The copy sits *beside* the panel, never under it, so a cover that never opens costs you the photograph and not the message. Zero JS |
 | | Mosaic Grid | Flush checkerboard of colour tiles and photos. Type is sized against the tile rather than the viewport. Each tile carries its own colour, copy, text colour and button style, and picks readable ink unless told otherwise. Zero JS |
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
@@ -935,6 +935,11 @@ test/
                         goes in undescribed, a dead image link is an error, a
                         correct 2x image is left alone, and an untouched table
                         is caught before it ships; 31 assertions
+  scroll-range.html     The case the degradation harness cannot reach: scroll
+                        timelines exist but never advance — a block nobody
+                        scrolls to, a preview frame that does not scroll. Asserts
+                        no reveal is load-bearing for legibility, and that both
+                        ranges stay inside a phase that can complete; 14 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
