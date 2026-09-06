@@ -242,6 +242,47 @@ window.addEventListener('load', function () {
   check('groups survive', moved.props.rows[0].group, 'Construction');
   check('and it still builds', /<table/.test(CB.build(moved, CB.DEFAULT_TOKENS).html), true);
 
+  /* --- where the panel is offered ------------------------------------------
+     It began on every list field, which put "Paste from a spreadsheet" under
+     twenty-one lists to genuinely help about five — and on a list of cards or
+     tiles it reads as a claim that the block takes tabular data, which it does
+     not. Now a list opts in, and the schema is where that decision lives. */
+  var lists = [], opted = [];
+  CB.all().forEach(function (def) {
+    (def.props || []).forEach(function (f) {
+      if (f.t !== 'list') return;
+      var name = def.name + ' / ' + (f.label || f.k);
+      lists.push(name);
+      if (f.paste) opted.push(name);
+    });
+  });
+
+  check('most lists do not offer it', opted.length < lists.length / 2, true,
+        opted.length + ' of ' + lists.length);
+  check('and the ones that do are the ones that run long or arrive written down',
+        opted.sort().join(' | '),
+        'Accordion / FAQ / Questions | Logo Marquee / Logos | Spec Strip / Specs | ' +
+        'Timeline / Milestones | Webinar Library / Webinars');
+
+  /* The blocks whose entries are pictures and choices, not rows. Offering a
+     spreadsheet import on these is the thing that made the editor look like
+     every component wanted a table. */
+  ['Card Grid', 'Bento Grid', 'Mosaic Grid', 'Gallery + Lightbox', 'Finish Switcher', 'Hero Slider']
+    .forEach(function (n) {
+      var def = CB.all().filter(function (d) { return d.name === n; })[0];
+      if (!def) { check('a block called ' + n + ' exists', false, true); return; }
+      var any = (def.props || []).some(function (f) { return f.t === 'list' && f.paste; });
+      check(n + ' does not offer a spreadsheet import', any, false);
+    });
+
+  /* Table is the exception, and by a different route: its grid has its own
+     Import, which builds the whole thing rather than filling a list. */
+  var tbl = CB.get('table');
+  check('the table has no list offering it either',
+        (tbl.props || []).some(function (f) { return f.t === 'list' && f.paste; }), false);
+  check('because its grid brings its own import',
+        (tbl.props || []).some(function (f) { return f.t === 'grid'; }), true);
+
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
   bar.className = 'bar ' + (fail ? 'bad' : 'ok');

@@ -404,7 +404,7 @@
 
       { t: 'section', label: 'Logos' },
       {
-        k: 'items', t: 'list', label: 'Logos', itemLabel: 'name',
+        k: 'items', t: 'list', label: 'Logos', itemLabel: 'name', paste: true,
         fields: [
           { k: 'name', t: 'text', label: 'Name (used as alt text)', value: 'Company' },
           { k: 'image', t: 'image', label: 'Logo image', value: '', help: 'Leave blank to render the name as a wordmark.' },
