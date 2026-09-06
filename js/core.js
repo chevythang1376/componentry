@@ -890,6 +890,67 @@ window.CB = (function () {
       }`);
   }
 
+  /* Components that have been replaced by a better shape rather than removed.
+     A saved project names its blocks by id, so retiring an id silently empties
+     somebody's canvas — and "it opened blank" is the least debuggable bug
+     there is. Each entry says how to carry the old props across.
+
+     Compare Table became a use of Table. Its cells lived in fixed v1..v4
+     fields, which is exactly why it could only ever hold four columns; the
+     general table stores real cell arrays and has no such limit. */
+  var MIGRATIONS = {
+    'compare-table': function (p) {
+      p = p || {};
+      var products = (p.products || []).filter(function (x) { return x && x.name; });
+      var columns = [{
+        label: 'Attribute', tagline: '', badge: '', featured: false,
+        image: '', alt: '', btnText: '', btnUrl: '#'
+      }].concat(products.map(function (pr) {
+        return {
+          label: pr.name || '', tagline: pr.tagline || '', badge: pr.badge || '',
+          featured: !!pr.featured, image: pr.image || '', alt: pr.alt || '',
+          btnText: pr.btnText || '', btnUrl: pr.btnUrl || '#'
+        };
+      }));
+      var keys = ['v1', 'v2', 'v3', 'v4'].slice(0, products.length);
+      var rows = (p.rows || []).map(function (r) {
+        return {
+          group: r.group || '',
+          cells: [r.label || ''].concat(keys.map(function (k) { return r[k] == null ? '' : r[k]; }))
+        };
+      });
+      return {
+        type: 'table',
+        props: {
+          eyebrow: p.eyebrow || '', title: p.title || '', sub: p.sub || '',
+          columns: columns, rows: rows,
+          rowHeader: true, marks: true,
+          differences: p.differences !== false,
+          align: 'auto',
+          zebra: p.zebra !== false,
+          showImages: !!p.showImages,
+          bgMode: p.bgMode || 'page', bg: p.bg || '#ffffff',
+          pad: p.pad == null ? 72 : p.pad
+        }
+      };
+    }
+  };
+
+  /* Applied wherever a project comes in from outside this session — restored
+     from storage, opened from a file, or pasted back in as code. */
+  function migrate(instances) {
+    return (instances || []).map(function (inst) {
+      var fn = inst && MIGRATIONS[inst.type];
+      if (!fn) return inst;
+      var next = fn(inst.props);
+      return {
+        uid: inst.uid, cls: inst.cls,
+        type: next.type,
+        props: next.props
+      };
+    });
+  }
+
   /* The one thing an export deliberately will not do for you.
 
      A block paints itself and stops there, because reaching up to body or
@@ -1183,6 +1244,7 @@ window.CB = (function () {
     FONT_STACKS: FONT_STACKS, DEFAULT_TOKENS: DEFAULT_TOKENS, fontStack: fontStack,
     BG_MODES: BG_MODES, bgValue: bgValue,
     pageCss: pageCss, safeSelector: safeSelector,
+    migrate: migrate, MIGRATIONS: MIGRATIONS,
     fontImports: fontImports,
     familyFromImport: familyFromImport
   };

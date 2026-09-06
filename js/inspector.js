@@ -436,6 +436,274 @@ CB.Inspector = (function () {
     return v;
   }
 
+  /* ------------------------------------------------------------ the grid
+
+     A table is edited as a table. Rows in collapsible panels work for a list
+     of cards, where each entry is read on its own; they are hopeless for a
+     grid, where the whole point is reading down a column and across a row.
+
+     Pasting is the reason this exists at all. The data is already in a
+     spreadsheet, so a paste anywhere in the grid fills down and across from
+     that cell, growing the table to fit rather than truncating what it was
+     given. */
+  function blankColumn(fields) {
+    var col = {};
+    (fields || []).forEach(function (f) { col[f.k] = f.value; });
+    return col;
+  }
+
+  /* Every row carries exactly one cell per column. A ragged grid renders a
+     value under the wrong heading and looks perfectly fine doing it. */
+  function squareUp(cols, rows) {
+    rows.forEach(function (r) {
+      r.cells = r.cells || [];
+      while (r.cells.length < cols.length) r.cells.push('');
+      r.cells.length = cols.length;
+    });
+  }
+
+  /* A spreadsheet paste is a rectangle, and it should land as one. Filling
+     down and across from the cell you pasted into — and growing the table when
+     the rectangle runs past its edge — is what every spreadsheet does, which
+     makes it the one behaviour nobody has to be told about. Truncating instead
+     would silently lose data somebody watched themselves copy.
+
+     Row -1 is the header, so pasting a sheet that includes its own header row
+     into the top-left names the columns in the same gesture.
+
+     Pure, and separate from the editor, because the placement arithmetic is
+     what breaks and a textarea is a miserable place to test it from. */
+  function applyPaste(cols, rows, ri, ci, text, colFields) {
+    var table = parseTable(text);
+    if (!table.length) return false;
+
+    var widest = 0;
+    table.forEach(function (r) { widest = Math.max(widest, r.length); });
+    while (cols.length < ci + widest) cols.push(blankColumn(colFields));
+
+    table.forEach(function (cells, ro) {
+      var target = ri + ro;
+      if (target < 0) {
+        cells.forEach(function (v, co) {
+          var col = cols[ci + co];
+          if (col) col.label = v;
+        });
+        return;
+      }
+      while (rows.length <= target) rows.push({ group: '', cells: [] });
+      squareUp(cols, rows);
+      cells.forEach(function (v, co) {
+        if (ci + co < cols.length) rows[target].cells[ci + co] = v;
+      });
+    });
+
+    squareUp(cols, rows);
+    return true;
+  }
+
+  function gridEditor(field, props, onInput, def) {
+    var colsKey = field.columnsKey || 'columns';
+    /* The per-column extras — image, flag, button — are declared by the
+       component on its columns field, so the grid does not invent a schema of
+       its own and a new extra needs changing in one place. */
+    var colFields = null;
+    ((def && def.props) || []).forEach(function (f) {
+      if (f.k === colsKey && f.fields) colFields = f.fields;
+    });
+
+    var box = el('div', 'fld fld--grid');
+    var head = el('div', 'list__head');
+    var title = el('span', 'fld__label');
+    title.textContent = field.label || field.k;
+    var count = el('span', 'list__count');
+    head.appendChild(title); head.appendChild(count);
+    box.appendChild(head);
+
+    if (field.help) {
+      var help = el('p', 'fld__help');
+      help.textContent = field.help;
+      box.appendChild(help);
+    }
+
+    var scroll = el('div', 'grid__scroll');
+    box.appendChild(scroll);
+
+    var openCol = -1;      // which column's extras are showing
+    var colOpts = el('div', 'grid__colopts');
+    colOpts.hidden = true;
+    box.appendChild(colOpts);
+
+    function cols() { return props[colsKey] || (props[colsKey] = []); }
+    function rows() { return props[field.k] || (props[field.k] = []); }
+
+    function paint() {
+      squareUp(cols(), rows());
+      count.textContent = rows().length + ' × ' + cols().length;
+      scroll.innerHTML = '';
+
+      var t = el('table', 'grid');
+      var thead = el('thead');
+      var hr = el('tr');
+
+      hr.appendChild(el('th', 'grid__gutter', 'Group'));
+
+      cols().forEach(function (col, ci) {
+        var th = el('th', 'grid__colhead' + (col.featured ? ' is-featured' : ''));
+        var inp = el('input', 'grid__in grid__in--head');
+        inp.type = 'text';
+        inp.value = col.label == null ? '' : col.label;
+        inp.placeholder = 'Column ' + (ci + 1);
+        inp.addEventListener('input', function () { col.label = inp.value; onInput(); });
+        inp.addEventListener('paste', function (e) { onPaste(e, -1, ci); });
+        th.appendChild(inp);
+
+        var acts = el('div', 'grid__colacts');
+        var more = el('button', 'grid__mini');
+        more.type = 'button';
+        more.textContent = '⋯';
+        more.title = 'Image, flag, button, highlight';
+        more.setAttribute('aria-label', 'Options for column ' + (ci + 1));
+        more.addEventListener('click', function () {
+          openCol = (openCol === ci) ? -1 : ci;
+          paintColOpts();
+        });
+        var del = el('button', 'grid__mini');
+        del.type = 'button';
+        del.innerHTML = '&times;';
+        del.title = 'Delete this column';
+        del.setAttribute('aria-label', 'Delete column ' + (ci + 1));
+        del.disabled = cols().length <= 1;
+        del.addEventListener('click', function () {
+          cols().splice(ci, 1);
+          rows().forEach(function (r) { r.cells.splice(ci, 1); });
+          openCol = -1;
+          paint(); paintColOpts(); onInput();
+        });
+        acts.appendChild(more); acts.appendChild(del);
+        th.appendChild(acts);
+        hr.appendChild(th);
+      });
+
+      hr.appendChild(el('th', 'grid__gutter'));
+      thead.appendChild(hr);
+      t.appendChild(thead);
+
+      var tb = el('tbody');
+      rows().forEach(function (r, ri) {
+        var tr = el('tr');
+
+        var gtd = el('td', 'grid__gutter');
+        var gin = el('input', 'grid__in grid__in--group');
+        gin.type = 'text';
+        gin.value = r.group == null ? '' : r.group;
+        gin.placeholder = '—';
+        gin.title = 'Starts a new banded section above this row. Leave empty to continue.';
+        gin.addEventListener('input', function () { r.group = gin.value; onInput(); });
+        gtd.appendChild(gin);
+        tr.appendChild(gtd);
+
+        cols().forEach(function (col, ci) {
+          var td = el('td', col.featured ? 'is-featured' : '');
+          var inp = el('input', 'grid__in');
+          inp.type = 'text';
+          inp.value = r.cells[ci] == null ? '' : r.cells[ci];
+          inp.dataset.r = ri; inp.dataset.c = ci;
+          inp.addEventListener('input', function () { r.cells[ci] = inp.value; onInput(); });
+          inp.addEventListener('paste', function (e) { onPaste(e, ri, ci); });
+          td.appendChild(inp);
+          tr.appendChild(td);
+        });
+
+        var atd = el('td', 'grid__gutter');
+        var acts = el('div', 'grid__rowacts');
+        function act(label, glyph, fn, disabled) {
+          var b = el('button', 'grid__mini');
+          b.type = 'button';
+          b.innerHTML = glyph;
+          b.title = label;
+          b.setAttribute('aria-label', label);
+          b.disabled = !!disabled;
+          b.addEventListener('click', fn);
+          acts.appendChild(b);
+        }
+        act('Move up', '&#9650;', function () {
+          rows().splice(ri - 1, 0, rows().splice(ri, 1)[0]); paint(); onInput();
+        }, ri === 0);
+        act('Move down', '&#9660;', function () {
+          rows().splice(ri + 1, 0, rows().splice(ri, 1)[0]); paint(); onInput();
+        }, ri === rows().length - 1);
+        act('Delete row', '&times;', function () {
+          rows().splice(ri, 1); paint(); onInput();
+        }, rows().length <= 1);
+        atd.appendChild(acts);
+        tr.appendChild(atd);
+        tb.appendChild(tr);
+      });
+      t.appendChild(tb);
+      scroll.appendChild(t);
+    }
+
+    function paintColOpts() {
+      colOpts.innerHTML = '';
+      colOpts.hidden = openCol < 0;
+      if (openCol < 0) return;
+      var col = cols()[openCol];
+      if (!col) { colOpts.hidden = true; return; }
+
+      var hd = el('div', 'grid__optshead');
+      hd.textContent = (col.label || 'Column ' + (openCol + 1)) + ' — options';
+      var close = el('button', 'grid__mini');
+      close.type = 'button';
+      close.innerHTML = '&times;';
+      close.setAttribute('aria-label', 'Close column options');
+      close.addEventListener('click', function () { openCol = -1; paintColOpts(); });
+      hd.appendChild(close);
+      colOpts.appendChild(hd);
+
+      (colFields || []).forEach(function (sub) {
+        if (sub.k === 'label') return;   // edited in the header itself
+        colOpts.appendChild(control(
+          sub,
+          function () { return col[sub.k]; },
+          function (v) { col[sub.k] = v; },
+          function () { paint(); onInput(); }
+        ));
+      });
+    }
+
+    function onPaste(e, ri, ci) {
+      var text = (e.clipboardData || window.clipboardData).getData('text');
+      if (!text || !/[\t\n]/.test(text)) return;      // a plain value: let it through
+      e.preventDefault();
+      if (!applyPaste(cols(), rows(), ri, ci, text, colFields)) return;
+      paint(); paintColOpts(); onInput();
+    }
+
+    var bar = el('div', 'grid__bar');
+    var addRow = el('button', 'grid__act');
+    addRow.type = 'button';
+    addRow.innerHTML = '<span>+</span> Row';
+    addRow.addEventListener('click', function () {
+      rows().push({ group: '', cells: [] });
+      squareUp(cols(), rows());
+      paint(); onInput();
+    });
+    var addCol = el('button', 'grid__act');
+    addCol.type = 'button';
+    addCol.innerHTML = '<span>+</span> Column';
+    addCol.addEventListener('click', function () {
+      cols().push(blankColumn(colFields));
+      squareUp(cols(), rows());
+      paint(); onInput();
+    });
+    bar.appendChild(addRow);
+    bar.appendChild(addCol);
+    box.appendChild(bar);
+
+    paint();
+    return box;
+  }
+
   /* The whole import, with no DOM in it — the panel below only collects the
      text and shows what this says about it. Kept separate so it can be tested
      against real spreadsheet output rather than by driving a textarea. */
@@ -592,8 +860,15 @@ CB.Inspector = (function () {
       }
 
       var node;
+      /* Column extras are edited from inside the grid, which owns how many
+         columns there are. Two places to add a column is one place too many,
+         so this field carries the values without drawing a panel of its own. */
+      if (field.t === 'columns') return;
+
       if (field.t === 'list') {
         node = listEditor(field, props, onChange);
+      } else if (field.t === 'grid') {
+        node = gridEditor(field, props, onChange, def);
       } else {
         node = control(
           field,
@@ -618,5 +893,8 @@ CB.Inspector = (function () {
     applyConditions();
   }
 
-  return { render: render, importRows: importRows, parseTable: parseTable };
+  return {
+    render: render, importRows: importRows, parseTable: parseTable,
+    applyPaste: applyPaste, squareUp: squareUp, blankColumn: blankColumn
+  };
 })();
