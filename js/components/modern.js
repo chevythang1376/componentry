@@ -735,8 +735,11 @@
       { k: 'stagger', t: 'range', label: 'Stagger', min: 0, max: 8, step: 1, value: 3 },
 
       { t: 'section', label: 'Style' },
-      { k: 'minHeight', t: 'range', label: 'Height', min: 240, max: 720, step: 20, unit: 'px', value: 420 },
-      { k: 'align', t: 'select', label: 'Alignment', value: 'left', options: [['left', 'Left'], ['center', 'Centre']] },
+      { k: 'minHeight', t: 'range', label: 'Panel height', min: 240, max: 720, step: 20, unit: 'px', value: 420 },
+      {
+        k: 'mediaSide', t: 'select', label: 'Panel sits', value: 'right',
+        options: [['right', 'Right of the copy'], ['left', 'Left of the copy']]
+      },
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'page',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -779,70 +782,75 @@
         ? '<img class="cb-spl__img" src="' + c.url(p.image) + '" alt="' + c.attr(p.alt) + '" loading="lazy" decoding="async">'
         : '';
 
+      /* The copy sits beside the panel, never under it.
+
+         It used to be overlaid, with the cover on top — which is fine while
+         the animation runs and a disaster when it does not. A browser that
+         supports scroll timelines but never advances this one (an element that
+         is never scrolled, a preview frame that does not scroll, a timeline
+         that is simply inactive) leaves a fully opaque cover sitting over the
+         message with nothing to open it. The animation was load-bearing for
+         legibility, which is the one job it must never have.
+
+         Now the worst a stuck cover can cost is the photograph. */
       var html = c.dedent(`
         <section class="${c.cls} cb-spl">
-          <div class="cb-spl__stage">
-            ${media}
-            <div class="cb-spl__inner">
-              <div class="cb-wrap">
+          <div class="cb-wrap">
+            <div class="cb-spl__row">
+              <div class="cb-spl__copy">
                 ${p.eyebrow ? '<p class="cb-spl__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
                 ${p.title ? '<h2 class="cb-spl__title">' + c.rich(p.title) + '</h2>' : ''}
                 ${p.sub ? '<p class="cb-spl__sub">' + c.rich(p.sub) + '</p>' : ''}
-                ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: p.align === 'center' ? 'center' : '' })}
+                ${c.actions([{ text: p.btnText, url: p.btnUrl }])}
               </div>
-            </div>
-            <div class="cb-spl__cover" aria-hidden="true">
-        ${c.indent(slats, 8)}
+              <div class="cb-spl__stage">
+                ${media}
+                <div class="cb-spl__cover" aria-hidden="true">
+        ${c.indent(slats, 10)}
+                </div>
+              </div>
             </div>
           </div>
         </section>`);
 
       var dark = p.coverMode === 'deep' || p.coverMode === 'brand' || p.coverMode === 'custom';
-      var onMedia = !!p.image;
 
       var css = `
-        ${s}.cb-spl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 0)}px; }
+        ${s}.cb-spl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s} .cb-spl__row {
+          display: grid; gap: clamp(24px, 4vw, 48px); align-items: center;
+          grid-template-columns: ${p.mediaSide === 'left' ? '1.05fr .95fr' : '.95fr 1.05fr'};
+        }
+        ${p.mediaSide === 'left' ? `
+        ${s} .cb-spl__copy { order: 2; }
+        ${s} .cb-spl__stage { order: 1; }` : ''}
         ${s} .cb-spl__stage {
           position: relative; overflow: hidden;
           min-height: ${c.num(p.minHeight, 420)}px;
-          display: flex; align-items: center;
           border-radius: var(--cb-radius);
-          background: ${onMedia ? 'var(--cb-subtle)' : 'var(--cb-band, #f7f4f1)'};
+          background: var(--cb-subtle);
         }
         ${s} .cb-spl__img {
           position: absolute; inset: 0; width: 100%; height: 100%;
           object-fit: cover; z-index: 0;
         }
-        ${s} .cb-spl__inner {
-          position: relative; z-index: 1; width: 100%;
-          padding-block: 48px; text-align: ${p.align === 'center' ? 'center' : 'left'};
-          ${onMedia ? 'background: linear-gradient(90deg, rgba(20,18,16,.72), rgba(20,18,16,.28));' : ''}
-        }
         ${s} .cb-spl__eyebrow {
           font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
           letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
-          color: ${onMedia ? 'var(--cb-on-dark, #ffffff)' : 'var(--cb-brand)'}; margin-bottom: 12px;
-          ${onMedia ? 'opacity: .82;' : ''}
+          color: var(--cb-brand); margin-bottom: 12px;
         }
         ${s} .cb-spl__title {
           font-size: calc(clamp(26px, 4vw, 42px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
           line-height: calc(1.12 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
-          max-width: 20ch; ${p.align === 'center' ? 'margin-inline: auto;' : ''}
-          ${onMedia ? 'color: var(--cb-on-dark, #ffffff);' : ''}
+          max-width: 20ch; text-wrap: balance;
         }
-        ${s} .cb-spl__sub {
-          margin-top: 14px; max-width: 52ch;
-          ${p.align === 'center' ? 'margin-inline: auto;' : ''}
-          color: ${onMedia ? 'var(--cb-on-dark-muted, rgba(255,255,255,.82))' : 'var(--cb-muted)'};
-        }
-        ${onMedia ? c.pin([s + ' .cb-spl__title', s + ' .cb-spl__eyebrow'], 'var(--cb-on-dark, #ffffff)') : ''}
+        ${s} .cb-spl__sub { margin-top: 14px; max-width: 52ch; color: var(--cb-muted); }
 
         ${s} .cb-spl__cover {
           position: absolute; inset: 0; z-index: 2;
           pointer-events: none;
-          /* Gone unless a scroll timeline puts it back. A cover that needs an
-             animation to get out of the way would otherwise sit on top of the
-             message in every browser that cannot run one. */
+          /* Only ever shown where a scroll timeline exists to take it away —
+             and even then it covers the panel, never the words. */
           display: none;
         }
         ${s} .cb-spl__slat {
@@ -876,9 +884,21 @@
           ${s} .cb-spl__slat {
             animation: cb-spl-${c.id} linear both;
             animation-timeline: view();
-            animation-range: entry calc(24% + var(--i) * ${step}%) cover calc(34% + var(--i) * ${step}%);
+            /* Both ends inside the entry phase, and finishing well short of
+               100%. A range reaching into the cover phase can stall: for the
+               last block on a page you never scroll far enough for it to stop
+               intersecting, so cover progress caps part-way and the slat stops
+               half-open. Entry completes exactly when the block's bottom edge
+               meets the viewport's, which is reachable at the foot of any
+               page. */
+            animation-range: entry calc(18% + var(--i) * ${step}%) entry calc(62% + var(--i) * ${step}%);
             backface-visibility: hidden;
           }
+        }
+        @media (max-width: 760px) {
+          ${s} .cb-spl__row { grid-template-columns: 1fr; }
+          ${s} .cb-spl__copy { order: 1; }
+          ${s} .cb-spl__stage { order: 2; min-height: ${Math.min(c.num(p.minHeight, 420), 320)}px; }
         }
         @media (prefers-reduced-motion: reduce) {
           ${s} .cb-spl__cover { display: none; }

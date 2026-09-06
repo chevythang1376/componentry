@@ -1162,7 +1162,12 @@
       /* Capped so the last piece still finishes inside the block's own pass
          through the viewport. A long statement with a generous stagger would
          otherwise leave its final words arriving after you have scrolled past. */
-      var SPREAD = 34;
+      /* Capped twice over. The spread keeps the last piece from arriving after
+         you have scrolled past, and both ends of the range stay inside the
+         `entry` phase — which completes exactly when the block's bottom edge
+         meets the viewport's, and so is reachable even for the last block on a
+         page. A range reaching into `cover` can stall there for good. */
+      var SPREAD = 24;
       var step = n > 1 ? Math.min(c.num(p.stagger, 4), SPREAD / (n - 1)) : 0;
 
       var off = {
@@ -1225,7 +1230,7 @@
           ${s} .cb-kt__u {
             animation: cb-kt-${c.id} linear both;
             animation-timeline: view();
-            animation-range: entry calc(14% + var(--i) * ${step}%) entry calc(62% + var(--i) * ${step}%);
+            animation-range: entry calc(8% + var(--i) * ${step}%) entry calc(52% + var(--i) * ${step}%);
           }
         }`;
 

@@ -1,0 +1,152 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — scroll ranges that finish</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 78ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+  iframe { position: absolute; left: -20000px; width: 1100px; height: 800px; border: 0; }
+</style>
+<h1>Scroll ranges that finish</h1>
+<p class="sub">A reveal driven by <code>view()</code> only finishes if its range is actually reachable.
+An element taller than the viewport, or the last thing on a page, can stop part-way through its
+<em>entry</em> phase and never come back — leaving text permanently half-faded and a cover permanently
+half-shut. Nothing else in the suite catches this: the degradation harness removes scroll timelines
+altogether, which is the case that already works. This one drives a real scroller.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<iframe id="f"></iframe>
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js',
+   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+
+window.addEventListener('load', function () {
+  var f = document.getElementById('f'), w = f.contentWindow;
+
+  /* Places a block in a page shaped like the one that breaks it, then scrolls
+     that page to the bottom and reads what is actually on screen. */
+  function place(id, props, opts) {
+    opts = opts || {};
+    var out = CB.build({ type: id, cls: 'cb-' + id + '-r', props: Object.assign(CB.defaults(CB.get(id)), props || {}) },
+                       CB.DEFAULT_TOKENS);
+    var d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}' +
+            '.above{height:' + (opts.above == null ? 900 : opts.above) + 'px}' +
+            '.below{height:' + (opts.below == null ? 900 : opts.below) + 'px}' +
+            '</style><style>' + out.css + '</style>' +
+            '<div class="above"></div>' + out.html + '<div class="below"></div>');
+    d.close();
+    return d;
+  }
+
+  function toBottom(d) {
+    var el = d.scrollingElement || d.documentElement;
+    el.scrollTop = el.scrollHeight;          // no smooth behaviour is set, so this lands immediately
+    void el.offsetHeight;
+    return el;
+  }
+
+  function timelineLive(d) {
+    var a = d.getAnimations()[0];
+    return !!(a && a.timeline && a.timeline.currentTime !== null);
+  }
+
+  /* This harness cannot advance a view timeline — an offscreen frame is never
+     sampled — and that turns out to be the useful case rather than a
+     limitation. A browser that supports scroll timelines but never advances
+     this one is a real situation: a block nobody scrolls to, a preview frame
+     that does not scroll, an editor rendering into a detached document. What
+     it must never be is a block whose words are missing.
+
+     So the question here is not "does the reveal finish" but "what does
+     somebody see if it never starts". */
+  var live = timelineLive(place('kinetic-text', {}, {}));
+  check('the frame never advances a view timeline, so this measures the stuck case', live, false);
+
+  function textVisible(d, sel) {
+    var els = d.querySelectorAll(sel);
+    if (!els.length) return 'nothing matched ' + sel;
+    var worst = 1;
+    Array.prototype.forEach.call(els, function (e) {
+      worst = Math.min(worst, +w.getComputedStyle(e).opacity);
+    });
+    return +worst.toFixed(2);
+  }
+
+  // --- kinetic text --------------------------------------------------------
+  var d1 = place('kinetic-text', {}, { above: 900, below: 900 });
+  check('a reveal that never runs still shows every word', textVisible(d1, '.cb-kt__u'), 1);
+  check('and shows them unblurred',
+        w.getComputedStyle(d1.querySelector('.cb-kt__u')).filter, 'none');
+
+  var d2 = place('kinetic-text', {}, { above: 900, below: 0 });
+  toBottom(d2);
+  check('as the last thing on a page too', textVisible(d2, '.cb-kt__u'), 1);
+
+  /* Both ends of the range inside `entry`. A range reaching into `cover` can
+     stall for good on a block nobody can scroll past. */
+  var css1 = CB.build({ type: 'kinetic-text', cls: 'x', props: CB.defaults(CB.get('kinetic-text')) }, CB.DEFAULT_TOKENS).css;
+  check('the reveal stays inside a phase that can complete',
+        /animation-range: entry [^;]*entry [^;]*;/.test(css1) && !/cover/.test(css1), true);
+
+  // --- split reveal --------------------------------------------------------
+  /* The defect this file was written for. The cover used to sit over the copy,
+     so a cover that never opened hid the message outright — the animation was
+     load-bearing for legibility, which is the one job it must never have. */
+  var d4 = place('split-reveal', {}, { above: 900, below: 900 });
+  var cover = d4.querySelector('.cb-spl__cover');
+  var title = d4.querySelector('.cb-spl__title');
+  var sub = d4.querySelector('.cb-spl__sub');
+
+  check('the cover is shown, since scroll timelines exist here',
+        w.getComputedStyle(cover).display, 'block');
+  check('but the words are not inside it', !cover.contains(title) && !cover.contains(sub), true);
+  check('a cover that never opens still leaves the heading readable',
+        textVisible(d4, '.cb-spl__title'), 1);
+  check('and the copy', textVisible(d4, '.cb-spl__sub'), 1);
+  check('and the button', d4.querySelector('.cb-btn') ? textVisible(d4, '.cb-btn') : 1, 1);
+
+  /* Nothing painted over them, either. Opacity alone would miss a cover that
+     is simply on top. */
+  (function () {
+    var r = title.getBoundingClientRect();
+    var hit = d4.elementFromPoint(r.left + Math.min(r.width - 2, 8), r.top + r.height / 2);
+    check('nothing is painted on top of the heading',
+          !!hit && (hit === title || title.contains(hit) || hit.contains(title)),
+          true);
+  })();
+
+  var d5 = place('split-reveal', { mediaSide: 'left' }, { above: 900, below: 0 });
+  check('the same with the panel on the other side',
+        textVisible(d5, '.cb-spl__title'), 1);
+
+  var css2 = CB.build({ type: 'split-reveal', cls: 'y', props: CB.defaults(CB.get('split-reveal')) }, CB.DEFAULT_TOKENS).css;
+  check('its slats stay inside a phase that can complete',
+        /animation-range: entry [^;]*entry [^;]*;/.test(css2), true);
+  check('and the cover is never shown without a timeline to move it',
+        /\.cb-spl__cover \{[^}]*display: none;/.test(css2), true);
+
+  document.getElementById('out').textContent = log.join('\n');
+  var bar = document.getElementById('bar');
+  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
+                         : (pass + '/' + pass + ' passed — every reveal finishes where it is put');
+  document.title = fail ? 'RANGE FAIL ' + fail : 'RANGE OK ' + pass;
+});
+</script>
