@@ -467,7 +467,7 @@ ${p.deepLink ? `
   /* --------------------------------------------------------------------- */
   CB.register({
     id: 'carousel',
-    name: 'Image / Video Carousel',
+    name: 'Carousel',
     category: CAT,
     icon: '◀▶',
     blurb: 'Scroll-snap carousel with real touch/trackpad swipe, APG roles, optional autoplay and a rotation control.',
@@ -483,6 +483,12 @@ ${p.deepLink ? `
           { k: 'alt', t: 'text', label: 'Alt text', value: '' },
           { k: 'caption', t: 'text', label: 'Caption', value: 'New slide' },
           { k: 'sub', t: 'text', label: 'Sub-caption', value: '' },
+          { k: 'badge', t: 'text', label: 'Flag', value: '',
+            help: 'A short marker over the image — "New", "In stock". Card layout only.' },
+          { k: 'spec', t: 'text', label: 'Spec or price line', value: '',
+            help: 'Sits under the caption in tabular figures. Card layout only.' },
+          { k: 'btnText', t: 'text', label: 'Button label', value: '',
+            help: 'Card layout only. Leave empty and the whole card stays the link.' },
           { k: 'linkUrl', t: 'url', label: 'Link URL', value: '' }
         ],
         value: [
@@ -495,6 +501,13 @@ ${p.deepLink ? `
       },
 
       { t: 'section', label: 'Layout' },
+      {
+        k: 'slideStyle', t: 'select', label: 'Slides are', value: 'media',
+        options: [['media', 'Images, captioned over the picture'], ['card', 'Product cards']],
+        help: 'Cards give each slide its own surface, with the flag, spec line and button ' +
+              'underneath rather than laid over the image — which is what makes a row of ' +
+              'products scannable rather than decorative.'
+      },
       { k: 'perView', t: 'range', label: 'Slides per view (desktop)', min: 1, max: 5, step: 1, value: 3 },
       { k: 'perViewTablet', t: 'range', label: 'Slides per view (tablet)', min: 1, max: 4, step: 1, value: 2 },
       { k: 'gap', t: 'range', label: 'Gap', min: 0, max: 48, step: 2, unit: 'px', value: 20 },
@@ -536,20 +549,54 @@ ${p.deepLink ? `
         return 'calc((100% - ' + (k - 1) * gap + 'px) / ' + (k + peek) + ')';
       }
 
+      /* Two shapes out of one mechanism. A media slide lays its caption over the
+         picture, which reads well for photography and badly for anything meant
+         to be compared — a row of products wants each one on its own surface
+         with its facts underneath, in the same place every time.
+
+         The scrolling, snapping and keyboard handling are shared, because that
+         is the part with all the accessibility in it and two copies would be
+         two things to keep right. */
+      var card = p.slideStyle === 'card';
+
       var slides = items.map(function (it, i) {
-        var inner =
-          '<img src="' + c.url(it.image) + '" alt="' + c.attr(it.alt) + '" loading="' + (i < 3 ? 'eager' : 'lazy') + '" decoding="async">' +
-          (p.captions && (it.caption || it.sub)
-            ? '<figcaption class="cb-car__cap">' +
-              (it.caption ? '<span class="cb-car__capT">' + c.esc(it.caption) + '</span>' : '') +
-              (it.sub ? '<span class="cb-car__capS">' + c.esc(it.sub) + '</span>' : '') +
-              '</figcaption>' : '');
-        var body = it.linkUrl
-          ? '<a class="cb-car__link" href="' + c.url(it.linkUrl) + '">' + inner + '</a>'
-          : inner;
+        var img = '<img src="' + c.url(it.image) + '" alt="' + c.attr(it.alt) +
+                  '" loading="' + (i < 3 ? 'eager' : 'lazy') + '" decoding="async">';
+        var body;
+
+        if (card) {
+          var media = '<div class="cb-car__shot">' + img +
+                      (it.badge ? '<span class="cb-car__badge">' + c.esc(it.badge) + '</span>' : '') +
+                      '</div>';
+          var facts =
+            '<div class="cb-car__body">' +
+              (it.caption ? '<span class="cb-car__name">' + c.esc(it.caption) + '</span>' : '') +
+              (it.sub ? '<span class="cb-car__sub">' + c.esc(it.sub) + '</span>' : '') +
+              (it.spec ? '<span class="cb-car__spec">' + c.esc(it.spec) + '</span>' : '') +
+            '</div>';
+          /* A card with a button gets one obvious target rather than a link
+             inside a link, which is invalid and unusable from a keyboard.
+             Without a button the whole card is the link, as it always was. */
+          body = it.btnText
+            ? media + facts + c.actions([{ text: it.btnText, url: it.linkUrl || '#' }], { tight: true })
+            : (it.linkUrl
+                ? '<a class="cb-car__link" href="' + c.url(it.linkUrl) + '">' + media + facts + '</a>'
+                : media + facts);
+        } else {
+          var inner = img +
+            (p.captions && (it.caption || it.sub)
+              ? '<figcaption class="cb-car__cap">' +
+                (it.caption ? '<span class="cb-car__capT">' + c.esc(it.caption) + '</span>' : '') +
+                (it.sub ? '<span class="cb-car__capS">' + c.esc(it.sub) + '</span>' : '') +
+                '</figcaption>' : '');
+          body = it.linkUrl
+            ? '<a class="cb-car__link" href="' + c.url(it.linkUrl) + '">' + inner + '</a>'
+            : inner;
+        }
+
         return c.dedent(`
           <li class="cb-car__slide" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}">
-            <figure class="cb-car__fig">${body}</figure>
+            <figure class="cb-car__fig${card ? ' is-card' : ''}">${body}</figure>
           </li>`);
       }).join('\n');
 
@@ -618,6 +665,43 @@ ${p.deepLink ? `
         ${s} .cb-car__capT { font-weight: 700; }
         ${s} .cb-car__capS { font-size: .85em; opacity: .8; }
         ${c.pin([s + ' .cb-car__cap', s + ' .cb-car__capT', s + ' .cb-car__capS'], 'var(--cb-on-dark, #fff)')}
+${card ? `
+        /* Product card. Its own surface, facts underneath rather than over the
+           picture, and every card the same height so a row of them reads as a
+           row rather than as a ragged edge. */
+        ${s} .cb-car__fig.is-card {
+          background: var(--cb-surface); border: 1px solid var(--cb-border);
+          display: flex; flex-direction: column; height: 100%;
+        }
+        ${s} .cb-car__slide { display: flex; }
+        ${s} .cb-car__fig.is-card > .cb-car__link { display: flex; flex-direction: column; height: 100%; }
+        ${s} .cb-car__shot { position: relative; overflow: hidden; background: var(--cb-subtle); }
+        ${s} .cb-car__shot img { width: 100%; aspect-ratio: ${p.ratio}; object-fit: cover; }
+        ${s} .cb-car__badge {
+          position: absolute; top: 10px; left: 10px;
+          font-size: calc(.66em * var(--cb-eyebrow-scale, 1)); font-weight: 700;
+          letter-spacing: .09em; text-transform: uppercase;
+          color: var(--cb-on-brand); background: var(--cb-brand);
+          padding: 4px 8px; border-radius: calc(var(--cb-radius) * .28);
+        }
+        ${s} .cb-car__body {
+          display: flex; flex-direction: column; gap: 4px;
+          padding: 16px 18px 4px; flex: 1 1 auto;
+        }
+        ${s} .cb-car__name {
+          font-size: 1.05em; font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.3 + var(--cb-h-leading, 0));
+          letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-car__sub { font-size: .92em; color: var(--cb-muted); }
+        /* Tabular figures so a column of gauges or prices lines up as you scroll. */
+        ${s} .cb-car__spec {
+          font-size: .88em; color: var(--cb-ink); font-variant-numeric: tabular-nums;
+          margin-top: 2px;
+        }
+        ${s} .cb-car__fig.is-card .cb-actions { padding: 0 18px 16px; margin-top: 8px; }
+        ${s} .cb-car__fig.is-card:hover img { transform: none; }
+        ${s} .cb-car__fig.is-card:hover { border-color: var(--cb-brand); }` : ''}
         ${s} .cb-car__dots { display: flex; justify-content: center; gap: 8px; margin-top: 22px; flex-wrap: wrap; }
         ${s} .cb-car__dot {
           width: 9px; height: 9px; border-radius: 50%; padding: 0;

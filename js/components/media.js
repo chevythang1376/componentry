@@ -545,7 +545,11 @@
 
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Unit style', value: 'boxed', options: [['boxed', 'Boxed'], ['plain', 'Plain'], ['split', 'Split-flap']] },
-      { k: 'onDark', t: 'toggle', label: 'Dark background', value: true },
+      /* No toggle. It used to be one, and it could disagree with the background
+         it was describing: set the ground to Follow the scheme on a light
+         project and a still-true "Dark background" painted white text onto
+         white. Two controls for one fact is one too many, so this is read from
+         the ground instead. */
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'deep',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -563,6 +567,13 @@
         var d = new Date(Date.now() + 7 * 864e5);
         target = d.toISOString().slice(0, 16);
       }
+      /* True only when the block paints its own dark ground. When it follows the
+         scheme the neutral tokens are already right for whichever scheme is on,
+         so reaching for the on-dark ink there is what breaks it. */
+      var onDark = p.bgMode === 'deep' ||
+                   (p.bgMode === 'custom' && (c.relLum(p.bg) !== null && c.relLum(p.bg) < 0.4));
+      p = Object.assign({}, p, { onDark: onDark });
+
       var ink = p.onDark ? 'var(--cb-on-dark, #ffffff)' : 'var(--cb-ink)';
       var muted = p.onDark ? 'var(--cb-on-dark-muted, rgba(255,255,255,.62))' : 'var(--cb-muted)';
 

@@ -1152,6 +1152,46 @@ window.CB = (function () {
     var scheme = schemeCss(sel, s.replace(/^\./, ''), p, tokens);
     if (scheme) out.push(scheme);
 
+    /* "Always dark" means the ground stops following the scheme — but until now
+       the text did not stop with it. On a light project, choosing it gave every
+       one of the twenty-two blocks that offer it black text on a black ground:
+       1.00:1, invisible. It survived because every harness judged components at
+       their defaults, and this is never the default.
+
+       Fixing it once here rather than in twenty-two components is also the only
+       way it stays fixed: a component that paints its own dark ground has to
+       carry the dark neutrals with it, and that is a property of the ground, not
+       of the block. Emitted after the scheme block so it wins — a ground that is
+       dark whatever the scheme needs ink that is light whatever the scheme. */
+    if (p.bgMode === 'deep' || p.bgMode === 'custom') {
+      var ground = p.bgMode === 'deep' ? (tokens.deep || '#141210') : (p.bg || '#ffffff');
+
+      /* Which neutrals belong on this ground, decided by measuring both rather
+         than by a luminance threshold — the same reasoning readableInk() uses,
+         and for the same reason: thresholds get the obvious cases right and the
+         boundary wrong, and a chosen colour is all boundary. */
+      var useDark = contrast(DARK_NEUTRALS.ink, ground) > contrast(tokens.ink || '#141210', ground);
+      var nn = neutrals(tokens, useDark ? 'dark' : 'light');
+
+      out.push(sel + ' { ' + NEUTRAL_KEYS.map(function (k) {
+        return '--cb-' + k + ': ' + nn[k] + ';';
+      }).join(' ') +
+        ' --cb-page: ' + ground + ';' +
+        ' --cb-band: ' + ground + ';' +
+        /* Derived against the hardest surface this block might put accent text
+           on, not against the ground behind it. A block does not only paint one
+           colour: a card sits on --cb-surface and a panel on --cb-subtle, and
+           either can be the worse of the two. Deriving against the ground alone
+           passed a white custom background and then failed on the panel inside
+           it at 4.33:1. Whichever candidate gives the brand the least contrast
+           is the one to satisfy — clear it and the rest come free. */
+        ' --cb-brand-ink: ' + toContrast(tokens.brand || '#96694c',
+          [ground, nn.surface, nn.subtle].reduce(function (worst, cand) {
+            return contrast(tokens.brand || '#96694c', cand) < contrast(tokens.brand || '#96694c', worst)
+              ? cand : worst;
+          }, ground), 4.5) + '; }');
+    }
+
     var reveal = revealCss(sel, s.replace(/^\./, ''), p);
     if (reveal) out.push(reveal);
 

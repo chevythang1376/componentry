@@ -62,7 +62,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Table | Ships empty and offers **Import cells** first — paste a block from a spreadsheet and it builds the table. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
 | **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
-| | Image / Video Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay |
+| | Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay. Slides are either captioned images or **product cards** — flag, spec line and button underneath — from the one mechanism, because the scrolling and keyboard handling is the part worth having only one copy of |
 | | Testimonial Slider | Cross-fade, ratings, height-equalised so the page doesn't jump |
 | | Interactive Diagram | Hotspots over an image with a docked detail panel, zoom-to-point and a filtering legend. Core needs no JS |
 | **Media & Utility** | Before / After Slider | Built on a real `<input type="range">` |
@@ -999,7 +999,10 @@ test/
                         every block that follows the project and no block that
                         does not, and that the page-background CSS matches the
                         blocks' range and refuses a selector that would break
-                        out of its own rule; 63 assertions
+                        out of its own rule. Then builds every option of every
+                        layout control and judges those at AA too, which is how
+                        a block that conforms at its default and fails the
+                        moment somebody changes it gets caught; 65 assertions
   swap-demo.html        Not a harness — a page you scroll, building six blocks all
                         set to swap, plus the paste-in CSS for the page background
                         behind them
