@@ -393,6 +393,7 @@ window.CB = (function () {
        exactly as set, because a scheme is about the surface under the design,
        not a different design. */
     scheme: 'light',
+    swapAt: 50,
     /* Text on a surface the block paints dark itself — a colour band, a photo
        hero, a dark tile. Held apart from `ink` on purpose: those places are
        defended with !important so a host theme cannot black them out, and
@@ -867,6 +868,29 @@ window.CB = (function () {
 
      Wrapped in @supports so a browser without scroll timelines simply renders
      the end state rather than nothing. */
+  /* Where the swap happens, and how long it takes — deliberately measured in
+     two different units, because they are two different questions.
+
+     *Where* belongs to the page: "about halfway down" means halfway down
+     whatever this page happens to be, so it is a percentage of the scroll.
+     Anchoring it to the top instead made every page change in its first
+     screenful, whatever was on it.
+
+     *How long* belongs to the viewport: sixty vh of travel is about two thirds
+     of a screen on any page. This is the half that must not be a percentage —
+     a percentage duration stretches over a long document until the page is
+     never quite either colour, which reads as a wrong colour rather than as a
+     transition, and was the original complaint.
+
+     Centred on the mark, so the setting names the moment it crosses rather than
+     the moment it starts. */
+  var SWAP_TRAVEL = 60;
+  function swapRange(t) {
+    var at = clamp(num((t || {}).swapAt, 50), 0, 100);
+    var half = SWAP_TRAVEL / 2;
+    return 'calc(' + at + '% - ' + half + 'vh) calc(' + at + '% + ' + half + 'vh)';
+  }
+
   function schemeCss(sel, cls, p, t) {
     /* "Follow the project" has to mean following it into a swap as well, or a
        project-level swap reaches only the blocks somebody remembered to set —
@@ -959,7 +983,7 @@ window.CB = (function () {
         ${sel} {
           animation: ${name}-ground ease-in-out both, ${name}-ink linear both;
           animation-timeline: scroll(root), scroll(root);
-          animation-range: 10vh 70vh, 10vh 70vh;
+          animation-range: ${swapRange(t)}, ${swapRange(t)};
         }
       }`);
   }
@@ -1065,7 +1089,7 @@ window.CB = (function () {
         ${sel} {
           animation: cb-page-swap ease-in-out both;
           animation-timeline: scroll(root);
-          animation-range: 10vh 70vh;
+          animation-range: ${swapRange(t)};
         }
       }`);
   }

@@ -203,15 +203,45 @@ window.addEventListener('load', function () {
   check('all swapping blocks share the page timeline',
         /animation-timeline: scroll\(root\), scroll\(root\)/.test(swap.css), true);
   check('and the same range, so they cannot drift apart',
-        (swap.css.match(/animation-range: ([^;]+)/) || [])[1], '10vh 70vh, 10vh 70vh');
+        (swap.css.match(/animation-range: ([^;]+)/) || [])[1],
+        'calc(50% - 30vh) calc(50% + 30vh), calc(50% - 30vh) calc(50% + 30vh)');
 
-  /* Measured in viewport heights rather than percent of the document. A
-     percentage stretches the transition over the whole page, so the same
-     setting is brisk on a short page and an imperceptible drift on a long one —
-     and a block that is never quite either colour reads as the wrong colour
-     rather than as a transition. */
-  check('the pace does not depend on how long the page is',
-        /animation-range: [^;]*%/.test(swap.css), false);
+  /* Two units on purpose, answering two different questions.
+
+     WHERE belongs to the page: "about halfway down" has to mean halfway down
+     whatever this page is, so it is a percentage of the scroll. Pinning it to
+     the top in viewport heights made every page finish changing inside its
+     first screenful, whatever was on it.
+
+     HOW LONG belongs to the viewport, and this is the half that must never be a
+     percentage. A percentage duration stretches over a long document until the
+     page is never quite either colour — which reads as a wrong colour rather
+     than as a transition, and was the original complaint. */
+  check('where it happens follows the page',
+        /animation-range: calc\(\d+% [-+]/.test(swap.css), true);
+  check('but how long it takes does not',
+        /calc\(\d+% - 30vh\) calc\(\d+% \+ 30vh\)/.test(swap.css), true);
+
+  (function () {
+    function rangeAt(at) {
+      var css = CB.build({ type: 'card-grid', cls: 'cb-at', props: CB.defaults(CB.get('card-grid')) },
+                         Object.assign({}, CB.DEFAULT_TOKENS, { scheme: 'swapDark', swapAt: at })).css;
+      return (css.match(/animation-range: ([^,;]+)/) || [])[1];
+    }
+    check('the crossing point is the setting, not the start',
+          rangeAt(50), 'calc(50% - 30vh) calc(50% + 30vh)');
+    check('moving it earlier moves both ends together',
+          rangeAt(25), 'calc(25% - 30vh) calc(25% + 30vh)');
+    check('and later', rangeAt(80), 'calc(80% - 30vh) calc(80% + 30vh)');
+    check('the travel never changes with it',
+          [25, 50, 80].every(function (a) { return /- 30vh\) calc\(\d+% \+ 30vh\)/.test(rangeAt(a)); }), true);
+
+    /* The page ground behind the blocks has to cross at the same moment, or the
+       page and the blocks on it disagree for sixty vh. */
+    var page = CB.pageCss(Object.assign({}, CB.DEFAULT_TOKENS, { scheme: 'swapDark', swapAt: 35 }));
+    check('the page background crosses at the same point',
+          /animation-range: calc\(35% - 30vh\) calc\(35% \+ 30vh\)/.test(page), true);
+  })();
 
   /* The ground is eased and the text is not. One animation could not do both:
      a timing function applies to each keyframe segment separately, so easing a
@@ -231,7 +261,7 @@ window.addEventListener('load', function () {
     check('a project-level swap reaches a block that follows the project',
           /@keyframes cb-scheme-cb-card-grid-s-ground\b/.test(proj.css), true);
     check('and it is the same mechanism, not a second one',
-          /animation-range: 10vh 70vh, 10vh 70vh/.test(proj.css), true);
+          /animation-range: calc\(50% - 30vh\) calc\(50% \+ 30vh\), calc\(50% - 30vh\)/.test(proj.css), true);
     check('a page at rest starts in the scheme it swaps from',
           w.getComputedStyle(proj.root).backgroundColor, 'rgb(247, 244, 241)');
 
@@ -286,7 +316,7 @@ window.addEventListener('load', function () {
     var swap = CB.pageCss(T({ scheme: 'swapDark' }));
     check('a swapping project moves the page too', /@keyframes cb-page-swap/.test(swap), true);
     check('over the same range as the blocks, or the page would lag behind them',
-          (swap.match(/animation-range: ([^;]+)/) || [])[1], '10vh 70vh');
+          (swap.match(/animation-range: ([^;]+)/) || [])[1], 'calc(50% - 30vh) calc(50% + 30vh)');
     check('and off the same timeline', /animation-timeline: scroll\(root\)/.test(swap), true);
     check('it is guarded like the blocks are',
           /@supports \(animation-timeline: scroll\(\)\)/.test(swap), true);

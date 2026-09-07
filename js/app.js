@@ -30,6 +30,15 @@
             'the page’s own scroll, over about two thirds of a screen. A block ' +
             'set to Light or Dark under Advanced stays where it is put.'
     },
+    {
+      k: 'swapAt', t: 'range', label: 'Changes at', min: 10, max: 90, step: 5, unit: '% down the page',
+      when: { scheme: ['swapDark', 'swapLight'] },
+      help: 'Where down the page the swap crosses over. Halfway is the usual answer — ' +
+            'the change reads as something the page does on the way past rather than as ' +
+            'something that happened the moment you touched the wheel. How long it takes ' +
+            'does not move with this: that stays about two thirds of a screen, whatever ' +
+            'the page length, which is what keeps it a transition rather than a drift.'
+    },
     { k: 'ink', t: 'color', label: 'Body text', when: { scheme: ['light', 'swapDark', 'swapLight'] } },
     {
       k: 'hColorOn', t: 'toggle', label: 'Separate heading colour', value: false,
