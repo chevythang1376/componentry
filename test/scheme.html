@@ -109,6 +109,55 @@ window.addEventListener('load', function () {
         CB.relLum(CB.toContrast('#96694c', deepGround, 4.5)) > CB.relLum('#96694c'), true);
   check('and both were actually judged, not skipped', light.judged > 200 && dark.judged > 200, true);
 
+  /* Defaults are one configuration out of hundreds. A block whose layout
+     control moves text onto a different surface — a carousel slide becoming a
+     product card, a tile turning dark — can conform at its default and fail the
+     moment somebody changes it, which is exactly when nobody is looking. So
+     every option of every select gets built and judged too. */
+  (function () {
+    var problems = [], built = 0;
+    ['light', 'dark'].forEach(function (scheme) {
+      CB.all().forEach(function (def) {
+        (def.props || []).forEach(function (fld) {
+          if (fld.t !== 'select' || !fld.options || fld.options.length < 2) return;
+          fld.options.forEach(function (opt) {
+            var props = CB.defaults(def);
+            props[fld.k] = opt[0];
+            var out;
+            try {
+              out = CB.build({ type: def.id, cls: 'cb-v-' + def.id, props: props },
+                             Object.assign({}, CB.DEFAULT_TOKENS, { scheme: scheme }));
+            } catch (e) { problems.push(def.id + ' ' + fld.k + '=' + opt[0] + ' threw'); return; }
+            built++;
+            var d = f.contentDocument;
+            d.open();
+            d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style><style>' +
+                    out.css + '</style>' + out.html);
+            d.close();
+            var root = d.querySelector('.cb-v-' + def.id);
+            if (!root) return;
+            d.querySelectorAll('*').forEach(function (el) {
+              var own = Array.prototype.filter.call(el.childNodes, function (x) {
+                return x.nodeType === 3 && x.textContent.trim();
+              }).length;
+              if (!own || !P.visible(el, w)) return;
+              var back = P.backdrop(el, root, w);
+              if (!back) return;
+              var cs = w.getComputedStyle(el);
+              if (P.ratio(P.parse(cs.color), back) < P.required(cs)) {
+                problems.push(def.id + ' [' + fld.k + '=' + opt[0] + '] ' +
+                              (el.className || el.tagName).toString().split(' ')[0]);
+              }
+            });
+          });
+        });
+      });
+    });
+    check('every layout option was actually built', built > 150, true, built + ' variants');
+    check('and every one of them meets AA',
+          problems.length ? problems.slice(0, 4).join(', ') : 'none', 'none');
+  })();
+
   // --- the scheme reaches the ground, not only the text --------------------
   function bg(id, tokens, props) {
     var r = render(id, tokens, props);

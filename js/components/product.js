@@ -59,7 +59,6 @@
       { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
 
       { t: 'section', label: 'Style' },
-      { k: 'tone', t: 'select', label: 'Tone', value: 'light', options: [['light', 'Light'], ['dark', 'Dark']] },
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'band',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -72,7 +71,13 @@
     render: function (p, c) {
       var s = c.s;
       var items = (p.items || []).filter(Boolean);
-      var dark = p.tone === 'dark';
+      /* Read from the ground rather than asked for separately. As its own
+         control it could contradict the background it was describing — Tone
+         dark with the ground following a light scheme painted white text onto
+         white, and nothing in the panel said so. Following the scheme means the
+         neutral tokens are already right for whichever scheme is on. */
+      var dark = p.bgMode === 'deep' ||
+                 (p.bgMode === 'custom' && c.relLum(p.bg) !== null && c.relLum(p.bg) < 0.4);
       var group = 'cb-fin-' + c.cls;
 
       var shots = items.map(function (it, i) {
@@ -292,7 +297,6 @@
       { k: 'ratio', t: 'select', label: 'Product ratio', value: '1/1', options: [['1/1', 'Square'], ['4/3', '4 : 3'], ['3/4', 'Portrait']] },
 
       { t: 'section', label: 'Style' },
-      { k: 'tone', t: 'select', label: 'Tone', value: 'dark', options: [['dark', 'Dark'], ['light', 'Light']] },
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'deep',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -306,7 +310,13 @@
       var s = c.s;
       var items = (p.items || []).filter(Boolean);
       var n = Math.max(1, items.length);
-      var dark = p.tone === 'dark';
+      /* Read from the ground rather than asked for separately. As its own
+         control it could contradict the background it was describing — Tone
+         dark with the ground following a light scheme painted white text onto
+         white, and nothing in the panel said so. Following the scheme means the
+         neutral tokens are already right for whichever scheme is on. */
+      var dark = p.bgMode === 'deep' ||
+                 (p.bgMode === 'custom' && c.relLum(p.bg) !== null && c.relLum(p.bg) < 0.4);
       var tl = '--cb-pin-' + c.cls;
 
       var shots = items.map(function (it, i) {
@@ -502,7 +512,6 @@
       { k: 'align', t: 'select', label: 'Alignment', value: 'center', options: [['center', 'Center'], ['left', 'Left']] },
       { k: 'divider', t: 'toggle', label: 'Hairline dividers', value: true },
       { k: 'valueSize', t: 'range', label: 'Value size', min: 20, max: 64, step: 2, unit: 'px', value: 34 },
-      { k: 'tone', t: 'select', label: 'Tone', value: 'light', options: [['light', 'Light'], ['dark', 'Dark']] },
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'page',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -515,7 +524,13 @@
     render: function (p, c) {
       var s = c.s;
       var items = (p.items || []).filter(Boolean);
-      var dark = p.tone === 'dark';
+      /* Read from the ground rather than asked for separately. As its own
+         control it could contradict the background it was describing — Tone
+         dark with the ground following a light scheme painted white text onto
+         white, and nothing in the panel said so. Following the scheme means the
+         neutral tokens are already right for whichever scheme is on. */
+      var dark = p.bgMode === 'deep' ||
+                 (p.bgMode === 'custom' && c.relLum(p.bg) !== null && c.relLum(p.bg) < 0.4);
 
       var cells = items.map(function (it) {
         return c.dedent(`
