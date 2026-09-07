@@ -19,7 +19,7 @@
     body {
       animation: cb-page-swap ease-in-out both;
       animation-timeline: scroll(root);
-      animation-range: 10vh 70vh;
+      animation-range: calc(50% - 30vh) calc(50% + 30vh);
     }
   }
 
@@ -57,14 +57,19 @@
      position, so they change together rather than one at a time.</p>
   <p>The ground fades and the text steps once, near the middle. Fading both would pass
      through grey text on a grey ground, which is unreadable at roughly 1:1.</p>
-  <p>The whole transition takes about two thirds of one screen of scrolling, measured
-     in viewport heights — so it feels the same on a short page and a long one.</p>
+  <p>It crosses over about <b>halfway down the page</b> — that position follows the page,
+     so halfway means halfway whatever this one turns out to be. How long it takes does not:
+     the transition is about two thirds of a screen of scrolling on any page, which is what
+     keeps it a change you watch rather than a colour that drifts.</p>
+  <p>Both are settings. <b>Changes at</b> moves the crossing point anywhere from a tenth to
+     nine tenths down.</p>
 </div>
 
 <div id="blocks"></div>
 
 <div id="readout">
   <div class="row"><span>scroll</span><b id="r-scroll">0vh</b></div>
+  <div class="row"><span>down the page</span><b id="r-mid">0%</b></div>
   <div class="row"><span>first block</span><b id="r-bg">—</b></div>
   <div class="row"><span>its heading</span><b id="r-ink">—</b></div>
   <div id="track"><div id="fill"></div></div>
@@ -119,10 +124,15 @@ window.addEventListener('load', function () {
     var vh = window.innerHeight;
     var y = window.scrollY;
     rs.textContent = (y / vh).toFixed(2) + 'vh';
+    var rm = document.getElementById('r-mid');
+    if (rm) rm.textContent = Math.round((y / Math.max(1, document.documentElement.scrollHeight - vh)) * 100) + '% down';
     if (first) rb.textContent = getComputedStyle(first).backgroundColor;
     if (head) ri.textContent = getComputedStyle(head).color;
-    /* The shipped range, expressed the same way, so the bar tracks the real thing. */
-    var p = Math.max(0, Math.min(1, (y - vh * 0.10) / (vh * 0.60)));
+    /* The shipped range, expressed the same way, so the bar tracks the real thing:
+       centred on the halfway mark, sixty vh of travel. */
+    var max = document.documentElement.scrollHeight - vh;
+    var mid = max * 0.5;
+    var p = Math.max(0, Math.min(1, (y - (mid - vh * 0.30)) / (vh * 0.60)));
     fill.style.width = (p * 100).toFixed(1) + '%';
     requestAnimationFrame(tick);
   }

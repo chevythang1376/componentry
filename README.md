@@ -587,13 +587,23 @@ reads as unfinished rather than as a page changing. Sharing one timeline means e
 that swaps is always the same colour as its neighbours; `test/swap-demo.html` checks six
 blocks at 101 points and finds no moment where any two disagree.
 
-**The range is `10vh 70vh` — viewport heights, not a percentage of the document.** This is
-the difference between a transition and a drift. A percentage stretches the swap over the
-whole page, so the same setting is a brisk change on a short page and an imperceptible
-creep on a long one, and a block that is never quite either colour reads as the wrong
-colour rather than as something happening. Sixty vh of travel is about two thirds of a
-screen: long enough to feel deliberate, short enough to finish while you are still looking
-at it, and identical on a two-screen page and a twenty-screen one.
+**The range is two units on purpose**, because *where* and *how long* are different
+questions with different right answers.
+
+**Where** belongs to the page. "About halfway down" has to mean halfway down whatever this
+page turns out to be, so the position is a percentage of the scroll, set by **Changes at**
+and defaulting to 50%. Anchored to the top in viewport heights instead — which is what it
+was at first — every page finished changing inside its first screenful, whatever was on it.
+
+**How long** belongs to the viewport, and this is the half that must never be a percentage.
+A percentage duration stretches over a long document until the page is never quite either
+colour, which reads as a wrong colour rather than as something happening. Sixty vh of
+travel is about two thirds of a screen: long enough to feel deliberate, short enough to
+finish while you are still looking at it, and the same on a two-screen page and a
+twenty-screen one.
+
+So the emitted range is `calc(50% - 30vh) calc(50% + 30vh)` — centred on the mark, so the
+setting names the moment it crosses rather than the moment it starts.
 
 ### The page behind the blocks
 
@@ -1002,7 +1012,8 @@ test/
                         out of its own rule. Then builds every option of every
                         layout control and judges those at AA too, which is how
                         a block that conforms at its default and fails the
-                        moment somebody changes it gets caught; 65 assertions
+                        moment somebody changes it gets caught, and pins where
+                        the swap crosses against how long it takes; 71 assertions
   swap-demo.html        Not a harness — a page you scroll, building six blocks all
                         set to swap, plus the paste-in CSS for the page background
                         behind them
