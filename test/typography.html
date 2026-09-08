@@ -170,6 +170,80 @@ window.addEventListener('load', function () {
           .map(function (f) { return f.k; }).join(','), true);
 
 
+  /* --- every size in the library comes off the ramp ------------------------
+
+     Drift is not a state, it compounds: between the 27-component library and
+     the 30-component one the hero sizes went from seven values to ten, purely
+     because each new block arrived with its own judgement. Nothing here stops
+     somebody choosing a new size deliberately — it stops one arriving by
+     accident, and it makes adding a role to the ramp a decision rather than a
+     side effect. Read off the emitted CSS, so a comment cannot satisfy it. */
+
+  var RAMP = {
+    'clamp(32px, 6vw, 60px)':   'Display',
+    'clamp(26px, 3.6vw, 38px)': 'Section title',
+    'clamp(20px, 2.6vw, 28px)': 'Subsection',
+    'clamp(30px, 5vw, 46px)':   'Figure',
+    'clamp(16px, 2.2vw, 19px)': 'Standfirst'
+  };
+  /* Mosaic sizes against its tile rather than the viewport, which is the whole
+     point of that block, so its cqw ramps are named rather than counted. */
+  var CONTAINER_UNIT = 'cqw';
+  var STEPS = ['1.12em', '1em', '.92em', '.85em', '.75em'];
+  /* Four values are sized against something other than body, and each is named
+     with what it hangs off. A price is a composed figure — the currency symbol
+     and the affix are set against the numeral beside them rather than against
+     the ramp — and a row of stars is an icon size, not type. Listing them here
+     rather than loosening the pattern is the point: an unnamed exemption is
+     just drift with a comment. */
+  var COMPOSED = {
+    '2.9em': 'the price numeral',
+    '1.3em': 'the currency symbol beside it',
+    '.62em': "a stat's affix",
+    '1.1em': 'a row of star icons'
+  };
+
+  var libCss = CB.all().map(function (d) {
+    return CB.build({ type: d.id, cls: 'ramp-' + d.id, props: CB.defaults(d) },
+                    CB.DEFAULT_TOKENS, { omitBase: true }).css;
+  }).join('\n');
+
+  var strayClamp = [], strayEm = [], m;
+  var reC = /font-size:[^;]*?(clamp\([^)]*\))/g;
+  while ((m = reC.exec(libCss))) {
+    var v = m[1].replace(/\s+/g, ' ');
+    if (RAMP[v] || v.indexOf(CONTAINER_UNIT) > -1) continue;
+    if (strayClamp.indexOf(v) < 0) strayClamp.push(v);
+  }
+  var reE = /font-size:\s*(?:calc\(\s*)?(\d*\.?\d+em)/g;
+  while ((m = reE.exec(libCss))) {
+    var e = m[1].replace(/^0\./, '.');
+    if (STEPS.indexOf(e) > -1 || COMPOSED[e]) continue;
+    if (strayEm.indexOf(e) < 0) strayEm.push(e);
+  }
+  check('every clamped size is a named role', strayClamp.join(', ') || 'none', 'none');
+  check('every em size is a step on the ramp', strayEm.join(', ') || 'none', 'none');
+  check('and the ramp is five roles, not ten', Object.keys(RAMP).length, 5);
+
+  /* Weight is the same story with fewer values: headings are 800, everything
+     under them 700. 730 / 750 / 760 / 780 were four ways of saying "a bit less
+     bold" that no two blocks agreed on. */
+  var weights = [];
+  var reW = /font-weight:\s*var\(--cb-h-weight,\s*(\d+)\)/g;
+  while ((m = reW.exec(libCss))) { if (weights.indexOf(m[1]) < 0) weights.push(m[1]); }
+  check('heading weight is 700 or 800 and nothing between',
+        weights.sort().join(','), '700,800');
+
+  /* Two blocks with different vertical padding read as a mistake, because the
+     eye measures the gap between them rather than the padding inside each. */
+  var pads = [];
+  CB.all().forEach(function (d) {
+    var v = CB.defaults(d).pad;
+    if (v != null && pads.indexOf(v) < 0) pads.push(v);
+  });
+  check('section padding is 80, a 56px strip, or a deliberate 0',
+        pads.sort(function (a, b) { return a - b; }).join(','), '0,56,80');
+
   document.getElementById('out').textContent =
     pass + ' passed, ' + fail + ' failed\n\n' + log.join('\n');
   document.title = fail ? 'EFFECT FAIL ' + fail : 'EFFECT OK ' + pass;

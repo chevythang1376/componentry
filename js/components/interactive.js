@@ -64,7 +64,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -164,7 +164,7 @@
         ${s} .cb-acc__btn {
           display: flex; align-items: center; justify-content: space-between; gap: 20px;
           width: 100%; text-align: left; padding: 20px ${p.variant === 'divided' ? '4px' : '22px'};
-          font-size: 1.05em; font-weight: 650; color: var(--cb-ink);
+          font-size: 1.12em; font-weight: 700; color: var(--cb-ink);
           transition: color .2s ease;
         }
         ${s} .cb-acc__btn:hover { color: var(--cb-brand-ink, var(--cb-brand)); }
@@ -305,7 +305,7 @@ ${p.deepLink ? `
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -364,7 +364,7 @@ ${p.deepLink ? `
 
       var css = `
         ${s}.cb-tabs { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
-        ${s} .cb-tabs__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
+        ${s} .cb-tabs__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
         ${s} .cb-tabs__bar { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; margin-bottom: 32px; }
         ${s} .cb-tabs__bar::-webkit-scrollbar { display: none; }
         ${s} .cb-tabs__list {
@@ -388,7 +388,7 @@ ${p.deepLink ? `
         }
         @keyframes cb-tabs-in-${c.cls} { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         ${s} .cb-tabs__copy { display: flex; flex-direction: column; gap: 14px; ${p.layout === 'text' ? 'max-width: 68ch;' : ''} }
-        ${s} .cb-tabs__h { font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 750); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em)); }
+        ${s} .cb-tabs__h { font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700); line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); }
         ${s} .cb-tabs__body { color: var(--cb-muted); }
         ${s} .cb-tabs__link { color: var(--cb-brand-ink, var(--cb-brand)); font-weight: 650; text-decoration: none; width: max-content; }
         ${s} .cb-tabs__link:hover { text-decoration: underline; }
@@ -532,7 +532,7 @@ ${p.deepLink ? `
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -626,7 +626,7 @@ ${p.deepLink ? `
       var css = `
         ${s}.cb-car { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-car__head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
-        ${s} .cb-car__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
+        ${s} .cb-car__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-car__nav { display: flex; gap: 8px; flex-shrink: 0; }
         ${s} .cb-car__ctl {
           width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
@@ -679,7 +679,7 @@ ${card ? `
         ${s} .cb-car__shot img { width: 100%; aspect-ratio: ${p.ratio}; object-fit: cover; }
         ${s} .cb-car__badge {
           position: absolute; top: 10px; left: 10px;
-          font-size: calc(.66em * var(--cb-eyebrow-scale, 1)); font-weight: 700;
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: 700;
           letter-spacing: .09em; text-transform: uppercase;
           color: var(--cb-on-brand); background: var(--cb-brand);
           padding: 4px 8px; border-radius: calc(var(--cb-radius) * .28);
@@ -689,14 +689,14 @@ ${card ? `
           padding: 16px 18px 4px; flex: 1 1 auto;
         }
         ${s} .cb-car__name {
-          font-size: 1.05em; font-weight: var(--cb-h-weight, 700);
+          font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
           line-height: calc(1.3 + var(--cb-h-leading, 0));
           letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
         }
         ${s} .cb-car__sub { font-size: .92em; color: var(--cb-muted); }
         /* Tabular figures so a column of gauges or prices lines up as you scroll. */
         ${s} .cb-car__spec {
-          font-size: .88em; color: var(--cb-ink); font-variant-numeric: tabular-nums;
+          font-size: .85em; color: var(--cb-ink); font-variant-numeric: tabular-nums;
           margin-top: 2px;
         }
         ${s} .cb-car__fig.is-card .cb-actions { padding: 0 18px 16px; margin-top: 8px; }
@@ -894,7 +894,7 @@ ${card ? `
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#f7f4f1', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 88 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 160, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -951,7 +951,7 @@ ${card ? `
       var card = p.variant === 'card';
       var css = `
         ${s}.cb-tm { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 88)}px; }
-        ${s} .cb-tm__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-align: center; margin-bottom: 36px; }
+        ${s} .cb-tm__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-align: center; margin-bottom: 36px; }
         ${s} .cb-tm__stage { position: relative; display: grid; }
         ${s} .cb-tm__item {
           grid-area: 1 / 1; display: flex; flex-direction: column; align-items: center; gap: 20px;
@@ -967,7 +967,7 @@ ${card ? `
            legible whatever palette is applied. */
         ${s} .cb-tm__star.is-on { color: var(--cb-brand-ink, var(--cb-brand)); }
         ${s} .cb-tm__quote {
-          font-size: calc(clamp(18px, 2.6vw, 26px) * var(--cb-body-scale, 1)); line-height: calc(1.5 + var(--cb-body-leading, 0)); font-weight: 500;
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-body-scale, 1)); line-height: calc(1.5 + var(--cb-body-leading, 0)); font-weight: 500;
           letter-spacing: calc(-.01em + var(--cb-body-track, 0em)); text-wrap: balance;
         }
         ${s} .cb-tm__quote::before { content: "\\201C"; }
@@ -976,7 +976,7 @@ ${card ? `
         ${s} .cb-tm__avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
         ${s} .cb-tm__meta { display: flex; flex-direction: column; text-align: left; line-height: 1.35; }
         ${s} .cb-tm__name { font-weight: 700; }
-        ${s} .cb-tm__role { font-size: .88em; color: var(--cb-muted); }
+        ${s} .cb-tm__role { font-size: .85em; color: var(--cb-muted); }
         ${s} .cb-tm__controls { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 32px; }
         ${s} .cb-tm__arrow {
           width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;

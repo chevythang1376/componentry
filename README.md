@@ -496,22 +496,22 @@ split by the role the text plays:
 `NEW FOR 2026`.
 
 **These adjust rather than replace.** Sizes multiply, spacing and line height
-add. That matters because the library does not use one type scale: a hero
-headline is deliberately set tighter (`-.025em`) than a card title (`-.01em`),
-and a 60px hero is not a 26px section title. Flattening those to shared values
-would redesign every block the first time you touched a slider. Instead,
-"heading letter spacing +5" moves *both* by the same amount and keeps the
-hero tighter than the card, which is what you meant.
+add. That matters because one type scale is not one type *size*: a hero
+headline is deliberately set tighter (`-.03em`) than a card title (`-.01em`),
+and a 60px display is not a 38px section title. Flattening those to shared
+values would redesign every block the first time you touched a slider.
+Instead, "heading letter spacing +5" moves *both* by the same amount and keeps
+the hero tighter than the card, which is what you meant.
 
 At `1×` and `0` the output is byte-identical to having no controls at all —
 verified by comparing computed styles element-for-element against the previous
 release, at two viewport widths.
 
 Sizes scale the entire responsive curve, not just its ceiling. A headline set
-as `clamp(30px, 6vw, 56px)` becomes `calc(clamp(30px, 6vw, 56px) * 1.35)`, so
+as `clamp(32px, 6vw, 60px)` becomes `calc(clamp(32px, 6vw, 60px) * 1.35)`, so
 the slider keeps working on a wide screen where the `6vw` term is what's
-actually in force. Scaling only the `56px` would have looked like a dead
-control above about 930px.
+actually in force. Scaling only the `60px` would have looked like a dead
+control above about 1000px.
 
 Two of these you already had under other names. **Body size** is the old *Base
 size*, renamed for symmetry; it now also reaches text that happens to be
@@ -541,6 +541,45 @@ heading. All fixed.
 Any of heading size, heading letter spacing and body size can be overridden for
 a single block under **Advanced** — those compose with the project values, so
 `1×` and `0` there always mean "same as the rest of the page".
+
+### The ramp a new component picks from
+
+Adjustable does not mean arbitrary. Every size in the library comes from this
+list, and a value that is not on it is drift rather than intent:
+
+| Role | Size | Weight / leading / tracking | Used |
+|---|---|---|---|
+| **Display** | `clamp(32px, 6vw, 60px)` | 800 / 1.08 / −.03em | 3 |
+| **Section title** | `clamp(26px, 3.6vw, 38px)` | 800 / 1.15 / −.02em | 23 |
+| **Subsection** | `clamp(20px, 2.6vw, 28px)` | 700 / 1.2 / −.015em | 8 |
+| **Figure** | `clamp(30px, 5vw, 46px)` | 800 / 1 / −.03em | 4 |
+| **Standfirst** | `clamp(16px, 2.2vw, 19px)` | 400 / 1.5 | 3 |
+| **Card title** | `1.12em` | 700 / 1.3 / −.01em | 10 |
+| **Body** | `1em` | 400 / 1.6 | — |
+| **Supporting** | `.92em` | 400 / 1.6, muted | 10 |
+| **Caption** | `.85em` | 400 / 1.55, muted | 14 |
+| **Label** | `.75em` | 700 / +.12em, caps | 20 |
+
+**`clamp()` above card level, `em` below it.** Headings answer to the viewport —
+they are the page's architecture and should grow on a desktop. Everything from
+card titles down answers to its *container*, so a card reads the same whether it
+sits in a three-column grid or a full-width band. Mixing the two is what makes a
+component look right in one layout and wrong in the next.
+
+**Display is for a heading that owns the full content width** — the three
+full-bleed heroes, and nothing else. A headline inside a column is a Section
+title however important the block is, because 60px in a half-width column sets
+about ten characters to the line.
+
+Two deliberate exemptions. **Mosaic Grid** sizes against its tile with `cqw`
+rather than the viewport, which is the whole point of that block. And a stat's
+affix — the `+` or `%` beside the number — is `.62em` of the *figure* it hangs
+off, not of body.
+
+Section padding is one number too: **80px** top and bottom, so stacked blocks
+breathe evenly. Two exceptions, both stated rather than drifted into — a
+full-width strip (Logo Marquee, Spec Strip) takes **56px**, and a block designed
+to sit flush against its neighbour takes **0** (Mosaic Grid, Split Reveal).
 
 ### Light and dark
 
@@ -998,7 +1037,11 @@ test/
   typography.html       Moves each type control and asserts the specific element
                         it is meant to reach, so the tokens cannot quietly go
                         inert, and that a control a component cannot use
-                        is not offered at all; 31 assertions
+                        is not offered at all. Then reads every font-size,
+                        weight and section padding back off the emitted CSS and
+                        fails if any of them is not a named role on the ramp,
+                        which is what stops the scale drifting apart again as
+                        the library grows; 36 assertions
   preflight.html        Asserts the findings are actionable: nothing fires on an
                         untouched project, everything fires once a real image
                         goes in undescribed, a dead image link is an error, a
@@ -1061,7 +1104,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 638 assertions**, plus two that report coverage rather than a count:
+**Thirteen harnesses, 643 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 30 through the real export path, and `degrade.html` judges all 30
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

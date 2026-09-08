@@ -65,7 +65,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#f7f4f1', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 180, step: 8, unit: 'px', value: 96 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 180, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -157,11 +157,11 @@
           display: flex; flex-direction: column; gap: 10px;
         }
         ${s} .cb-fin__eyebrow {
-          font-size: calc(.76em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
           color: var(--cb-brand-ink, var(--cb-brand));
         }
-        ${s} .cb-fin__title { font-size: calc(clamp(30px, 5vw, 54px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.025em + var(--cb-h-track, 0em)); line-height: calc(1.05 + var(--cb-h-leading, 0)); text-wrap: balance; }
-        ${s} .cb-fin__sub { color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; font-size: 1.05em; }
+        ${s} .cb-fin__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); text-wrap: balance; }
+        ${s} .cb-fin__sub { color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); }
 
         ${s} .cb-fin__stage {
           position: relative; aspect-ratio: ${p.ratio};
@@ -189,9 +189,9 @@
         ${s} .cb-fin__label {
           position: absolute; inset: 0; opacity: 0; transition: opacity .3s ease;
           display: flex; flex-direction: column; gap: 2px; align-items: center;
-          font-size: 1.05em; font-weight: 650;
+          font-size: 1.12em; font-weight: 700;
         }
-        ${s} .cb-fin__note { font-size: .8em; font-weight: 500; color: ${dark ? 'rgba(255,255,255,.6)' : 'var(--cb-muted)'}; }
+        ${s} .cb-fin__note { font-size: .85em; font-weight: 500; color: ${dark ? 'rgba(255,255,255,.6)' : 'var(--cb-muted)'}; }
 
         ${s} .cb-fin__picker {
           display: flex; justify-content: center; flex-wrap: wrap; gap: 14px;
@@ -231,7 +231,7 @@
           ${anyCta ? `${s} .cb-fin__cta[data-i="0"] { display: inline-flex; }` : ''}
           ${s} .cb-fin__picker::after {
             content: "Finish previews need a newer browser.";
-            flex-basis: 100%; text-align: center; font-size: .8em;
+            flex-basis: 100%; text-align: center; font-size: .85em;
             color: ${dark ? 'rgba(255,255,255,.55)' : 'var(--cb-muted)'};
           }
         }`;
@@ -303,7 +303,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#141210', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 200, step: 8, unit: 'px', value: 110 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 24, max: 200, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -376,10 +376,10 @@
         ${s}.cb-psc { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 110)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
         ${s} .cb-psc__head { max-width: 640px; margin-bottom: clamp(32px, 6vw, 72px); }
         ${s} .cb-psc__eyebrow {
-          font-size: calc(.76em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
           color: ${dark ? 'var(--cb-brand-on-dark, var(--cb-brand))' : 'var(--cb-brand-ink, var(--cb-brand))'}; margin-bottom: 10px;
         }
-        ${s} .cb-psc__title { font-size: calc(clamp(32px, 5.5vw, 60px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.025em + var(--cb-h-track, 0em)); line-height: calc(1.04 + var(--cb-h-leading, 0)); text-wrap: balance; }
+        ${s} .cb-psc__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); text-wrap: balance; }
 
         ${s} .cb-psc__track {
           display: grid; gap: clamp(24px, 5vw, 72px); align-items: start;
@@ -418,11 +418,11 @@
            stage is doing that job. */
         ${s} .cb-psc__stepShot { display: none; }
         ${s} .cb-psc__num {
-          font-size: .82em; font-weight: 700; letter-spacing: .16em;
+          font-size: .75em; font-weight: 700; letter-spacing: .16em;
           color: ${dark ? 'var(--cb-brand-on-dark, var(--cb-brand))' : 'var(--cb-brand-ink, var(--cb-brand))'}; font-variant-numeric: tabular-nums;
         }
-        ${s} .cb-psc__stepTitle { font-size: calc(clamp(24px, 3.4vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 780); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
-        ${s} .cb-psc__stepText { font-size: 1.05em; color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; }
+        ${s} .cb-psc__stepTitle { font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); line-height: calc(1.15 + var(--cb-h-leading, 0)); }
+        ${s} .cb-psc__stepText { font-size: .92em; color: ${dark ? 'rgba(255,255,255,.72)' : 'var(--cb-muted)'}; }
         /* stepIn is a flex column with its own gap, so the shared row adds
            nothing of its own on top of it. */
         ${s} .cb-psc__stepBtn { margin-top: 0; }
@@ -556,7 +556,7 @@
       var css = `
         ${s}.cb-spec { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 56)}px; ${dark ? 'color: var(--cb-on-dark, #fff);' : ''} }
         ${s} .cb-spec__title {
-          font-size: calc(clamp(20px, 2.6vw, 26px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 750); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700); line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
           text-align: ${p.align}; margin-bottom: 28px;
         }
         ${s} .cb-spec__row {
@@ -575,11 +575,11 @@
           border-left: 1px solid ${dark ? 'rgba(255,255,255,.18)' : 'var(--cb-border)'};
         }` : ''}
         ${s} .cb-spec__value {
-          font-size: calc(${c.num(p.valueSize, 34)}px * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 780); line-height: calc(1.1 + var(--cb-h-leading, 0));
+          font-size: calc(${c.num(p.valueSize, 34)}px * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.1 + var(--cb-h-leading, 0));
           letter-spacing: calc(-.03em + var(--cb-h-track, 0em)); font-variant-numeric: tabular-nums;
         }
         ${s} .cb-spec__label {
-          font-size: calc(.8em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 650); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
           color: ${dark ? 'rgba(255,255,255,.6)' : 'var(--cb-muted)'}; margin-top: 6px;
         }
         ${s} .cb-spec__note { font-size: .85em; color: ${dark ? 'rgba(255,255,255,.5)' : 'var(--cb-muted)'}; }
