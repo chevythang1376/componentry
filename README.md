@@ -170,7 +170,7 @@ the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-27 components, 200 round-trips.
+30 components, 240 round-trips, 154 assertions.
 
 Run it in a **desktop-width window**. Several blocks deliberately drop a behaviour below a
 breakpoint — sticky pinning, multi-column spans — and the probes assert whichever branch
@@ -180,25 +180,27 @@ are measured at 1280px.
 
 | Insertion path | Fully working | Keeps CSS | Keeps JS |
 |---|---|---|---|
-| **Code / embed block** (verbatim) | **27/27** | yes | yes |
-| **TinyMCE**, permissive config | **27/27** | yes | yes |
-| **DOMPurify**, style+script allowed | **27/27** | yes | yes |
-| GrapesJS (page builder) | 15/27 | yes | no |
-| DOMPurify, defaults | 16/27 | yes | no |
-| `wp_kses_post` (approximated) | 5/27 | no | no |
-| TinyMCE, stock config | 4/27 | no | no |
-| Quill | 0/27 | no | no |
+| **Code / embed block** (verbatim) | **30/30** | yes | yes |
+| **TinyMCE**, permissive config | **30/30** | yes | yes |
+| **DOMPurify**, style+script allowed | **30/30** | yes | yes |
+| DOMPurify, defaults | 19/30 | yes | no |
+| GrapesJS (page builder) | 17/30 | yes | no |
+| `wp_kses_post` (approximated) | 6/30 | no | no |
+| TinyMCE, stock config | 6/30 | no | no |
+| Quill | 0/30 | no | no |
 
 The pattern is consistent and worth internalising:
 
 - **Paste into a code/embed block, never a rich-text area.** Rich-text editors are *supposed*
   to strip `<script>` and `<style>` — that is their job, not a bug. Every platform that
   matters offers a raw-HTML block; use it.
-- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 14 components
+- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 15 components
   that need no JavaScript still work perfectly and the rest render correctly but sit inert.
   Nothing looks broken, it just doesn't move. This is why the newest blocks — Bento Grid,
-  Sticky Stacking Cards, the scroll reveal and the Interactive Diagram — are built
-  in pure CSS: they are the ones that survive here.
+  Sticky Stacking Cards, Mosaic Grid, Split Reveal, Kinetic Text Reveal, the scroll reveal
+  and the Interactive Diagram — are built in pure CSS: they are the ones that survive here.
+  Half the library now needs no JavaScript at all, which is a deliberate direction rather
+  than a coincidence: every block added since the scroll work has been built CSS-first.
 - **Structure and ARIA are resilient.** Even where all styling is stripped, sanitisers keep
   the semantics — so a stripped component stays readable and screen-reader navigable.
 
@@ -244,25 +246,38 @@ embeds being sandboxed iframes that can't self-size.
 
 ### Sharing the reset
 
-Every block needs the same ~7 kB of defensive reset and design tokens. Stating it inside
-each one meant a page of five blocks spent **half its CSS on the same rules repeated five
-times** — and cleared Webflow's 50 kB cap on its own.
+Every block needs the same ~9.5 kB of defensive reset and design tokens. Stating it inside
+each one meant a page of five blocks spent **most of its CSS on the same rules repeated
+five times** — and cleared Webflow's 50 kB cap on its own.
 
 With more than one block, that base is now stated once for the page against a shared
-`cb-scope` class that every component root already carries:
+`cb-scope` class that every component root already carries. Measured on the four starter
+pages the library actually ships, rather than on an abstract five:
 
-| Page | Reset per block | Reset shared | |
-|---|---|---|---|
-| 5 blocks | 55.8 kB CSS | **28.6 kB** | −49% |
-| All 27 | 333.4 kB CSS | **113.5 kB** | −66% |
+| Page | Blocks | Reset per block | Reset shared | |
+|---|---|---|---|---|
+| Support page | 4 | 48.1 kB CSS | **17.5 kB** | −64% |
+| Product page | 5 | 68.8 kB CSS | **27.2 kB** | −61% |
+| Capability page | 5 | 71.6 kB CSS | **30.6 kB** | −57% |
+| Landing page | 6 | 78.7 kB CSS | **27.5 kB** | −65% |
+| All 30 | 30 | 409.0 kB CSS | **114.6 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
 saving is real but it was being flattered.
 
-That five-block page exports at 52.6 kB of HTML + CSS + JS, or **38.7 kB minified**, which
-is what fits inside Webflow's 50 kB cap. Any single block is far under it; the largest,
-Interactive Diagram, is about 20 kB.
+Complete exports of those starters, HTML + CSS + JS together:
+
+| Page | As written | Minified |
+|---|---|---|
+| Support page | 28.0 kB | **20.4 kB** |
+| Product page | 42.8 kB | **32.1 kB** |
+| Capability page | 50.4 kB | **39.9 kB** |
+| Landing page | 61.7 kB | **48.6 kB** |
+
+All four fit inside Webflow's 50 kB embed cap minified, though the Landing page only just —
+at 48.6 kB it is the one to watch if you add to it. Any single block is far under; the
+largest, Interactive Diagram, is about 26 kB.
 
 The markup is **byte-identical either way** — switching modes never means re-pasting your
 HTML — and a single block is unchanged, since it has nothing to share with. Rendering is
@@ -442,7 +457,7 @@ Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
 
 ### Advanced controls (every component)
 
-Applied centrally, so they behave identically on all 27 blocks:
+Applied centrally, so they behave identically on all 30 blocks:
 
 | Control | Why it's there |
 |---|---|
@@ -463,7 +478,7 @@ Applied centrally, so they behave identically on all 27 blocks:
 The three type controls only appear where they can do something. Logo Marquee
 has a kicker and logos but no heading, so it is not offered heading size or
 heading letter spacing; every other block is. A control that cannot change
-anything is just noise, and Advanced repeats on all 27 blocks.
+anything is just noise, and Advanced repeats on all 30 blocks.
 
 
 ### Typography (Design tokens → Typography)
@@ -502,13 +517,25 @@ Two of these you already had under other names. **Body size** is the old *Base
 size*, renamed for symmetry; it now also reaches text that happens to be
 clamped in px, like a hero subtitle, which it previously skipped.
 
-Coverage is measured, not assumed. Each control is moved and the elements whose
-computed style changes are counted, per component. Body size, letter spacing and
-line height reach all 27 blocks; heading controls reach 24 (all but Logo
-Marquee); eyebrow controls reach the 15 blocks that have an eyebrow. That check
-found four eyebrows the first pass had missed — including two literally named
-`__eyebrow` — twelve headings that were inheriting body line height instead of
-heading line height, and a logo wordmark that was wrongly being tracked as a
+Coverage is measured, not assumed. Each control is moved, both trees are rendered
+in their own frame, and the elements whose computed style actually changes are
+counted per component:
+
+| Control group | Reaches |
+|---|---|
+| Body size · letter spacing · line height | **30 of 30** |
+| Heading size · letter spacing · line height · weight | **28 of 30** |
+| Eyebrow size · letter spacing · weight | **19 of 30** |
+
+Both heading misses are correct rather than gaps. Logo Marquee has no heading —
+which is why it is not offered the control at all. Table ships empty, so at
+default content it renders a placeholder line and no heading; give it cells and
+its title and eyebrow follow the tokens like everything else. The eyebrow figure
+is simply how many blocks have an eyebrow.
+
+That check has earned its place. It found four eyebrows an early pass had missed —
+including two literally named `__eyebrow` — twelve headings inheriting body line
+height instead of heading line height, and a logo wordmark being tracked as a
 heading. All fixed.
 
 Any of heading size, heading letter spacing and body size can be overridden for
@@ -615,10 +642,12 @@ either end. On a scroll swap it is worse, because the page is then the only thin
 still.
 
 So the export offers it **separately**. Choose any scheme but plain light and the export
-dialog grows a **Page background** pane — a few lines of CSS, on the same grounds and the
-same `10vh 70vh` range as the blocks, that you paste into the theme's own stylesheet. It is
-never part of the block, and nothing emits it into an embed; you install it deliberately or
-not at all. Plain CSS, so a script-stripping editor keeps it.
+dialog grows a **Page background** pane — a few lines of CSS, on the same grounds and over
+the same `calc(50% - 30vh) calc(50% + 30vh)` range as the blocks, that you paste into the
+theme's own stylesheet. It follows **Changes at** with them, so moving the crossing point
+moves the page and the blocks together. It is never part of the block, and nothing emits it
+into an embed; you install it deliberately or not at all. Plain CSS, so a script-stripping
+editor keeps it.
 
 Two things about it are worth knowing before you paste:
 
@@ -688,9 +717,9 @@ markup this grew from actually shipped. If you do choose your own and it lands u
 
 ### Corners
 
-One slider, **Shape → Corner radius**, and no per-component sliders anywhere. Twenty-six
+One slider, **Shape → Corner radius**, and no per-component sliders anywhere. Thirty
 of those would be exactly the clutter worth avoiding, and it would make a coherent look
-harder rather than easier: matching a page would mean setting twenty-six values instead
+harder rather than easier: matching a page would mean setting thirty values instead
 of one.
 
 It works because nothing rounded is written as a bare pixel value. Every rounded
@@ -893,7 +922,7 @@ thing anyone did was delete somebody else's page.
 
 Four starters sit above the component list instead, each dropping a ready arrangement you
 can edit down: **Landing page**, **Product page**, **Capability page**, **Support page**.
-Search finds them by name too. Quicker than deciding which of 27 blocks belong together
+Search finds them by name too. Quicker than deciding which of 30 blocks belong together
 before you've seen any of them.
 
 ### Contrast, while you choose
@@ -945,19 +974,21 @@ js/freshness.js         Notices when the browser is holding a stale index.html
 version.txt             Build id, written by bump.sh; what freshness.js compares against
 js/components/
   heroes.js             parallax-banner, video-hero, split-hero, cta-banner, hero-slider
-  content.js            card-grid, feature-grid, stats-counter, timeline, pricing
+  content.js            card-grid, feature-grid, stats-counter, timeline, pricing,
+                        webinar-grid, kinetic-text, table
   interactive.js        accordion, tabs, carousel, testimonials
   media.js              before-after, gallery, logo-marquee, countdown, video-embed
-  modern.js             bento-grid, sticky-stack (both zero-JS)
+  modern.js             bento-grid, sticky-stack, mosaic-grid, split-reveal (all zero-JS)
   product.js            finish-switcher, pinned-product, spec-strip
   diagram.js            hotspot-diagram
 test/
   gallery.html          Renders all 30 through the real export path; reports failures,
                         and fails if any laid-out image reserves no space for
                         itself — the omission half of Cumulative Layout Shift
-  hostile-host.html     Pastes exports into a deliberately awful theme; 165 assertions
+  hostile-host.html     Pastes exports into a deliberately awful theme; 168 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
-                        240 round-trips, then functionally probes what survives
+                        240 round-trips, then functionally probes what survives;
+                        154 assertions
   degrade.html          Removes one CSS capability at a time (background-clip,
                         gradients, clip-path, backdrop-filter, images, scroll
                         timelines) and reports text that becomes unreadable.
@@ -1029,6 +1060,10 @@ query and bump.sh only versions index.html, so a browser would happily report on
 copy it fetched ten minutes ago — which is how one intermittent carousel failure
 survived two rounds of "fixes" that were never actually running.
 ```
+
+**Thirteen harnesses, 638 assertions**, plus two that report coverage rather than a count:
+`gallery.html` builds all 30 through the real export path, and `degrade.html` judges all 30
+under six separate CSS failures. Every one is green at the build in `version.txt`.
 
 Open the files in `test/` in a browser — each prints a pass/fail banner at the top.
 `wysiwyg.html` loads the editor engines from a CDN, so it needs a network connection;

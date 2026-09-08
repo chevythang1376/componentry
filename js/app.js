@@ -322,7 +322,7 @@
 
   /* ---------------------------------------------------------- library */
 
-  /* Starting from an empty canvas means knowing which of 25 blocks go together
+  /* Starting from an empty canvas means knowing which of 30 blocks go together
      before you have seen any of them. These are the arrangements people
      actually build, dropped in ready to edit — the fastest way to a real page
      is to start from one and delete what you don't want. */
