@@ -46,7 +46,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -77,7 +77,7 @@
       var css = `
         ${s}.cb-ba { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-ba__head { margin-bottom: 28px; max-width: 620px; }
-        ${s} .cb-ba__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
+        ${s} .cb-ba__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-ba__sub { color: var(--cb-muted); margin-top: 10px; }
         ${s} .cb-ba__frame {
           position: relative; overflow: hidden; border-radius: var(--cb-radius);
@@ -116,7 +116,7 @@
         ${s} .cb-ba__tag {
           position: absolute; top: 14px; z-index: 1;
           background: rgba(12,10,8,.68); color: var(--cb-on-dark, #fff); backdrop-filter: blur(4px);
-          font-size: calc(.74em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.08em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.08em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
           padding: 6px 12px; border-radius: 999px; pointer-events: none;
         }
         ${s} .cb-ba__tag--b { left: 14px; }
@@ -219,7 +219,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -273,7 +273,7 @@
 
       var css = `
         ${s}.cb-gl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
-        ${s} .cb-gl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
+        ${s} .cb-gl__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); margin-bottom: 28px; }
         ${masonry ? `
         ${s} .cb-gl__grid { columns: ${c.clamp(c.num(p.cols, 3), 2, 5)}; column-gap: ${c.num(p.gap, 14)}px; }
         ${s} ${cell} { break-inside: avoid; margin-bottom: ${c.num(p.gap, 14)}px; width: 100%; display: block; }
@@ -313,7 +313,7 @@
           border-radius: calc(var(--cb-radius) * .7); animation: cb-gl-in-${base} .25s ease both;
         }
         @keyframes cb-gl-in-${base} { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
-        ${s} .cb-gl__boxCap { font-size: .95em; opacity: .85; text-align: center; }
+        ${s} .cb-gl__boxCap { font-size: .92em; opacity: .85; text-align: center; }
         ${s} .cb-gl__close, ${s} .cb-gl__nav {
           position: absolute; z-index: 2; display: grid; place-items: center;
           width: 48px; height: 48px; border-radius: 50%; color: var(--cb-on-dark, #fff);
@@ -436,7 +436,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 120, step: 8, unit: 'px', value: 48 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 120, step: 8, unit: 'px', value: 56 }
     ],
 
     render: function (p, c) {
@@ -468,7 +468,7 @@
       var css = `
         ${s}.cb-mq { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 48)}px; overflow: hidden; }
         ${s} .cb-mq__kicker {
-          text-align: center; font-size: calc(.78em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em));
+          text-align: center; font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; color: var(--cb-muted); margin-bottom: 28px;
         }
         ${s} .cb-mq__viewport {
@@ -624,7 +624,7 @@
       var css = `
         ${s}.cb-cd { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; color: ${ink}; }
         ${s} .cb-cd__inner { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
-        ${s} .cb-cd__title { font-size: calc(clamp(26px, 3.8vw, 40px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance; }
+        ${s} .cb-cd__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance; }
         ${s} .cb-cd__sub { color: ${muted}; max-width: 54ch; }
         ${s} .cb-cd__clock { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
         ${s} .cb-cd__unit { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -633,8 +633,8 @@
           font-size: calc(clamp(30px, 5vw, 46px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1 + var(--cb-h-leading, 0));
           letter-spacing: calc(-.03em + var(--cb-h-track, 0em)); font-variant-numeric: tabular-nums;
         }
-        ${s} .cb-cd__lab { font-size: calc(.74em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 650); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: ${muted}; }
-        ${s} .cb-cd__expired { font-size: 1.15em; font-weight: 650; }
+        ${s} .cb-cd__lab { font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 650); letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: ${muted}; }
+        ${s} .cb-cd__expired { font-size: 1.12em; font-weight: 700; }
         ${p.onDark ? c.pin([s + ' .cb-cd__title', s + ' .cb-cd__sub', s + ' .cb-cd__num', s + ' .cb-cd__expired'], ink) : ''}
         ${p.variant === 'split' ? c.pin([s + ' .cb-cd__num'], 'var(--cb-on-dark, #fff)') : ''}
         ${s} .cb-cd__btn {
@@ -737,7 +737,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 72 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -792,7 +792,7 @@
       var css = `
         ${s}.cb-ve { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
         ${s} .cb-ve__head { text-align: center; max-width: 620px; margin: 0 auto 28px; }
-        ${s} .cb-ve__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.6 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
+        ${s} .cb-ve__title { font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); }
         ${s} .cb-ve__sub { color: var(--cb-muted); margin-top: 10px; }
         ${s} .cb-ve__frame {
           position: relative; overflow: hidden; background: #000;

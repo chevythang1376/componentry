@@ -167,14 +167,14 @@
 
         ${s} .cb-bn__body { display: flex; flex-direction: column; gap: 8px; padding: 22px; }
         ${s} .cb-bn__eyebrow {
-          font-size: calc(.7em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em));
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; opacity: .72;
         }
-        ${s} .cb-bn__title { font-size: 1.12em; font-weight: var(--cb-h-weight, 730); line-height: calc(1.25 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em)); }
-        ${s} .cb-bn__tile[data-size="2x2"] .cb-bn__title { font-size: calc(clamp(20px, 2.4vw, 28px) * var(--cb-h-scale, 1)); }
-        ${s} .cb-bn__text { font-size: .94em; opacity: .78; }
+        ${s} .cb-bn__title { font-size: 1.12em; font-weight: var(--cb-h-weight, 700); line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em)); }
+        ${s} .cb-bn__tile[data-size="2x2"] .cb-bn__title { font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); }
+        ${s} .cb-bn__text { font-size: .92em; opacity: .78; }
         ${s} .cb-bn__stat {
-          font-size: calc(clamp(30px, 4vw, 46px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1 + var(--cb-h-leading, 0));
+          font-size: calc(clamp(30px, 5vw, 46px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800); line-height: calc(1 + var(--cb-h-leading, 0));
           letter-spacing: calc(-.03em + var(--cb-h-track, 0em)); font-variant-numeric: tabular-nums; margin-top: 2px;
         }
         ${s} .cb-bn__link { text-decoration: none; }
@@ -340,10 +340,10 @@
 
         ${s} .cb-stk__copy { display: flex; flex-direction: column; gap: 12px; ${p.layout === 'text' ? 'max-width: 62ch;' : ''} }
         ${s} .cb-stk__eyebrow {
-          font-size: calc(.72em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em));
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; color: var(--cb-brand-ink, var(--cb-brand));
         }
-        ${s} .cb-stk__title { font-size: calc(clamp(20px, 2.8vw, 30px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 780); line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); }
+        ${s} .cb-stk__title { font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700); line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); }
         ${s} .cb-stk__text { color: var(--cb-muted); }
         ${s} .cb-stk__link { color: var(--cb-brand-ink, var(--cb-brand)); font-weight: 650; text-decoration: none; width: max-content; }
         ${s} .cb-stk__link:hover { text-decoration: underline; }
@@ -840,7 +840,7 @@
           color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
         }
         ${s} .cb-spl__title {
-          font-size: calc(clamp(26px, 4vw, 42px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
           line-height: calc(1.12 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
           max-width: 20ch; text-wrap: balance;
         }
@@ -866,7 +866,7 @@
             : `top: 0; bottom: 0; left: var(--pos); width: calc(100% / ${count} + 1px); transform-origin: 0% 50%;`}
         }
         ${s} .cb-spl__glyph {
-          font-size: calc(clamp(22px, 4vw, 46px) * var(--cb-h-scale, 1));
+          font-size: calc(clamp(30px, 5vw, 46px) * var(--cb-h-scale, 1));
           font-weight: var(--cb-h-weight, 800); letter-spacing: .04em;
           color: ${dark ? 'var(--cb-on-dark, #ffffff)' : 'var(--cb-ink)'};
         }
