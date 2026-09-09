@@ -13,8 +13,15 @@ Double-click `index.html`. That's it — it works from `file://`.
 
 **If you're editing the source**, run `./bump.sh` before committing. Assets carry a
 `?v=` version and there's no build step to update it, so without a bump a browser will
-keep serving yesterday's `js/*.js` after a deploy and the page looks unchanged. Same day
-twice? `./bump.sh b`.
+keep serving yesterday's `js/*.js` after a deploy and the page looks unchanged.
+
+Bumping twice in a day needs nothing extra — the suffix is worked out, not remembered.
+It used to be `./bump.sh b`, and the third bump of a day therefore wrote the bare date
+back over `…b` and moved the build id *backwards*. It still reloaded everyone, because
+`freshness.js` compares ids for difference rather than order; it just left `version.txt`
+describing an older build than the one deployed, which is a lie to hand whoever next
+debugs a stale page. A bare run now advances the letter, and any id that would be older
+than the current one is refused.
 
 ### The half a version bump can't fix
 
@@ -387,6 +394,53 @@ exactly the part scrolling past at speed never lets you see.
 Their real timelines are kept and handed back when you release, so this only ever changes
 what you are looking at. It is preview chrome, like the block outlines — none of it is in
 the export.
+
+### Stagger is a share, not a gap
+
+Both staggered reveals used to state the gap between neighbours, and both got it wrong,
+in opposite directions.
+
+**Kinetic Text clipped it.** The step was `min(stagger, 24/(n-1))`, and the clip ate most
+of the control: on the shipped eight-word statement every value from 4 to 10 produced the
+same number — including the default of 4 — and by letter every value from 1 to 10 did. A
+slider two thirds of which does nothing does not read as a saturated number; it reads as a
+broken effect.
+
+**Split Reveal did not clip it at all**, and the arithmetic ran off the end of the phase it
+lives in. Fourteen slats at stagger 8 put the last slat's range at `entry 166%`, and entry
+stops at 100 — so nine of the fourteen never finished opening. They stalled part-way and
+sat there over the photograph, permanently, on a setting two sliders could reach. Even
+fourteen slats at the old default of 3 left one shut.
+
+Both now divide a fixed spread by however many pieces there are, so the setting means *how
+spread out*, from all together to one at a time. Two things follow. The whole range is live
+at any statement length or slat count, because the number being divided is the same one
+every time. And the ceiling is structural rather than a clip: the last piece cannot start
+later than the spread, because the spread is the thing being divided — so it ends at 92% of
+`entry` at the very worst, whatever the sliders say.
+
+`test/scroll-range.html` sweeps the entire product of both sliders — every unit and length
+for one, every slat count and order for the other — and fails if any value duplicates its
+neighbour or finishes late.
+
+### Comparing two settings of the same effect
+
+The scrubber shows you one reveal properly. It cannot show you two, and choosing a stagger
+means comparing them.
+
+`test/motion-feel.html` builds fourteen variants through the real export path and holds
+every one at the same instant on a single scrubber. It reads the animation ranges and the
+keyframe values back out of the emitted stylesheet, so it follows the components rather
+than restating them — change a keyframe and the page changes with it — and it does the
+interpolation itself rather than leaving it to the animation engine, which is what lets it
+run inside tooling where CSS animations never run at all.
+
+Two things it does that are worth stealing for any comparison grid. Panels are built at
+full width and then **scaled**, not narrowed, because several blocks change layout under a
+breakpoint and a narrowed panel would quietly be showing the phone arrangement. And the
+component's own `animation` is switched off on those elements, because a CSS animation
+applies above inline styles in the cascade — leave it live and the page's own clock does
+nothing at all.
 
 ### Preflight
 
@@ -1053,7 +1107,12 @@ test/
                         no reveal is load-bearing for legibility, and that both
                         ranges stay inside a phase that can complete — then
                         drives the preview's motion bridge, which is what makes
-                        a reveal watchable twice; 23 assertions
+                        a reveal watchable twice. Then sweeps the whole product
+                        of both staggered reveals' sliders — every unit and
+                        statement length for Kinetic Text, every slat count and
+                        order for Split Reveal — and fails if any value is a
+                        duplicate of its neighbour or finishes after the phase
+                        it lives in; 28 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
@@ -1091,6 +1150,14 @@ test/
   swap-demo.html        Not a harness — a page you scroll, building six blocks all
                         set to swap, plus the paste-in CSS for the page background
                         behind them
+  motion-feel.html      Also not a harness — fourteen builds of the two staggered
+                        reveals, every one held at the same instant by one
+                        scrubber, so two settings can be compared rather than
+                        scrolled past one at a time. The ranges and the keyframe
+                        values are read back out of the emitted stylesheet at run
+                        time, so it follows the components rather than restating
+                        them, and it does its own interpolation — which means it
+                        still works in tooling where CSS animations never run
   colour.html           Asserts each text colour reaches what it should, that no
                         colour setting can black out text on a dark band, and
                         that a mosaic tile can override the block it sits in,
@@ -1104,7 +1171,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 643 assertions**, plus two that report coverage rather than a count:
+**Thirteen harnesses, 648 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 30 through the real export path, and `degrade.html` judges all 30
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

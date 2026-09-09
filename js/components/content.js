@@ -1101,9 +1101,11 @@
       { k: 'distance', t: 'range', label: 'Travel', min: 0, max: 80, step: 2, unit: 'px', value: 26 },
       { k: 'blur', t: 'range', label: 'Blur it starts with', min: 0, max: 20, step: 1, unit: 'px', value: 6 },
       {
-        k: 'stagger', t: 'range', label: 'Stagger', min: 0, max: 10, step: 1, unit: '', value: 4,
-        help: 'How far apart the pieces arrive. Spread across the scroll, and capped so the last piece ' +
-              'always finishes while the block is still on screen.'
+        k: 'stagger', t: 'range', label: 'Stagger', min: 0, max: 10, step: 1, unit: '', value: 6,
+        help: 'How spread out the arrival is, from all together to one piece at a time. It is a ' +
+              'share of the whole reveal rather than a gap between neighbours, so it means the ' +
+              'same thing whether the statement is two lines or thirty letters — and the last ' +
+              'piece always finishes while the block is still on screen.'
       },
 
       { t: 'section', label: 'Style' },
@@ -1159,16 +1161,28 @@
         return '<span class="cb-kt__line">' + inner + '</span>';
       }).join('');
 
-      /* Capped so the last piece still finishes inside the block's own pass
-         through the viewport. A long statement with a generous stagger would
-         otherwise leave its final words arriving after you have scrolled past. */
-      /* Capped twice over. The spread keeps the last piece from arriving after
-         you have scrolled past, and both ends of the range stay inside the
-         `entry` phase — which completes exactly when the block's bottom edge
-         meets the viewport's, and so is reachable even for the last block on a
-         page. A range reaching into `cover` can stall there for good. */
-      var SPREAD = 24;
-      var step = n > 1 ? Math.min(c.num(p.stagger, 4), SPREAD / (n - 1)) : 0;
+      /* The setting is how much of the available spread to use, not how many
+         points to put between neighbours — and that distinction is the whole
+         control.
+
+         Stated as an absolute step it had to be clipped, min(stagger, 24/(n-1)),
+         and the clip ate most of the slider: on the shipped statement of eight
+         words every value from 4 to 10 produced the same 3.43, and by letter it
+         was 0.75 from 1 all the way to 10. Two thirds of a control that does
+         nothing is worse than no control, because you conclude the effect is
+         broken rather than that the number is.
+
+         Divided by the piece count instead, the whole range is live at any
+         length, and the ceiling is structural rather than a clip: the last
+         piece cannot start later than SPREAD, because SPREAD is the thing
+         being divided up. It ends at 52 + 40 = 92% of entry at the very most,
+         which stays inside the phase that always completes — entry finishes
+         when the block's bottom edge meets the viewport's, so it is reachable
+         even for the last block on a page, where a range reaching into cover
+         can stall for good. */
+      var SPREAD = 40;
+      var step = n > 1 ? (c.clamp(c.num(p.stagger, 6), 0, 10) / 10) * SPREAD / (n - 1) : 0;
+      step = Math.round(step * 1000) / 1000;
 
       var off = {
         up: '0, ' + c.num(p.distance, 26) + 'px',
