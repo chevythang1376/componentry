@@ -732,7 +732,13 @@
         k: 'order', t: 'select', label: 'In order', value: 'across',
         options: [['across', 'One after another'], ['centre', 'From the middle out'], ['together', 'All at once']]
       },
-      { k: 'stagger', t: 'range', label: 'Stagger', min: 0, max: 8, step: 1, value: 3 },
+      {
+        k: 'stagger', t: 'range', label: 'Stagger', min: 0, max: 8, step: 1, value: 5,
+        help: 'How spread out the opening is, from all at once to one slat at a time. It is a ' +
+              'share of the whole reveal rather than a gap between neighbours, so adding slats ' +
+              'makes the opening finer without making it longer — and every slat finishes ' +
+              'opening while the block is still on screen.'
+      },
 
       { t: 'section', label: 'Style' },
       { k: 'minHeight', t: 'range', label: 'Panel height', min: 240, max: 720, step: 20, unit: 'px', value: 420 },
@@ -762,7 +768,30 @@
         if (p.order === 'centre') return Math.abs(i - (count - 1) / 2);
         return i;
       }
-      var step = c.num(p.stagger, 3);
+      /* A share of the available spread, divided by however many slats there
+         are, rather than a gap between neighbours.
+
+         Stated as a gap it had no ceiling at all, and the arithmetic ran off
+         the end of the phase it lives in: fourteen slats at stagger 8 put the
+         last one's range at `entry 166%`, and entry stops at 100. Nine of the
+         fourteen therefore never finished opening — they stalled part-way and
+         sat there covering the photograph, permanently, on a setting anybody
+         could reach with two sliders. Even fourteen slats at the default
+         stagger of 3 left one shut.
+
+         Divided instead, the last slat ends at 62 + 30 = 92% of entry at the
+         very most, whatever the slat count and whichever order they run in.
+         The guarantee is structural: SPREAD is the whole budget, and every
+         slat gets a share of it. */
+      var SPREAD = 30;
+      var maxDelay = Math.max.apply(null, (function () {
+        var a = [];
+        for (var k = 0; k < count; k++) a.push(delayIndex(k));
+        return a.length ? a : [0];
+      })());
+      var step = maxDelay > 0
+        ? Math.round(((c.clamp(c.num(p.stagger, 5), 0, 8) / 8) * SPREAD / maxDelay) * 1000) / 1000
+        : 0;
 
       var coverFill = p.coverMode === 'custom' ? (p.cover || '#96694c')
         : p.coverMode === 'deep' ? 'var(--cb-deep, #141210)'

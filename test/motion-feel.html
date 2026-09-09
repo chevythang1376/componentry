@@ -1,0 +1,365 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — motion feel</title>
+<style>
+  html, body { margin: 0; background: #f7f4f1; }
+  body { font-family: Inter, system-ui, sans-serif; color: #141210; padding-bottom: 150px; }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 0 24px; }
+
+  header.top { padding: 40px 0 20px; }
+  header.top h1 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 10px; }
+  header.top p { margin: 0 0 8px; max-width: 76ch; color: #5c554e; font-size: 14.5px; line-height: 1.6; }
+  header.top b { color: #141210; }
+
+  h2.sec {
+    font-size: 17px; letter-spacing: -.01em; margin: 46px 0 4px;
+    padding-top: 20px; border-top: 2px solid #141210;
+  }
+  h2.sec + p { margin: 0 0 18px; color: #5c554e; font-size: 14px; max-width: 80ch; line-height: 1.6; }
+  h2.sec + p em { color: #141210; font-style: normal; font-weight: 600; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .cell { background: #fff; border: 1px solid #e4ddd5; border-radius: 6px; overflow: hidden; }
+  .cell.is-default { border-color: #96694c; }
+  .cell > .lab {
+    font: 500 11px/1 ui-monospace, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase;
+    color: #8a5f43; padding: 11px 14px; border-bottom: 1px solid #efe7df; background: #faf8f6;
+    display: flex; justify-content: space-between; gap: 10px; align-items: baseline;
+  }
+  .lab .n { color: #8a8078; text-transform: none; letter-spacing: 0; font-size: 10.5px; }
+  .cell > .host { overflow: hidden; }
+  .host > * { transform-origin: 0 0; }
+  /* A CSS animation applies above inline styles in the cascade, so while the
+     component's own rule is live it wins and this page's clock does nothing.
+     The ranges and keyframes are still read from that rule — only its
+     application is handed over. */
+  .host .cb-kt__u, .host .cb-spl__slat { animation: none !important; }
+
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: #1c1917; color: #f3efeb; border-top: 1px solid #3a332c; padding: 14px 24px 16px;
+  }
+  .bar__in { max-width: 1360px; margin: 0 auto; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .bar label { font: 500 11px/1 ui-monospace, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; color: #b3a99f; }
+  .bar input[type=range] { flex: 1 1 340px; accent-color: #96694c; min-width: 220px; }
+  .bar .val { font: 600 15px/1 ui-monospace, Consolas, monospace; color: #d3a17a; min-width: 5ch; }
+  .bar button {
+    font: 500 12px/1 Inter, system-ui, sans-serif; background: none; color: #f3efeb;
+    border: 1px solid #4a423a; border-radius: 4px; padding: 8px 14px; cursor: pointer;
+  }
+  .bar button:hover { border-color: #96694c; color: #d3a17a; }
+  .bar .hint { font-size: 11.5px; color: #8a8078; flex-basis: 100%; margin-top: 2px; }
+
+  .verdict { margin: 26px 0 0; font: 13.5px/1.65 Inter, system-ui, sans-serif; padding: 14px 16px; border-radius: 5px; }
+  .verdict.ok { color: #33502c; background: #eef3ea; border: 1px solid #cddcc4; }
+  .verdict.bad { color: #7f1d1d; background: #fdeaea; border: 1px solid #f0c9c9; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Motion feel</h1>
+    <p>Scroll-driven motion is the one thing you cannot examine in place — by the time you have
+      seen it, it has finished — and you certainly cannot compare two settings of it by scrolling
+      twice. So every variant below is built through the real export path and then
+      <b>held at the same instant</b> by the scrubber at the foot of the page.</p>
+    <p>Nothing here is a mock-up of the effect. The panels are the shipped markup and the shipped
+      stylesheet; the <b>animation ranges and the keyframe values are read back out of that
+      stylesheet</b> at run time, and the only thing this page supplies is a clock. Change a
+      keyframe in the component and this page follows it.</p>
+  </header>
+
+  <h2 class="sec">Kinetic Text Reveal — stagger</h2>
+  <p>How spread out the arrival is: <em>0</em> lands every word together, <em>10</em> is one at a
+    time. Judge it around the middle of the scrub — the two ends look alike by definition.</p>
+  <div class="grid" id="ktStagger"></div>
+
+  <h2 class="sec">Kinetic Text Reveal — by line, word and letter</h2>
+  <p>One statement, one stagger, split three ways. Letter suits a short statement; on a long one
+    it is a great deal of movement at once, and the pieces are small enough that the blur reads
+    as fog rather than as focus.</p>
+  <div class="grid" id="ktUnit"></div>
+
+  <h2 class="sec">Split Reveal — slats</h2>
+  <p>More slats is a finer opening. Because the stagger is a share of the reveal rather than a gap
+    between neighbours, adding slats makes the opening <em>finer</em> without making it
+    <em>longer</em> — which is what you want, and what it did not do before.</p>
+  <div class="grid" id="splSlats"></div>
+
+  <h2 class="sec">Split Reveal — stagger and order</h2>
+  <p>Seven slats throughout. <em>One after another</em> reads as a sweep, <em>from the middle
+    out</em> as an opening.</p>
+  <div class="grid" id="splOrder"></div>
+
+  <div id="verdict"></div>
+</div>
+
+<div class="bar">
+  <div class="bar__in">
+    <label for="scrub">Through the reveal</label>
+    <input id="scrub" type="range" min="0" max="100" step="1" value="45">
+    <span class="val" id="scrubVal">45%</span>
+    <button type="button" id="play">Play once</button>
+    <button type="button" id="reset">Back to the start</button>
+    <span class="hint">0% is before anything has arrived; 100% is fully settled. Everything worth
+      judging happens between 25 and 75.</span>
+  </div>
+</div>
+
+<script>
+  ['core.js', 'components/content.js', 'components/modern.js'].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+
+<script>
+window.addEventListener('load', function () {
+
+  var TOKENS = CB.DEFAULT_TOKENS;
+  var panels = [];
+
+  /* ------------------------------------------------------ reading the CSS
+
+     The point of this page is that it does not restate the effect. Both halves
+     of what it needs come out of the stylesheet the component just emitted:
+
+       the range   `animation-range: entry calc(A% + var(--i) * S%) …`
+                   tells us which slice of the reveal each piece owns;
+       the frames  `@keyframes cb-kt-…` tell us what it does during that slice.
+
+     A keyframe holds a handful of property values, and interpolating between
+     two of them is arithmetic this page can do without an animation engine —
+     which matters, because it means the same page works in tooling where CSS
+     animations never run at all. */
+
+  function keyframesFor(name) {
+    for (var i = 0; i < document.styleSheets.length; i++) {
+      var rules;
+      try { rules = document.styleSheets[i].cssRules; } catch (e) { continue; }
+      for (var j = 0; j < rules.length; j++) {
+        if (rules[j].type === CSSRule.KEYFRAMES_RULE && rules[j].name === name) {
+          var out = [];
+          for (var k = 0; k < rules[j].cssRules.length; k++) {
+            var f = rules[j].cssRules[k];
+            var offset = f.keyText === 'from' ? 0 : f.keyText === 'to' ? 1 : parseFloat(f.keyText) / 100;
+            out.push({ offset: offset, style: f.style });
+          }
+          return out.sort(function (a, b) { return a.offset - b.offset; });
+        }
+      }
+    }
+    return null;
+  }
+
+  /* --------------------------------------------------------- interpolation
+
+     Only the shapes these two components actually use, and each one says so
+     rather than guessing: a translate, a rotation about either axis, a blur,
+     and an opacity. Anything else is carried across at the nearer keyframe
+     rather than silently interpolated into nonsense. */
+
+  function nums(str) {
+    return (String(str).match(/-?[\d.]+/g) || []).map(Number);
+  }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  function transformAt(fromV, toV, t) {
+    var f = String(fromV || 'none'), s = String(toV || 'none');
+    var pick = /rotateX/.test(f + s) ? 'rotateX' : /rotateY/.test(f + s) ? 'rotateY'
+             : /translate/.test(f + s) ? 'translate' : null;
+    if (!pick) return null;
+    var a = /none/.test(f) ? [0, 0] : nums(f);
+    var b = /none/.test(s) ? [0, 0] : nums(s);
+    if (pick === 'translate') {
+      return 'translate(' + lerp(a[0] || 0, b[0] || 0, t).toFixed(2) + 'px, ' +
+                            lerp(a[1] || 0, b[1] || 0, t).toFixed(2) + 'px)';
+    }
+    return pick + '(' + lerp(a[0] || 0, b[0] || 0, t).toFixed(2) + 'deg)';
+  }
+
+  function filterAt(fromV, toV, t) {
+    var f = String(fromV || 'none'), s = String(toV || 'none');
+    if (!/blur/.test(f + s)) return null;
+    var a = /none/.test(f) ? 0 : (nums(f)[0] || 0);
+    var b = /none/.test(s) ? 0 : (nums(s)[0] || 0);
+    var v = lerp(a, b, t);
+    return v < 0.02 ? 'none' : 'blur(' + v.toFixed(2) + 'px)';
+  }
+
+  /* Each property walks its own list of stops, because a keyframe that does
+     not mention a property does not pin it — it interpolates straight across.
+     Split Reveal's 80% stop says only `opacity: 1`, and reading the transform
+     from it as well pinned every slat at zero degrees for the first four
+     fifths of its own reveal. Which looked exactly like the animation being
+     broken, and was this page being wrong about it. */
+  function stopsFor(frames, prop) {
+    var list = [];
+    for (var i = 0; i < frames.length; i++) {
+      if (frames[i].style[prop] !== '') list.push(frames[i]);
+    }
+    return list;
+  }
+
+  function valueAt(frames, prop, t, interp) {
+    var list = stopsFor(frames, prop);
+    if (!list.length) return null;
+    if (list.length === 1) return list[0].style[prop];
+    var i = 0;
+    while (i < list.length - 2 && list[i + 1].offset < t) i++;
+    var A = list[i], B = list[i + 1];
+    var span = B.offset - A.offset;
+    var local = span > 0 ? (t - A.offset) / span : 0;
+    local = local < 0 ? 0 : local > 1 ? 1 : local;
+    return interp(A.style[prop], B.style[prop], local);
+  }
+
+  function applyFrames(el, frames, t) {
+    var o = valueAt(frames, 'opacity', t, function (a, b, l) {
+      return lerp(parseFloat(a), parseFloat(b), l).toFixed(3);
+    });
+    if (o !== null) el.style.opacity = o;
+
+    var tr = valueAt(frames, 'transform', t, transformAt);
+    if (tr) el.style.transform = tr;
+
+    var fl = valueAt(frames, 'filter', t, filterAt);
+    if (fl) el.style.filter = fl;
+  }
+
+  /* -------------------------------------------------------------- building */
+
+  function build(hostId, label, note, type, props, scale) {
+    var def = CB.get(type);
+    if (!def) return;
+    var p = Object.assign(CB.defaults(def), props);
+    var cls = 'mf-' + panels.length;
+    var out = CB.build({ type: type, cls: cls, props: p }, TOKENS);
+
+    var style = document.createElement('style');
+    style.textContent = out.css;
+    document.head.appendChild(style);
+
+    var cell = document.createElement('div');
+    cell.className = 'cell' + (note === 'the default' ? ' is-default' : '');
+    cell.innerHTML = '<div class="lab"><span>' + label + '</span><span class="n">' + note + '</span></div>' +
+                     '<div class="host"></div>';
+    var host = cell.querySelector('.host');
+    host.innerHTML = out.html;
+    document.getElementById(hostId).appendChild(cell);
+
+    /* Built full width, then scaled. Scaling rather than narrowing matters:
+       several blocks change layout under a breakpoint, and a narrowed panel
+       would quietly be showing you the phone arrangement. */
+    var block = host.firstElementChild;
+    var s = scale || 0.34;
+    if (block) {
+      block.style.width = (100 / s) + '%';
+      block.style.transform = 'scale(' + s + ')';
+      /* offsetHeight, not getBoundingClientRect(): the rect of a scaled element
+         is already scaled, so multiplying it again crops the panel to half its
+         content. offsetHeight is the layout height the transform did not touch. */
+      host.style.height = Math.round(block.offsetHeight * s) + 'px';
+    }
+
+    /* Split Reveal only shows its cover where a scroll timeline exists to take
+       it away again — deliberately, so a stuck timeline can never leave the
+       panel shut. This page is that timeline, so it shows the cover itself. */
+    host.querySelectorAll('.cb-spl__cover').forEach(function (c) {
+      c.style.display = 'block';
+      c.style.perspective = '900px';
+    });
+
+    var alt = /animation-range:\s*entry calc\(([\d.]+)%\s*\+\s*var\(--i\)\s*\*\s*([\d.]+)%\)\s*entry calc\(([\d.]+)%\s*\+\s*var\(--i\)\s*\*\s*([\d.]+)%\)/.exec(out.css);
+    if (!alt) return;
+    var A = parseFloat(alt[1]), S = parseFloat(alt[2]), B = parseFloat(alt[3]);
+
+    var name = (/animation:\s*([\w-]+)/.exec(out.css) || [])[1];
+    var frames = name ? keyframesFor(name) : null;
+    if (!frames) return;
+
+    var pieces = [];
+    host.querySelectorAll('[style*="--i"]').forEach(function (el) {
+      var i = parseFloat((/--i:\s*([\d.]+)/.exec(el.getAttribute('style')) || [0, 0])[1]) || 0;
+      pieces.push({ el: el, from: A + i * S, to: B + i * S });
+    });
+    if (pieces.length) panels.push({ frames: frames, pieces: pieces });
+  }
+
+  /* ------------------------------------------------------------------ scrub */
+
+  function hold(pct) {
+    for (var a = 0; a < panels.length; a++) {
+      var pn = panels[a];
+      for (var b = 0; b < pn.pieces.length; b++) {
+        var pc = pn.pieces[b];
+        var local = (pct - pc.from) / (pc.to - pc.from);
+        applyFrames(pc.el, pn.frames, local < 0 ? 0 : local > 1 ? 1 : local);
+      }
+    }
+  }
+
+  var scrub = document.getElementById('scrub');
+  var val = document.getElementById('scrubVal');
+  function apply() { val.textContent = scrub.value + '%'; hold(+scrub.value); }
+  scrub.addEventListener('input', apply);
+
+  document.getElementById('reset').addEventListener('click', function () { scrub.value = 0; apply(); });
+
+  /* Stepped with setInterval rather than requestAnimationFrame, because this
+     page is also opened inside tooling where rAF never fires and a Play button
+     that silently does nothing is worse than one that steps. */
+  document.getElementById('play').addEventListener('click', function () {
+    var v = 0; scrub.value = 0; apply();
+    var id = setInterval(function () {
+      v += 2;
+      if (v > 100) { clearInterval(id); return; }
+      scrub.value = v; apply();
+    }, 26);
+  });
+
+  /* ------------------------------------------------------------- the panels */
+
+  var STATEMENT = 'Rated for the pull,\nnot the brochure.';
+
+  [0, 3, 6, 10].forEach(function (st) {
+    build('ktStagger', 'Stagger ' + st, st === 6 ? 'the default' : '', 'kinetic-text',
+          { text: STATEMENT, stagger: st, unit: 'word', size: 44, pad: 44 });
+  });
+
+  [['line', 'By line'], ['word', 'By word'], ['char', 'By letter']].forEach(function (u) {
+    build('ktUnit', u[1], u[0] === 'word' ? 'the default' : '', 'kinetic-text',
+          { text: STATEMENT, stagger: 6, unit: u[0], size: 44, pad: 44 });
+  });
+
+  [3, 7, 14].forEach(function (n) {
+    build('splSlats', n + ' slats', n === 7 ? 'the default' : '', 'split-reveal',
+          { slats: n, stagger: 5, minHeight: 320 });
+  });
+
+  [['across', 0], ['across', 5], ['across', 8], ['centre', 5]].forEach(function (cfg) {
+    var label = 'Stagger ' + cfg[1] + ' · ' + (cfg[0] === 'centre' ? 'from the middle' : 'one after another');
+    build('splOrder', label, cfg[0] === 'across' && cfg[1] === 5 ? 'the default' : '', 'split-reveal',
+          { slats: 7, stagger: cfg[1], order: cfg[0], minHeight: 320 });
+  });
+
+  apply();
+
+  /* The correctness half. A range that runs past the end of the phase it lives
+     in never completes on a real page — the piece stops part-way and stays
+     there — so say so here rather than leaving it to be found on a live site. */
+  var late = [];
+  panels.forEach(function (pn) {
+    pn.pieces.forEach(function (pc) { if (pc.to > 100) late.push(pc.to); });
+  });
+  var v = document.getElementById('verdict');
+  v.className = 'verdict ' + (late.length ? 'bad' : 'ok');
+  v.textContent = late.length
+    ? late.length + ' piece(s) across these panels finish after the entry phase ends, the worst at ' +
+      Math.round(Math.max.apply(null, late)) + '%. Those never complete on a real page — they stop ' +
+      'part-way and stay there.'
+    : 'Every piece in every panel finishes inside the phase it lives in, the latest at ' +
+      Math.round(Math.max.apply(null, panels.map(function (pn) {
+        return Math.max.apply(null, pn.pieces.map(function (pc) { return pc.to; }));
+      }))) + '% of entry. Nothing here can stall part-open.';
+});
+</script>

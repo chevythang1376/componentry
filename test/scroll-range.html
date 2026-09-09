@@ -143,6 +143,93 @@ window.addEventListener('load', function () {
   check('and the cover is never shown without a timeline to move it',
         /\.cb-spl__cover \{[^}]*display: none;/.test(css2), true);
 
+  /* --- a stagger slider that is live everywhere, and safe everywhere -------
+
+     Both staggered reveals used to state the gap between neighbours, and both
+     got it wrong in opposite directions.
+
+     Kinetic Text clipped it — min(stagger, 24/(n-1)) — and the clip ate most
+     of the control: on the shipped eight-word statement every value from 4 to
+     10 produced the same number, and by letter every value from 1 to 10 did.
+     A slider two thirds of which does nothing reads as a broken effect rather
+     than as a saturated number.
+
+     Split Reveal did not clip it at all, and the arithmetic ran off the end of
+     the phase it lives in: fourteen slats at stagger 8 put the last slat's
+     range at `entry 166%`, and entry stops at 100. Nine of the fourteen never
+     finished opening — they stalled part-way and sat there over the
+     photograph, permanently, on a setting two sliders could reach.
+
+     Both now divide a fixed spread by the piece count, which makes the whole
+     range live at any length and puts the ceiling in the structure rather than
+     in a clip. These sweep the entire product of both sliders. */
+
+  function ktStep(unit, stagger, text) {
+    var p = CB.defaults(CB.get('kinetic-text'));
+    p.unit = unit; p.stagger = stagger;
+    if (text) p.text = text;
+    var o = CB.build({ type: 'kinetic-text', cls: 'kt', props: p }, CB.DEFAULT_TOKENS, { omitBase: true });
+    var m = /entry calc\(52% \+ var\(--i\) \* ([\d.]+)%\)/.exec(o.css);
+    var idx = (o.html.match(/--i:(\d+)/g) || []).map(function (t) { return parseInt(t.split(':')[1], 10); });
+    return { step: m ? parseFloat(m[1]) : null,
+             pieces: idx.length,
+             lastEnds: 52 + (idx.length ? Math.max.apply(null, idx) : 0) * (m ? parseFloat(m[1]) : 0) };
+  }
+
+  var LONG = 'Every conductor we ship is tested to the standard\nour customers are actually held to on site.';
+  var ktWorst = 0, ktDead = [];
+  ['line', 'word', 'char'].forEach(function (unit) {
+    [null, LONG].forEach(function (text) {
+      var steps = [];
+      for (var st = 0; st <= 10; st++) {
+        var r = ktStep(unit, st, text);
+        steps.push(r.step);
+        if (r.lastEnds > ktWorst) ktWorst = r.lastEnds;
+      }
+      var uniq = steps.filter(function (v, i) { return steps.indexOf(v) === i; }).length;
+      if (uniq < 11) ktDead.push(unit + (text ? ' (long)' : '') + ': ' + uniq + '/11');
+    });
+  });
+  check('the kinetic stagger is live across its whole range, at every unit and length',
+        ktDead.join(', ') || 'none', 'none');
+  check('and nothing it can be set to finishes after entry does',
+        Math.round(ktWorst) <= 100, true, Math.round(ktWorst) + '% at worst');
+
+  function splEnds(slats, stagger, order) {
+    var p = CB.defaults(CB.get('split-reveal'));
+    p.slats = slats; p.stagger = stagger; p.order = order;
+    var o = CB.build({ type: 'split-reveal', cls: 'sp', props: p }, CB.DEFAULT_TOKENS, { omitBase: true });
+    var step = parseFloat(/entry calc\(62% \+ var\(--i\) \* ([\d.]+)%\)/.exec(o.css)[1]);
+    var idx = (o.html.match(/--i:\s*([\d.]+)/g) || []).map(function (t) { return parseFloat(t.split(':')[1]); });
+    return { step: step, last: 62 + Math.max.apply(null, idx) * step };
+  }
+
+  var splWorst = 0, splDead = [];
+  ['across', 'centre'].forEach(function (order) {
+    for (var n = 2; n <= 14; n++) {
+      var steps = [];
+      for (var st = 0; st <= 8; st++) {
+        var r = splEnds(n, st, order);
+        steps.push(r.step);
+        if (r.last > splWorst) splWorst = r.last;
+      }
+      var uniq = steps.filter(function (v, i) { return steps.indexOf(v) === i; }).length;
+      if (uniq < 9) splDead.push(order + ' ' + n + ': ' + uniq + '/9');
+    }
+  });
+  check('the slat stagger is live across its whole range, at every slat count',
+        splDead.join(', ') || 'none', 'none');
+  check('and no slat count and stagger together can leave one shut',
+        Math.round(splWorst) <= 100, true, Math.round(splWorst) + '% at worst');
+
+  /* All at once is the one order where the slider should do nothing, because
+     there is no sequence to spread — and saying so here stops the sweep above
+     being loosened to accommodate it. */
+  var together = [];
+  for (var g = 0; g <= 8; g++) together.push(splEnds(9, g, 'together').step);
+  check('all-at-once ignores the stagger, deliberately',
+        together.every(function (v) { return v === 0; }), true);
+
   /* --- motion you can look at twice ----------------------------------------
      A scroll-driven reveal happens once, on the way past, in whichever
      direction you were going — so the editor cannot show it to you again, and
@@ -151,7 +238,15 @@ window.addEventListener('load', function () {
      scrubbed, then hand them back.
 
      Driven here by calling into a same-origin copy of the bridge rather than
-     through postMessage, so the assertions do not depend on message timing. */
+     through postMessage, so the assertions do not depend on message timing.
+
+     Wrapped, because it is the one section here that depends on another
+     document having run its scripts. That is normally synchronous after
+     document.write + close, and once in a while it is not — and an exception
+     thrown here used to take every assertion after it down with it, silently,
+     leaving a harness that simply never reported. A section that cannot run
+     should fail loudly and let the rest of the file finish. */
+  try {
   (function () {
     var doc = CB.Export.previewDoc(
       [{ uid: 'a', cls: 'cb-kt-p', type: 'kinetic-text', props: CB.defaults(CB.get('kinetic-text')) },
@@ -191,6 +286,9 @@ window.addEventListener('load', function () {
     check('and a second hold works after a release', pw.cbHold().length > 0, true);
     pw.cbRelease();
   })();
+  } catch (e) {
+    check('the motion bridge ran at all', 'threw: ' + e.message, 'no exception');
+  }
 
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
