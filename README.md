@@ -89,7 +89,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 ## Why the output survives a page builder
 
-Page builders drop your markup into a theme you don't control. Four things protect it:
+Page builders drop your markup into a theme you don't control. Six things protect it:
 
 **1. Everything is scoped to a generated class.**
 Each instance gets a class like `cb-accordion-k3f9a`. Every selector in the exported
@@ -122,6 +122,40 @@ commonest theme rules there is, and a button paints its own background, so an ov
 label colour lands red-on-brand at about 1.2:1 — unreadable. Solid button labels are
 defended the same way; outlined buttons are not, because they inherit from whatever
 surface they sit on.
+
+**6. A block does not change how the rest of the page is drawn.**
+This is the one that got past every other check, because it changes no style anyone can
+read. Text on southwire.com *below* a Parallax Banner was showing up bolder, and on the
+real homepage under the real stylesheet, all 278 pieces of Southwire's text had the same
+computed styles with the block as without it.
+
+The cause was rasterisation, not CSS. The banner kept its image permanently on a GPU
+layer (`will-change: transform`, moved with `translate3d`) that is taller than the banner
+itself — that over-scan is what it slides through. A layer whose bounds reach past the
+block can make the browser promote everything painted after it onto layers of its own,
+and text on those layers loses subpixel smoothing. On Windows, ClearType text rendered in
+greyscale reads as heavier. So the page looked bold, and nothing had changed.
+
+Logo Marquee had the same shape: a track many times wider than the block, animated
+forever with `translate3d`, and Kinetic Text put `will-change` on every word.
+
+Three rules now, all pinned by `test/hostile-host.html`:
+
+- **No permanent `will-change` in any block's stylesheet.** A running animation is
+  composited without being asked. The parallax raises its layer from its script only
+  while it is on screen, and drops it once it has scrolled away — so while anyone is
+  reading the page below it, there is no layer to promote that page.
+- **No forced 3D layers.** `translate3d` and `translateZ` were the old trick for
+  demanding a GPU layer. A 2D transform moves just as smoothly.
+- **A block that moves something larger than itself declares `contain: paint`.** That
+  tells the compositor nothing it paints escapes its box. It is visually identical to the
+  `overflow: hidden` both blocks already had, which clipped the same pixels.
+
+The first theory put forward for this was `-webkit-font-smoothing: antialiased` on the
+block root, and it is worth recording why it was not that: the property is set on the
+block and inherits downward only, so host text measured `auto` above, below and on
+`body` with the block present. It also only has an effect on macOS, where it makes text
+*lighter*, not bolder. It stays.
 
 ### If a block scrolls *over* your site header
 
@@ -1078,7 +1112,11 @@ test/
   gallery.html          Renders all 30 through the real export path; reports failures,
                         and fails if any laid-out image reserves no space for
                         itself — the omission half of Cumulative Layout Shift
-  hostile-host.html     Pastes exports into a deliberately awful theme; 168 assertions
+  hostile-host.html     Pastes exports into a deliberately awful theme, and asserts
+                        no block leaves a permanent GPU layer, forces a 3D one, or
+                        moves something larger than itself without containing its
+                        paint — the checks that would have caught the page below a
+                        Parallax Banner turning bold; 173 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         240 round-trips, then functionally probes what survives;
                         154 assertions
@@ -1171,7 +1209,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 648 assertions**, plus two that report coverage rather than a count:
+**Thirteen harnesses, 653 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 30 through the real export path, and `degrade.html` judges all 30
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
