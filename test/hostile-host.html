@@ -763,6 +763,50 @@ video { width: 100% !important; }
   check('pricing switch in A changes A', amtA[1].textContent === '290', amtA[1].textContent);
   check('pricing switch in A leaves B alone', amtB[1].textContent === beforeB, amtB[1].textContent);
 
+  /* ---- a block must not change how the rest of the page is rasterised ----
+
+     Every check above reads computed styles, and a GPU layer changes none of
+     them — which is how this one got past all of them. Parallax Banner kept
+     its image permanently promoted (will-change: transform, moved with
+     translate3d) in a layer taller than the banner. A layer whose bounds
+     reach past the block can make the browser promote everything painted
+     after it onto layers of its own, and text on those loses subpixel
+     smoothing. On Windows that reads as heavier: text on the host page
+     below the banner looked bold, and nothing a stylesheet reports had
+     changed.
+
+     These pin the three conditions that produced it, read off the emitted
+     code with comments stripped (so a comment explaining the rule cannot
+     satisfy or fail it). */
+  (function () {
+    function code(s) { return String(s || '').replace(/\/\*[\s\S]*?\*\//g, ''); }
+    var permanent = [], forced3d = [];
+    CB.all().forEach(function (d) {
+      var o = CB.build({ type: d.id, cls: 'layer-' + d.id, props: CB.defaults(d) }, CB.DEFAULT_TOKENS, { omitBase: true });
+      if (/will-change/.test(code(o.css))) permanent.push(d.id);
+      if (/translate3d|translateZ/.test(code(o.js) + code(o.css))) forced3d.push(d.id);
+    });
+    check('no block keeps a permanent GPU layer (will-change in its stylesheet)',
+          permanent.length === 0, permanent.join(', ') || 'none');
+    check('no block forces a 3D layer (translate3d / translateZ)',
+          forced3d.length === 0, forced3d.join(', ') || 'none');
+
+    /* The two blocks that move a layer larger than themselves: the parallax
+       image over-scans the banner vertically, and the marquee track is
+       max-content wide. Both have to say so. */
+    var px = CB.build({ type: 'parallax-banner', cls: 'layer-px', props: CB.defaults(CB.get('parallax-banner')) },
+                      CB.DEFAULT_TOKENS, { omitBase: true });
+    var mq = CB.build({ type: 'logo-marquee', cls: 'layer-mq', props: CB.defaults(CB.get('logo-marquee')) },
+                      CB.DEFAULT_TOKENS, { omitBase: true });
+    check('the parallax contains its paint, since its moving layer is taller than it is',
+          /\.layer-px\.cb-px\s*\{[^}]*contain:\s*paint/.test(code(px.css)), 'contain: paint on the banner root');
+    check('and so does the marquee, whose track is many times wider than it is',
+          /\.layer-mq\.cb-mq\s*\{[^}]*contain:\s*paint/.test(code(mq.css)), 'contain: paint on the marquee root');
+    check('and raises its layer only while it is on screen',
+          /willChange\s*=\s*"transform"/.test(code(px.js)) && /willChange\s*=\s*""/.test(code(px.js)),
+          'toggled by the scroll handler');
+  })();
+
   window.__hostile = checks;
   var failed = checks.filter(function (c) { return !c.pass; });
   document.getElementById('report').innerHTML =

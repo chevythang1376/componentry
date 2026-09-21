@@ -1224,8 +1224,11 @@
         ${s} .cb-kt__line { display: block; }
         ${s} .cb-kt__w { display: inline-block; white-space: nowrap; }
         /* Inline-block so a transform applies at all, and a hair of vertical
-           padding so descenders are not clipped while the piece is moving. */
-        ${s} .cb-kt__u { display: inline-block; padding-block: .06em; will-change: transform, opacity, filter; }
+           padding so descenders are not clipped while the piece is moving.
+           No will-change: it was on every word or letter, which is a permanent
+           GPU layer per piece — dozens per statement — and a running scroll
+           animation is composited without being asked. */
+        ${s} .cb-kt__u { display: inline-block; padding-block: .06em; }
         ${s} .cb-kt__sub {
           color: var(--cb-muted); margin-top: 18px; max-width: 56ch;
           ${p.align === 'center' ? 'margin-inline: auto;' : ''}

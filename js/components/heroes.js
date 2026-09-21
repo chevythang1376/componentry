@@ -74,16 +74,28 @@
         </section>`);
 
       var css = `
+        /* contain: paint is the part that protects the host page. The moving
+           image layer is taller than the banner — that over-scan is what it
+           slides through — and a GPU layer whose bounds reach past the block
+           can make the browser promote everything painted after it onto
+           layers of its own. Text on those loses subpixel smoothing and, on
+           Windows especially, reads as heavier: the page below the banner
+           looked bold. Paint containment tells the compositor nothing here
+           escapes this box. It is visually identical to the overflow: hidden
+           beside it, which already clipped the same pixels. */
         ${s}.cb-px {
           position: relative; display: flex; align-items: center;
           min-height: ${c.num(p.height, 580)}px;
-          overflow: hidden; isolation: isolate;
+          overflow: hidden; isolation: isolate; contain: paint;
           color: ${p.textColor};
         }
+        /* No permanent will-change. The script raises it only while the banner
+           is on screen and drops it once it is scrolled away, so the layer
+           exists for the movement and not for the rest of the page's life. */
         ${s} .cb-px__bg {
           position: absolute; left: 0; right: 0;
           top: -${ov / 2}%; height: ${100 + ov}%;
-          will-change: transform; z-index: 0;
+          z-index: 0;
         }
         ${s} .cb-px__bg img { width: 100%; height: 100%; object-fit: cover; object-position: ${p.focal}; }
         ${s} .cb-px__veil {
@@ -147,15 +159,19 @@
 
         function paint() {
           queued = false;
-          if (!enabled()) { bg.style.transform = ""; return; }
+          if (!enabled()) { bg.style.transform = ""; bg.style.willChange = ""; return; }
           var r = root.getBoundingClientRect();
           var vh = window.innerHeight || document.documentElement.clientHeight;
-          if (r.bottom < -80 || r.top > vh + 80) return;
+          if (r.bottom < -80 || r.top > vh + 80) { bg.style.willChange = ""; return; }
+          bg.style.willChange = "transform";
           /* -1 when the section sits below the fold, +1 once it has passed above */
           var progress = (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2);
           if (progress < -1) progress = -1;
           if (progress > 1) progress = 1;
-          bg.style.transform = "translate3d(0," + (progress * strength * r.height).toFixed(2) + "px,0)";
+          /* 2D, not translate3d: the 3D form was the old trick for forcing a GPU
+             layer, and a forced layer is the thing this block should not leave
+             lying around. The compositor still moves a 2D transform smoothly. */
+          bg.style.transform = "translateY(" + (progress * strength * r.height).toFixed(2) + "px)";
         }
         function onScroll() {
           if (queued) return;

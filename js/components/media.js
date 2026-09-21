@@ -466,7 +466,12 @@
         </section>`);
 
       var css = `
-        ${s}.cb-mq { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 48)}px; overflow: hidden; }
+        /* The track is max-content wide — many times the block — and animates
+           forever, so its layer reaches far past the edges. contain: paint
+           tells the compositor none of that escapes, which keeps a running
+           marquee from promoting the host page painted after it. Visually the
+           same as the overflow: hidden it sits beside. */
+        ${s}.cb-mq { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 48)}px; overflow: hidden; contain: paint; }
         ${s} .cb-mq__kicker {
           text-align: center; font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700); letter-spacing: calc(.14em + var(--cb-eyebrow-track, 0em));
           text-transform: uppercase; color: var(--cb-muted); margin-bottom: 28px;
@@ -499,7 +504,7 @@
         }
         ${s} .cb-mq__item:hover .cb-mq__word { color: var(--cb-ink); }
         /* Translating by exactly one row width is what hides the seam. */
-        @keyframes cb-mq-${c.cls} { from { transform: translate3d(0,0,0); } to { transform: translate3d(-50%,0,0); } }
+        @keyframes cb-mq-${c.cls} { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @media (prefers-reduced-motion: reduce) {
           ${s} .cb-mq__track { animation: none; }
           ${s} .cb-mq__row:last-child { display: none; }
