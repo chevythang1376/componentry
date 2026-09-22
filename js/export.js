@@ -424,8 +424,11 @@ CB.Export = (function () {
     webflow: {
       name: 'Webflow',
       format: 'separate',
-      cap: 50 * 1024,
-      note: 'Use an <strong>Embed</strong> element for the HTML. Webflow caps a single embed at 50 kB, so put the CSS in Page Settings → Custom Code (head) and the JS before &lt;/body&gt;.'
+      /* Webflow counts characters, and stops at 50,000 of them. This was
+         50 * 1024, which let an export 1,200 characters over the limit
+         through without a word. */
+      cap: 50000,
+      note: 'Use an <strong>Embed</strong> element for the HTML. Webflow caps a single embed at 50,000 characters, so put the CSS in Page Settings → Custom Code (head) and the JS before &lt;/body&gt;.'
     },
     wix: {
       name: 'Wix',

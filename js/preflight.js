@@ -297,8 +297,8 @@ CB.Preflight = (function () {
         level: 'error',
         block: null,
         title: 'Over ' + plat.name + '’s embed limit',
-        detail: 'This export is ' + (code.length / 1024).toFixed(0) + ' kB and ' +
-                plat.name + ' caps a single embed at ' + Math.round(plat.cap / 1024) + ' kB.',
+        detail: 'This export is ' + code.length.toLocaleString('en-US') + ' characters minified, and ' +
+                plat.name + ' caps a single embed at ' + plat.cap.toLocaleString('en-US') + '.',
         fix: 'Use Split files and put the CSS in your site’s head, or move some blocks to a second embed.'
       });
     }

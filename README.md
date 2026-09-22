@@ -296,7 +296,7 @@ Choose a target platform and the format switches to what that platform actually 
 | **Split files** | Webflow, HubSpot — separate HTML / CSS / JS panes |
 | **Full page** | Wix and other iframe-sandboxed embeds; also a standalone hand-off file |
 
-Platform notes cover the real gotchas: Webflow's 50 kB embed cap, Squarespace not
+Platform notes cover the real gotchas: Webflow's 50,000-character embed cap, Squarespace not
 running scripts in edit mode, the WordPress Visual tab stripping `<script>`, Wix
 embeds being sandboxed iframes that can't self-size.
 
@@ -304,7 +304,7 @@ embeds being sandboxed iframes that can't self-size.
 
 Every block needs the same ~9.5 kB of defensive reset and design tokens. Stating it inside
 each one meant a page of five blocks spent **most of its CSS on the same rules repeated
-five times** — and cleared Webflow's 50 kB cap on its own.
+five times** — and cleared Webflow's 50,000-character cap on its own.
 
 With more than one block, that base is now stated once for the page against a shared
 `cb-scope` class that every component root already carries. Measured on the four starter
@@ -312,11 +312,11 @@ pages the library actually ships, rather than on an abstract five:
 
 | Page | Blocks | Reset per block | Reset shared | |
 |---|---|---|---|---|
-| Support page | 4 | 48.1 kB CSS | **17.5 kB** | −64% |
-| Product page | 5 | 68.8 kB CSS | **27.2 kB** | −61% |
-| Capability page | 5 | 71.6 kB CSS | **30.6 kB** | −57% |
-| Landing page | 6 | 78.7 kB CSS | **27.5 kB** | −65% |
-| All 30 | 30 | 409.0 kB CSS | **114.6 kB** | −72% |
+| Support page | 4 | 50.9 kB CSS | **18.3 kB** | −64% |
+| Product page | 5 | 73.6 kB CSS | **29.3 kB** | −60% |
+| Capability page | 5 | 75.7 kB CSS | **32.1 kB** | −58% |
+| Landing page | 6 | 83.2 kB CSS | **28.8 kB** | −65% |
+| All 41 | 41 | 573.3 kB CSS | **154.2 kB** | −73% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -326,14 +326,18 @@ Complete exports of those starters, HTML + CSS + JS together:
 
 | Page | As written | Minified |
 |---|---|---|
-| Support page | 28.0 kB | **20.4 kB** |
-| Product page | 42.8 kB | **32.1 kB** |
-| Capability page | 50.4 kB | **39.9 kB** |
-| Landing page | 61.7 kB | **48.6 kB** |
+| Support page | 29.3 kB | **21.4 kB** |
+| Product page | 45.9 kB | **33.8 kB** |
+| Capability page | 52.5 kB | **41.6 kB** |
+| Landing page | 64.0 kB | **50.5 kB** |
 
-All four fit inside Webflow's 50 kB embed cap minified, though the Landing page only just —
-at 48.6 kB it is the one to watch if you add to it. Any single block is far under; the
-largest, Interactive Diagram, is about 26 kB.
+Three of the four fit in one Webflow embed minified. **The Landing page no longer does:** it
+has grown to 50,464 characters, and Webflow stops at 50,000. For a while that went unseen,
+because preflight had the cap as 50 × 1024 — 51,200 — and so passed it. Webflow's own
+advice is the way round it, and what the Webflow export already does: HTML in the Embed
+element, CSS in the page's head code, script before `</body>`. Split that way the largest
+piece is under 20,000 characters. Any single block fits on its own; the largest,
+Interactive Diagram, is about 28,600 characters minified.
 
 The markup is **byte-identical either way** — switching modes never means re-pasting your
 HTML — and a single block is unchanged, since it has nothing to share with. Rendering is
@@ -1096,7 +1100,7 @@ a copy, or point image fields at URLs instead of uploading.
 - **Countdown → when it reaches zero**: show a message, hide the block, or hold at zero.
 
 Toggles that are off cost nothing: the code for them isn't emitted at all, which keeps
-exports under Webflow's 50 kB embed cap.
+exports under Webflow's 50,000-character embed cap.
 
 **Shortcuts:** `Ctrl+Z` undo · `Ctrl+Shift+Z` redo · `Ctrl+S` save · `Ctrl+E` export ·
 `Delete` remove selected.
@@ -1164,8 +1168,9 @@ test/
                         goes in undescribed, a dead image link is an error, a
                         correct 2x image is left alone, an untouched table
                         is caught before it ships, a calculator asks for an
-                        engineering check, and a jump link to a section the
-                        project lacks is named; 38 assertions
+                        engineering check, a jump link to a section the
+                        project lacks is named, and Webflow's cap is held in
+                        the characters Webflow counts; 42 assertions
   scroll-range.html     The case the degradation harness cannot reach: scroll
                         timelines exist but never advance — a block nobody
                         scrolls to, a preview frame that does not scroll. Asserts
@@ -1236,7 +1241,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 717 assertions**, plus two that report coverage rather than a count:
+**Thirteen harnesses, 721 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 41 through the real export path, and `degrade.html` judges all 41
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
