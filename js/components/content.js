@@ -1585,4 +1585,755 @@
       return { html: html, css: css, js: '' };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Article                                                                */
+  /*                                                                        */
+  /* Long-form copy typed as plain text with a handful of marks, rather     */
+  /* than one field per paragraph. It is parsed here, when the code is      */
+  /* generated, so what ships is plain semantic HTML with no script and     */
+  /* nothing for an editor to strip. Every run of text is escaped before    */
+  /* any mark becomes a tag, and links go through the same URL guard as     */
+  /* every other href in the library.                                       */
+  /*                                                                        */
+  /* Each non-blank line is its own paragraph. Markdown would join adjacent */
+  /* lines into one, but text pasted out of a document arrives one          */
+  /* paragraph per line with no blank lines between, and joining those      */
+  /* would turn a whole case study into a single paragraph.                 */
+  /* --------------------------------------------------------------------- */
+
+  var ARTICLE_SAMPLE = [
+    'This block turns plain text into a formatted article. Every line is its own paragraph, and the first is set a little larger as the introduction.',
+    '',
+    '## Two hashes start a heading',
+    'Three hashes start a smaller one. Inside a paragraph, **two asterisks** make text bold and *one* makes it italic.',
+    '',
+    '- A dash at the start of a line makes a bullet',
+    '- Keep going and the bullets form one list',
+    '',
+    '1. Numbers work the same way',
+    '2. For things that happen in order',
+    '',
+    '> An angle bracket turns a line into a pull quote, for the sentence you most want remembered.',
+    '',
+    '![Describe what the image shows](placeholder)',
+    'A line directly under an image becomes its caption.',
+    '',
+    '### Links',
+    'Square brackets, then an address in round brackets, make a link: [southwire.com](https://www.southwire.com).'
+  ].join('\n');
+
+  /* The sample uses the word "placeholder" where an address would go, so a
+     layout can be roughed out before the photography exists. */
+  function articleBody(src, c, lead) {
+    var lines = String(src == null ? '' : src).replace(/\r\n?/g, '\n').split('\n');
+    var out = [];
+    var list = null;          // { tag, items }
+    var quote = [];
+    var figure = null;        // waiting to see whether a caption follows
+    var paras = 0;
+
+    function inl(s) {
+      return c.esc(s)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    }
+    /* Links are found in the raw text and each piece escaped on its own,
+       rather than escaping first and parsing after, which would hand c.url
+       an address that had already been entity-encoded once. */
+    function inline(raw) {
+      var html = '', re = /\[([^\]]+)\]\(([^)\s]+)\)/g, last = 0, m;
+      while ((m = re.exec(raw))) {
+        html += inl(raw.slice(last, m.index)) + '<a href="' + c.url(m[2]) + '">' + inl(m[1]) + '</a>';
+        last = re.lastIndex;
+      }
+      return html + inl(raw.slice(last));
+    }
+    function flushList() {
+      if (!list) return;
+      out.push('<' + list.tag + '>' + list.items.map(function (t) { return '<li>' + inline(t) + '</li>'; }).join('') + '</' + list.tag + '>');
+      list = null;
+    }
+    function flushQuote() {
+      if (!quote.length) return;
+      out.push('<blockquote>' + quote.map(function (t) { return '<p>' + inline(t) + '</p>'; }).join('') + '</blockquote>');
+      quote = [];
+    }
+    function flushFigure(caption) {
+      if (!figure) return;
+      var src = figure.src === 'placeholder' ? CB.ph(1200, 675, '', '#96694c', '#2b241f') : figure.src;
+      out.push('<figure class="cb-ar__fig"><img src="' + c.url(src) + '" alt="' + c.attr(figure.alt) +
+               '" loading="lazy" decoding="async">' +
+               (caption ? '<figcaption>' + inline(caption) + '</figcaption>' : '') + '</figure>');
+      figure = null;
+    }
+    function flushAll() { flushList(); flushQuote(); flushFigure(''); }
+
+    lines.forEach(function (line) {
+      var t = line.trim(), m;
+      if (!t) { flushAll(); return; }
+
+      if (/^(-{3,}|\*{3,})$/.test(t)) { flushAll(); out.push('<hr>'); return; }
+
+      if ((m = /^(#{2,3})\s+(.+)$/.exec(t))) {
+        flushAll();
+        /* The block's own title is the h2, so the article's headings sit under
+           it: ## is an h3 and ### an h4. Heading level under Advanced shifts
+           all of them together. */
+        var tag = m[1].length === 2 ? 'h3' : 'h4';
+        out.push('<' + tag + '>' + inline(m[2]) + '</' + tag + '>');
+        return;
+      }
+      if ((m = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(t))) {
+        flushAll();
+        figure = { alt: m[1], src: m[2] };
+        return;
+      }
+      if (figure) { flushFigure(t); return; }
+
+      if ((m = /^[-*]\s+(.+)$/.exec(t)) || (m = /^\d+[.)]\s+(.+)$/.exec(t))) {
+        flushQuote();
+        var want = /^\d/.test(t) ? 'ol' : 'ul';
+        if (list && list.tag !== want) flushList();
+        if (!list) list = { tag: want, items: [] };
+        list.items.push(m[1]);
+        return;
+      }
+      if ((m = /^>\s?(.*)$/.exec(t))) { flushList(); quote.push(m[1]); return; }
+
+      flushList(); flushQuote();
+      out.push('<p' + (lead && paras === 0 ? ' class="cb-ar__lead"' : '') + '>' + inline(t) + '</p>');
+      paras++;
+    });
+    flushAll();
+    return out.join('\n');
+  }
+
+  CB.register({
+    id: 'article',
+    name: 'Article',
+    category: CAT,
+    icon: '¶',
+    blurb: 'Long-form copy — case studies, news, guides — typed as plain text with a few simple marks for headings, lists, quotes, images and links.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Case study' },
+      { k: 'title', t: 'text', label: 'Title', value: 'How to write in this block' },
+      {
+        k: 'meta', t: 'text', label: 'Byline or details', value: 'By the web team · 3 min read',
+        help: 'Author, date, reading time — whatever sits under a title. Leave empty for none.'
+      },
+
+      { t: 'section', label: 'Article' },
+      {
+        k: 'body', t: 'textarea', label: 'Article text', value: ARTICLE_SAMPLE, rows: 18,
+        help: 'Every line is a paragraph. ## heading · ### smaller heading · - bullet · 1. numbered · > pull quote · ' +
+              '![alt text](image address) with an optional caption on the next line · [link text](address) · ' +
+              '**bold** · *italic* · --- for a divider.'
+      },
+      { k: 'lead', t: 'toggle', label: 'Set the first paragraph as an introduction', value: true },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'measure', t: 'range', label: 'Line length', min: 50, max: 90, step: 2, unit: 'ch', value: 68,
+        help: 'Around 65 characters is the comfortable reading measure.' },
+      { k: 'align', t: 'select', label: 'Column', value: 'center', options: [['center', 'Centered on the page'], ['left', 'Aligned left']] },
+      { k: 'ratio', t: 'select', label: 'Image shape', value: '16/9', options: [['16/9', '16 : 9'], ['3/2', '3 : 2'], ['4/3', '4 : 3'], ['1/1', 'Square']] },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var body = articleBody(p.body, c, !!p.lead);
+      var hasHead = p.eyebrow || p.title || p.meta;
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-ar">
+          <div class="cb-wrap">
+            <article class="cb-ar__col">
+              ${hasHead ? `<header class="cb-ar__head">
+                ${p.eyebrow ? '<p class="cb-ar__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+                ${p.title ? '<h2 class="cb-ar__title">' + c.rich(p.title) + '</h2>' : ''}
+                ${p.meta ? '<p class="cb-ar__meta">' + c.esc(p.meta) + '</p>' : ''}
+              </header>` : ''}
+              <div class="cb-ar__body">
+        ${c.indent(body, 8)}
+              </div>
+            </article>
+          </div>
+        </section>`);
+
+      var css = `
+        ${s}.cb-ar { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-ar__col { max-width: ${c.clamp(c.num(p.measure, 68), 40, 100)}ch; ${p.align === 'left' ? '' : 'margin-inline: auto;'} }
+        ${s} .cb-ar__head { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--cb-border); }
+        ${s} .cb-ar__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-ar__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance;
+        }
+        ${s} .cb-ar__meta { margin-top: 12px; font-size: .85em; color: var(--cb-muted); }
+
+        /* One rhythm for everything in the body, so a heading, a list and a
+           figure all sit the same distance from what comes before them. */
+        ${s} .cb-ar__body > * + * { margin-top: 1.1em; }
+        ${s} .cb-ar__body p { color: var(--cb-ink); }
+        ${s} .cb-ar__lead { font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); line-height: calc(1.5 + var(--cb-body-leading, 0)); }
+        ${s} .cb-ar__body h3 {
+          margin-top: 1.9em;
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); text-wrap: balance;
+        }
+        ${s} .cb-ar__body h4 {
+          margin-top: 1.6em;
+          font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-ar__body h3 + *, ${s} .cb-ar__body h4 + * { margin-top: .6em; }
+        /* The reset takes bullets away from every list in the block, so an
+           article has to ask for them back. */
+        ${s} .cb-ar__body ul { list-style: disc; padding-left: 1.3em; }
+        ${s} .cb-ar__body ol { list-style: decimal; padding-left: 1.4em; }
+        ${s} .cb-ar__body li + li { margin-top: .45em; }
+        ${s} .cb-ar__body li::marker { color: var(--cb-brand-ink, var(--cb-brand)); }
+        ${s} .cb-ar__body blockquote {
+          margin-block: 1.6em; padding-left: 20px; border-left: 3px solid var(--cb-brand);
+        }
+        ${s} .cb-ar__body blockquote p {
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-body-scale, 1)); font-weight: 500;
+          line-height: calc(1.4 + var(--cb-body-leading, 0)); letter-spacing: -.01em; color: var(--cb-ink); text-wrap: balance;
+        }
+        ${s} .cb-ar__body a { color: var(--cb-brand-ink, var(--cb-brand)); text-decoration: underline; text-underline-offset: .18em; }
+        ${s} .cb-ar__body strong { font-weight: 700; }
+        ${s} .cb-ar__body em { font-style: italic; }
+        ${s} .cb-ar__body hr { border: 0; border-top: 1px solid var(--cb-border); margin-block: 2em; }
+        ${s} .cb-ar__fig { margin-block: 1.8em; }
+        ${s} .cb-ar__fig img {
+          display: block; width: 100%; aspect-ratio: ${p.ratio || '16/9'}; object-fit: cover;
+          border-radius: var(--cb-radius); background: var(--cb-subtle);
+        }
+        ${s} .cb-ar__fig figcaption { margin-top: 10px; font-size: .85em; color: var(--cb-muted); }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /* Step-by-Step                                                           */
+  /*                                                                        */
+  /* Installation and how-to guides. A real ordered list, so a screen       */
+  /* reader announces "step 3 of 5" from the markup; the big numerals are    */
+  /* drawn for sighted readers and hidden from the accessibility tree so    */
+  /* the position is not read out twice.                                    */
+  /* --------------------------------------------------------------------- */
+
+  function plainMarks(s) {
+    return String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').trim();
+  }
+
+  CB.register({
+    id: 'steps',
+    name: 'Step-by-Step',
+    category: CAT,
+    icon: '⒈',
+    blurb: 'Numbered installation or how-to steps with images and tip or caution callouts. Can describe the steps to search engines.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Installation' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Pulling cable through conduit' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'The order that keeps a pull smooth and the jacket undamaged.' },
+      {
+        k: 'minutes', t: 'number', label: 'Time it takes (minutes)', value: '',
+        help: 'Optional. Shown under the intro, and passed to search engines with the steps.'
+      },
+
+      { t: 'section', label: 'Steps' },
+      {
+        k: 'items', t: 'list', label: 'Steps', itemLabel: 'title',
+        fields: [
+          { k: 'image', t: 'image', label: 'Image', value: '' },
+          { k: 'alt', t: 'text', label: 'Alt text', value: '' },
+          { k: 'title', t: 'text', label: 'Step', value: 'Step title' },
+          { k: 'text', t: 'textarea', label: 'What to do', value: 'Describe this step.' },
+          { k: 'note', t: 'textarea', label: 'Callout', value: '', help: 'Optional. A tip — or a warning, if you choose Caution below.' },
+          { k: 'noteKind', t: 'select', label: 'Callout type', value: 'tip', options: [['tip', 'Tip'], ['caution', 'Caution']] }
+        ],
+        value: [
+          { image: CB.ph(800, 600, '1', '#96694c', '#2b241f'), alt: '', title: 'Plan the pull',
+            text: 'Measure the run, count the bends, and confirm conduit fill before any cable comes off the reel.',
+            note: '', noteKind: 'tip' },
+          { image: CB.ph(800, 600, '2', '#6f4c37', '#141210'), alt: '', title: 'Set up the reel',
+            text: 'Position the reel so the cable pays off the top in a smooth arc into the conduit, with no sharp turn at the entry.',
+            note: 'A second person feeding at the entry takes most of the strain off the pull.', noteKind: 'tip' },
+          { image: CB.ph(800, 600, '3', '#2b241f', '#4a443e'), alt: '', title: 'Lubricate as you go',
+            text: 'Apply pulling lubricant at the entry and at each pull point, in the quantity its maker recommends.',
+            note: 'Stay within the cable’s maximum pulling tension and sidewall pressure. Check the product data before you start.',
+            noteKind: 'caution' },
+          { image: CB.ph(800, 600, '4', '#4a443e', '#96694c'), alt: '', title: 'Leave enough at each end',
+            text: 'Leave enough cable at every box to make up terminations without strain.',
+            note: '', noteKind: 'tip' }
+        ]
+      },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'layout', t: 'select', label: 'Layout', value: 'list', options: [['list', 'One after another'], ['grid', 'Side by side']] },
+      { k: 'cols', t: 'range', label: 'Columns', min: 2, max: 4, step: 1, value: 3, when: { layout: ['grid'] } },
+      { k: 'ratio', t: 'select', label: 'Image shape', value: '4/3', options: [['4/3', '4 : 3'], ['16/9', '16 : 9'], ['1/1', 'Square'], ['none', 'No images']] },
+      {
+        k: 'schema', t: 'toggle', label: 'Describe the steps to search engines', value: true,
+        help: 'Adds HowTo structured data, so search results can show the steps. Invisible on the page.'
+      },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var items = (p.items || []).filter(Boolean);
+      var grid = p.layout === 'grid';
+      var showImg = p.ratio !== 'none';
+      var mins = Math.round(c.num(p.minutes, 0));
+
+      var steps = items.map(function (it, i) {
+        var img = showImg && it.image
+          ? '<div class="cb-stp__media"><img src="' + c.url(it.image) + '" alt="' + c.attr(it.alt) + '" loading="lazy" decoding="async"></div>'
+          : '';
+        var note = it.note
+          ? '<aside class="cb-stp__note cb-stp__note--' + (it.noteKind === 'caution' ? 'caution' : 'tip') + '">' +
+            '<strong class="cb-stp__noteLabel">' + (it.noteKind === 'caution' ? 'Caution' : 'Tip') + '</strong> ' +
+            c.rich(it.note) + '</aside>'
+          : '';
+        return c.dedent(`
+          <li class="cb-stp__item${img ? ' cb-stp__item--img' : ''}">
+            <span class="cb-stp__num" aria-hidden="true">${i + 1}</span>
+            ${img}
+            <div class="cb-stp__body">
+              ${it.title ? '<h3 class="cb-stp__t">' + c.rich(it.title) + '</h3>' : ''}
+              ${it.text ? '<p class="cb-stp__x">' + c.rich(it.text) + '</p>' : ''}
+              ${note}
+            </div>
+          </li>`);
+      }).join('\n');
+
+      var schema = '';
+      if (p.schema && items.length) {
+        var data = {
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: plainMarks(p.title) || 'Steps',
+          step: items.map(function (it, i) {
+            var st = { '@type': 'HowToStep', position: i + 1, name: plainMarks(it.title), text: plainMarks(it.text) };
+            /* Only a real address is worth giving a search engine — a
+               placeholder or an inline upload is not something it can fetch. */
+            if (it.image && !/^data:/i.test(it.image)) st.image = String(it.image);
+            return st;
+          })
+        };
+        if (p.sub) data.description = plainMarks(p.sub);
+        if (mins > 0) data.totalTime = 'PT' + mins + 'M';
+        schema = '\n  <script type="application/ld+json">' +
+          JSON.stringify(data, null, 2).replace(/</g, '\\u003c') + '<\/script>';
+      }
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-stp cb-stp--${grid ? 'grid' : 'list'}">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub || mins) ? `<header class="cb-stp__head">
+              ${p.eyebrow ? '<p class="cb-stp__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-stp__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-stp__sub">' + c.rich(p.sub) + '</p>' : ''}
+              ${mins > 0 ? '<p class="cb-stp__time">About ' + mins + ' minute' + (mins === 1 ? '' : 's') + '</p>' : ''}
+            </header>` : ''}
+            <ol class="cb-stp__list">
+        ${c.indent(steps, 6)}
+            </ol>
+          </div>${schema}
+        </section>`);
+
+      var cols = c.clamp(c.num(p.cols, 3), 2, 4);
+      var css = `
+        ${s}.cb-stp { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-stp__head { max-width: 660px; margin-bottom: 40px; }
+        ${s} .cb-stp__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-stp__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance;
+        }
+        ${s} .cb-stp__sub { margin-top: 10px; color: var(--cb-muted); }
+        ${s} .cb-stp__time { margin-top: 10px; font-size: .85em; color: var(--cb-muted); }
+
+        ${s} .cb-stp__list { display: grid; gap: ${grid ? '28px' : '36px'}; ${grid ? 'grid-template-columns: repeat(' + cols + ', minmax(0, 1fr));' : ''} }
+        ${s} .cb-stp__item { position: relative; display: grid; gap: 22px; align-items: start; }
+        ${grid
+          ? `${s} .cb-stp__item { grid-template-columns: 1fr; gap: 16px; }`
+          : `${s} .cb-stp__item { grid-template-columns: 44px minmax(0, 1fr); }
+             ${s} .cb-stp__item--img { grid-template-columns: 44px minmax(0, .75fr) minmax(0, 1.25fr); }
+             ${s} .cb-stp__item + .cb-stp__item { padding-top: 36px; border-top: 1px solid var(--cb-border); }`}
+
+        /* A drawn numeral in a circle. It is a shape, not a corner, so it stays
+           round whatever the corner radius is set to. */
+        ${s} .cb-stp__num {
+          display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+          background: var(--cb-brand); font-weight: 800; font-variant-numeric: tabular-nums;
+        }
+        ${c.pin([s + ' .cb-stp__num'], 'var(--cb-on-brand, #fff)')}
+        ${s} .cb-stp__media { overflow: hidden; border-radius: var(--cb-radius); background: var(--cb-subtle); }
+        ${s} .cb-stp__media img { display: block; width: 100%; aspect-ratio: ${showImg ? p.ratio : '4/3'}; object-fit: cover; }
+        ${s} .cb-stp__body { display: flex; flex-direction: column; gap: 10px; }
+        ${s} .cb-stp__t {
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-stp__x { color: var(--cb-muted); }
+        ${s} .cb-stp__note {
+          margin-top: 4px; padding: 12px 14px; font-size: .92em; color: var(--cb-ink);
+          background: var(--cb-subtle); border-left: 3px solid var(--cb-brand); border-radius: calc(var(--cb-radius) * .4);
+        }
+        /* Caution is told apart by its label and its edge, never by colour alone. */
+        ${s} .cb-stp__note--caution { border-left-color: #c2410c; }
+        ${s} .cb-stp__noteLabel { font-weight: 700; }
+
+        @media (max-width: 760px) {
+          ${s} .cb-stp__list { grid-template-columns: 1fr; }
+          ${s} .cb-stp__item--img { grid-template-columns: 44px minmax(0, 1fr); }
+          ${s} .cb-stp__item--img .cb-stp__media { grid-column: 2; }
+          ${s} .cb-stp__item--img .cb-stp__body { grid-column: 2; }
+        }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /* Data Bars                                                              */
+  /*                                                                        */
+  /* Figures drawn as bars or rings. It ships empty, for the same reason    */
+  /* Table does: every number here is a claim somebody has to stand behind, */
+  /* and a sample figure that survives into a live page is a false one.     */
+  /*                                                                        */
+  /* Nothing grows in from zero on scroll. A reveal that never finishes is  */
+  /* a harmless half-faded heading anywhere else in the library; here it    */
+  /* would be a bar stuck at nothing — a wrong reading, not a missing one.  */
+  /* --------------------------------------------------------------------- */
+
+  CB.register({
+    id: 'data-bars',
+    name: 'Data Bars',
+    category: CAT,
+    icon: '▭',
+    blurb: 'Figures as bars or rings — sustainability goals, test results, progress. Ships empty, because every number in it is a claim.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'By the numbers' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: '' },
+
+      { t: 'section', label: 'Figures' },
+      {
+        k: 'items', t: 'list', label: 'Figures', itemLabel: 'label', paste: true,
+        fields: [
+          { k: 'label', t: 'text', label: 'Label', value: '' },
+          { k: 'value', t: 'number', label: 'Value', value: '' },
+          { k: 'max', t: 'number', label: 'Out of', value: 100, help: 'What a full bar means — 100 for a percentage.' },
+          { k: 'display', t: 'text', label: 'Shown as', value: '', help: 'Optional. How the figure is written, like “78%” or “1.2M lbs”. Blank uses the value.' },
+          { k: 'note', t: 'text', label: 'Note', value: '' }
+        ],
+        value: []
+      },
+      {
+        k: 'source', t: 'text', label: 'Source', value: '',
+        help: 'Where the figures come from — “2025 Sustainability Report”. Shown under the chart.'
+      },
+
+      { t: 'section', label: 'Chart' },
+      { k: 'style', t: 'select', label: 'Draw as', value: 'bars', options: [['bars', 'Bars'], ['rings', 'Rings']] },
+      { k: 'cols', t: 'range', label: 'Rings per row', min: 2, max: 5, step: 1, value: 3, when: { style: ['rings'] } },
+      { k: 'fill', t: 'select', label: 'Fill', value: 'brand', options: [['brand', 'Brand color'], ['ink', 'Text color']] },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var rows = (p.items || []).filter(function (it) {
+        return it && String(it.value == null ? '' : it.value).trim() !== '' && !isNaN(parseFloat(it.value));
+      });
+      var rings = p.style === 'rings';
+
+      function pct(it) {
+        var max = c.num(it.max, 100) || 100;
+        return Math.round(c.clamp(c.num(it.value, 0) / max * 100, 0, 100) * 10) / 10;
+      }
+      function shown(it) {
+        if (String(it.display || '').trim()) return c.esc(it.display);
+        var max = c.num(it.max, 100);
+        return c.esc(String(it.value).trim()) + (max === 100 ? '%' : '');
+      }
+
+      var body;
+      if (!rows.length) {
+        body = '<p class="cb-db__empty">No figures yet. Add them under Figures, or paste them in from a spreadsheet.</p>';
+      } else if (rings) {
+        body = '<ul class="cb-db__rings">' + rows.map(function (it) {
+          return '<li class="cb-db__cell">' +
+            '<div class="cb-db__ring" style="--v: ' + pct(it) + '"><span class="cb-db__ringVal">' + shown(it) + '</span></div>' +
+            (it.label ? '<p class="cb-db__label">' + c.esc(it.label) + '</p>' : '') +
+            (it.note ? '<p class="cb-db__note">' + c.esc(it.note) + '</p>' : '') +
+            '</li>';
+        }).join('') + '</ul>';
+      } else {
+        body = '<ul class="cb-db__bars">' + rows.map(function (it) {
+          return '<li class="cb-db__row">' +
+            '<div class="cb-db__top"><span class="cb-db__label">' + c.esc(it.label || '') + '</span>' +
+            '<span class="cb-db__val">' + shown(it) + '</span></div>' +
+            '<div class="cb-db__track" aria-hidden="true"><span class="cb-db__fill" style="width: ' + pct(it) + '%"></span></div>' +
+            (it.note ? '<p class="cb-db__note">' + c.esc(it.note) + '</p>' : '') +
+            '</li>';
+        }).join('') + '</ul>';
+      }
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-db">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? `<header class="cb-db__head">
+              ${p.eyebrow ? '<p class="cb-db__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-db__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-db__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+            ${body}
+            ${p.source && rows.length ? '<p class="cb-db__source">Source: ' + c.esc(p.source) + '</p>' : ''}
+          </div>
+        </section>`);
+
+      var fill = p.fill === 'ink' ? 'var(--cb-ink)' : 'var(--cb-brand)';
+      var css = `
+        ${s}.cb-db { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-db__head { max-width: 660px; margin-bottom: 34px; }
+        ${s} .cb-db__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-db__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-db__sub { margin-top: 10px; color: var(--cb-muted); }
+        ${s} .cb-db__empty { color: var(--cb-muted); padding-block: 24px; }
+
+        ${s} .cb-db__bars { display: grid; gap: 22px; max-width: 820px; }
+        ${s} .cb-db__top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+        ${s} .cb-db__label { font-weight: 600; color: var(--cb-ink); }
+        ${s} .cb-db__val { font-weight: 700; color: var(--cb-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        ${s} .cb-db__track { height: 12px; background: var(--cb-border); border-radius: 999px; overflow: hidden; }
+        ${s} .cb-db__fill { display: block; height: 100%; background: ${fill}; border-radius: 999px; }
+        ${s} .cb-db__note { margin-top: 6px; font-size: .85em; color: var(--cb-muted); }
+
+        ${s} .cb-db__rings {
+          display: grid; gap: 32px 24px; text-align: center;
+          grid-template-columns: repeat(${c.clamp(c.num(p.cols, 3), 2, 5)}, minmax(0, 1fr));
+        }
+        /* The ring is a pseudo-element under a mask, so the figure in the
+           middle sits on the block's own ground and is judged against that —
+           and if a filter drops gradients or masks, the ring goes and the
+           figure stays. */
+        ${s} .cb-db__ring { position: relative; width: min(150px, 100%); aspect-ratio: 1; margin: 0 auto 14px; display: grid; place-items: center; }
+        ${s} .cb-db__ring::before {
+          content: ""; position: absolute; inset: 0; border-radius: 50%;
+          background-color: var(--cb-border);
+          background-image: conic-gradient(${fill} calc(var(--v) * 1%), var(--cb-border) 0);
+          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
+        }
+        ${s} .cb-db__ringVal {
+          position: relative; color: var(--cb-ink); font-variant-numeric: tabular-nums;
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          letter-spacing: -.02em;
+        }
+        ${s} .cb-db__cell .cb-db__note { margin-top: 4px; }
+        ${s} .cb-db__source { margin-top: 26px; font-size: .85em; color: var(--cb-muted); }
+
+        @media (max-width: 640px) {
+          ${s} .cb-db__rings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /* People                                                                 */
+  /*                                                                        */
+  /* Sales reps, specialists, leadership. The contact details are real      */
+  /* mailto: and tel: links showing the address and number themselves,      */
+  /* because the thing a visitor usually wants is to copy them.            */
+  /* --------------------------------------------------------------------- */
+
+  CB.register({
+    id: 'people',
+    name: 'People',
+    category: CAT,
+    icon: '☺',
+    blurb: 'Sales reps, specialists or leadership — photo, role, territory, and email and phone links people can actually use.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Talk to us' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Your local team' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'Specialists who know the products and the codes in your region.' },
+      { k: 'align', t: 'select', label: 'Heading alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center']] },
+
+      { t: 'section', label: 'People' },
+      {
+        k: 'items', t: 'list', label: 'People', itemLabel: 'name', paste: true,
+        fields: [
+          { k: 'photo', t: 'image', label: 'Photo', value: '' },
+          { k: 'alt', t: 'text', label: 'Alt text', value: '', help: 'Usually just their name. Leave empty if the name is already beside the photo.' },
+          { k: 'name', t: 'text', label: 'Name', value: 'Name' },
+          { k: 'role', t: 'text', label: 'Role', value: '' },
+          { k: 'area', t: 'text', label: 'Territory or specialty', value: '' },
+          { k: 'email', t: 'text', label: 'Email', value: '' },
+          { k: 'phone', t: 'text', label: 'Phone', value: '' },
+          { k: 'link', t: 'text', label: 'Profile link', value: '' },
+          { k: 'linkLabel', t: 'text', label: 'Profile link text', value: 'View profile' }
+        ],
+        value: [
+          { photo: CB.ph(400, 400, 'JE', '#96694c', '#2b241f'), alt: '', name: 'Jordan Ellis', role: 'Regional sales manager',
+            area: 'Southeast', email: 'jordan.ellis@example.com', phone: '+1 (770) 555-0142', link: '', linkLabel: 'View profile' },
+          { photo: CB.ph(400, 400, 'PN', '#6f4c37', '#141210'), alt: '', name: 'Priya Natarajan', role: 'Applications engineer',
+            area: 'Data center and industrial', email: 'priya.natarajan@example.com', phone: '+1 (770) 555-0167', link: '', linkLabel: 'View profile' },
+          { photo: CB.ph(400, 400, 'MB', '#2b241f', '#4a443e'), alt: '', name: 'Marcus Bell', role: 'Distributor accounts',
+            area: 'Midwest', email: 'marcus.bell@example.com', phone: '+1 (770) 555-0118', link: '', linkLabel: 'View profile' },
+          { photo: CB.ph(400, 400, 'ER', '#4a443e', '#96694c'), alt: '', name: 'Elena Ruiz', role: 'Training specialist',
+            area: 'Contractor programs', email: 'elena.ruiz@example.com', phone: '+1 (770) 555-0193', link: '', linkLabel: 'View profile' }
+        ]
+      },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'cols', t: 'range', label: 'Columns (desktop)', min: 2, max: 4, step: 1, value: 4 },
+      { k: 'photo', t: 'select', label: 'Photos', value: 'circle', options: [['circle', 'Round'], ['square', 'Square, follows the corner setting'], ['none', 'No photos']] },
+
+      { t: 'section', label: 'Style' },
+      { k: 'variant', t: 'select', label: 'Card style', value: 'outline', options: [['outline', 'Outlined'], ['elevated', 'Elevated'], ['flat', 'Flat / borderless']] },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var items = (p.items || []).filter(Boolean);
+      var photos = p.photo !== 'none';
+
+      var cards = items.map(function (it) {
+        var tel = String(it.phone || '').replace(/[^\d+]/g, '');
+        var contact = [];
+        if (it.email) contact.push('<li><a class="cb-pp__link" href="mailto:' + c.attr(String(it.email).trim()) + '">' + c.esc(it.email) + '</a></li>');
+        if (it.phone && tel) contact.push('<li><a class="cb-pp__link" href="tel:' + c.attr(tel) + '">' + c.esc(it.phone) + '</a></li>');
+        if (it.link) contact.push('<li><a class="cb-pp__link" href="' + c.url(it.link) + '">' + c.esc(it.linkLabel || 'View profile') + '</a></li>');
+        return c.dedent(`
+          <li class="cb-pp__card">
+            ${photos && it.photo ? '<img class="cb-pp__photo" src="' + c.url(it.photo) + '" alt="' + c.attr(it.alt) + '" loading="lazy" decoding="async">' : ''}
+            <div class="cb-pp__body">
+              ${it.name ? '<h3 class="cb-pp__name">' + c.esc(it.name) + '</h3>' : ''}
+              ${it.role ? '<p class="cb-pp__role">' + c.esc(it.role) + '</p>' : ''}
+              ${it.area ? '<p class="cb-pp__area">' + c.esc(it.area) + '</p>' : ''}
+              ${contact.length ? '<ul class="cb-pp__contact">' + contact.join('') + '</ul>' : ''}
+            </div>
+          </li>`);
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-pp">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? `<header class="cb-pp__head">
+              ${p.eyebrow ? '<p class="cb-pp__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-pp__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-pp__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+            <ul class="cb-pp__grid">
+        ${c.indent(cards, 6)}
+            </ul>
+          </div>
+        </section>`);
+
+      var card = {
+        outline: 'background: var(--cb-surface); border: 1px solid var(--cb-border);',
+        elevated: 'background: var(--cb-surface); border: 1px solid transparent; box-shadow: 0 12px 30px -22px rgba(20,18,16,.5);',
+        flat: 'background: transparent; border: 1px solid transparent; padding-inline: 0;'
+      }[p.variant] || '';
+      var cols = c.clamp(c.num(p.cols, 4), 2, 4);
+
+      var css = `
+        ${s}.cb-pp { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-pp__head { max-width: 660px; margin-bottom: 34px; ${p.align === 'center' ? 'margin-inline: auto; text-align: center;' : ''} }
+        ${s} .cb-pp__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-pp__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-pp__sub { margin-top: 10px; color: var(--cb-muted); }
+        ${s} .cb-pp__grid { display: grid; gap: 24px; grid-template-columns: repeat(${cols}, minmax(0, 1fr)); }
+        ${s} .cb-pp__card {
+          display: flex; flex-direction: column; gap: 16px; padding: 22px;
+          border-radius: var(--cb-radius); ${card}
+        }
+        ${s} .cb-pp__photo {
+          display: block; width: 96px; aspect-ratio: 1; object-fit: cover; background: var(--cb-subtle);
+          border-radius: ${p.photo === 'square' ? 'calc(var(--cb-radius) * .8)' : '50%'};
+        }
+        ${s} .cb-pp__body { display: flex; flex-direction: column; gap: 4px; }
+        ${s} .cb-pp__name {
+          font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-pp__role { font-size: .92em; color: var(--cb-ink); }
+        ${s} .cb-pp__area { font-size: .85em; color: var(--cb-muted); }
+        ${s} .cb-pp__contact { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; font-size: .92em; }
+        ${s} .cb-pp__link {
+          color: var(--cb-brand-ink, var(--cb-brand)); text-decoration: underline; text-underline-offset: .18em;
+          overflow-wrap: anywhere;
+        }
+        @media (max-width: 900px) { ${s} .cb-pp__grid { grid-template-columns: repeat(${Math.min(2, cols)}, minmax(0, 1fr)); } }
+        @media (max-width: 520px) { ${s} .cb-pp__grid { grid-template-columns: 1fr; } }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
 })();

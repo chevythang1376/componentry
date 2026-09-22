@@ -213,11 +213,25 @@
 
   /* ------------------------------------------------------- mount + probe */
 
+  /* Only the scripts a browser would run. A type="application/ld+json" block
+     is data for search engines: a real page leaves it where it is and never
+     executes it. Treating every script as code did both wrong at once — it
+     lifted the structured data out of the markup, so nothing could find it,
+     and handed the JSON to eval, which throws on the first key and takes the
+     block's real script down with it. It never showed while the only block
+     with structured data (FAQ) had it switched off by default. */
+  function runnable(s) {
+    var type = (s.getAttribute('type') || '').trim().toLowerCase();
+    return !type || type === 'text/javascript' || type === 'application/javascript' || type === 'module';
+  }
+
   function extract(html) {
     var doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
     var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
-    var js = Array.prototype.map.call(doc.querySelectorAll('script'), function (s) { return s.textContent; }).join('\n');
-    Array.prototype.forEach.call(doc.querySelectorAll('style,script'), function (n) { n.remove(); });
+    var code = Array.prototype.filter.call(doc.querySelectorAll('script'), runnable);
+    var js = code.map(function (s) { return s.textContent; }).join('\n');
+    Array.prototype.forEach.call(doc.querySelectorAll('style'), function (n) { n.remove(); });
+    code.forEach(function (n) { n.remove(); });
     return { markup: doc.body.innerHTML, css: css, js: js };
   }
 
@@ -273,7 +287,8 @@
       bytes: after.length,
       shrink: before.length ? Math.round((1 - after.length / before.length) * 100) : 0,
       style: /<style[\s>]/i.test(after),
-      script: /<script[\s>]/i.test(after),
+      /* A structured-data block is not a script surviving; only count ones that run. */
+      script: /<script(?![^>]*application\/ld\+json)[\s>]/i.test(after),
       aria: count(after, /\saria-[a-z]+=/gi),
       ariaBefore: count(before, /\saria-[a-z]+=/gi),
       data: count(after, /\sdata-[a-z-]+=/gi),

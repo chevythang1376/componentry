@@ -327,6 +327,42 @@ CB.Preflight = (function () {
         });
       })();
 
+      /* A calculator hands people a technical figure they will act on. The
+         formula and the conductor areas are standard, but the page it sits on
+         carries the company's name, so it should not ship on a designer's say
+         alone. */
+      if (def.id === 'calculator') out.push({
+        level: 'warn',
+        block: name,
+        title: 'Have engineering check this calculator before it ships',
+        detail: 'It gives a technical estimate people will act on. It checks voltage drop only, and says so under the result.',
+        fix: 'Ask an engineer to try a few runs they already know the answer to, and to approve the wording under it.'
+      });
+
+      /* Jump links that go nowhere. They can only be checked against this
+         project, so a section that lives elsewhere on the page is reported
+         too — which is why this is a warning and says so. */
+      if (def.id === 'jump-links') (function () {
+        var have = {};
+        instances.forEach(function (i) {
+          var a = String((i.props && i.props._anchor) || '').trim().replace(/\s+/g, '-');
+          if (a) have[a] = true;
+        });
+        var p = Object.assign(CB.defaults(def), inst.props || {});
+        var missing = (p.items || []).map(function (it) {
+          return String((it && it.target) || '').trim().replace(/^#+/, '').replace(/\s+/g, '-');
+        }).filter(function (id) { return id && !have[id]; });
+        if (missing.length) out.push({
+          level: 'warn',
+          block: name,
+          title: missing.length === 1 ? 'A jump link goes to a section this project does not have'
+                                      : missing.length + ' jump links go to sections this project does not have',
+          detail: missing.map(function (id) { return '#' + id; }).join(', ') +
+                  ' — no block here has that Anchor ID. If those sections are elsewhere on the page, ignore this.',
+          fix: 'Set the Anchor ID under Advanced on each block a link should reach.'
+        });
+      })();
+
       // Alt text the schema expects and nobody filled in.
       (function () {
         var missing = 0;

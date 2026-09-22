@@ -1013,6 +1013,101 @@ ${c.indent(slides, 12)}
       return { html: html, css: css, js: '' };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Announcement Bar                                                       */
+  /*                                                                        */
+  /* A thin strip for a launch, a recall or a service notice. Closing it   */
+  /* works with no script at all — a checkbox and :has() — so it still      */
+  /* closes where an editor strips scripts. Where scripts do run, it also   */
+  /* stays closed for the rest of the visit, keyed to the message, so a new */
+  /* message is seen even by someone who closed the last one.               */
+  /*                                                                        */
+  /* Each tone is a fixed pair of ground and ink rather than something that */
+  /* follows the scheme, except Quiet, which is meant to.                   */
+  /* --------------------------------------------------------------------- */
+
+  function anHash(s) {
+    var h = 0;
+    s = String(s || '');
+    for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+    return (h >>> 0).toString(36);
+  }
+
+  CB.register({
+    id: 'announcement',
+    name: 'Announcement Bar',
+    category: CAT,
+    icon: '▔',
+    blurb: 'A thin strip for a launch, a recall or a notice. Visitors can close it, and that works even where scripts are stripped.',
+    props: [
+      { t: 'section', label: 'Message' },
+      { k: 'message', t: 'text', label: 'Message', value: 'New for 2026: updated installation guides for every building wire product.' },
+      { k: 'linkText', t: 'text', label: 'Link text', value: 'See what changed', help: 'Leave empty for no link.' },
+      { k: 'linkUrl', t: 'text', label: 'Link', value: '#' },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'tone', t: 'select', label: 'Tone', value: 'brand',
+        options: [['brand', 'Brand color'], ['dark', 'Dark'], ['subtle', 'Quiet, follows the color scheme'], ['warning', 'Warning']]
+      },
+      { k: 'align', t: 'select', label: 'Alignment', value: 'center', options: [['center', 'Center'], ['left', 'Left']] },
+      {
+        k: 'dismiss', t: 'toggle', label: 'Let visitors close it', value: true,
+        help: 'Closing works without JavaScript. Where scripts run, it also stays closed for the rest of the visit.'
+      }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var tone = ['brand', 'dark', 'subtle', 'warning'].indexOf(p.tone) >= 0 ? p.tone : 'brand';
+      var pair = {
+        brand:   { bg: 'var(--cb-brand)', ink: 'var(--cb-on-brand, #fff)', pin: true },
+        dark:    { bg: 'var(--cb-deep, #141210)', ink: 'var(--cb-on-dark, #fff)', pin: true },
+        subtle:  { bg: 'var(--cb-band, #f7f4f1)', ink: 'var(--cb-ink)', pin: false },
+        warning: { bg: '#fcebc6', ink: '#1f1a14', pin: true }
+      }[tone];
+
+      var html = c.dedent(`
+        <div class="${c.cls} cb-an cb-an--${tone}" role="region" aria-label="Announcement">
+          <div class="cb-wrap cb-an__inner">
+            <p class="cb-an__msg">${c.rich(p.message || '')}${p.linkText
+              ? ' <a class="cb-an__link" href="' + c.url(p.linkUrl) + '">' + c.esc(p.linkText) + '<span aria-hidden="true"> →</span></a>'
+              : ''}</p>
+            ${p.dismiss ? `<label class="cb-an__close">
+              <input class="cb-an__toggle cb-sr" type="checkbox" aria-label="Dismiss announcement">
+              <span class="cb-an__x" aria-hidden="true">×</span>
+            </label>` : ''}
+          </div>
+        </div>`);
+
+      var css = `
+        ${s}.cb-an { background: ${pair.bg}; color: ${pair.ink}; border-bottom: 1px solid rgba(0,0,0,.08); }
+        ${s} .cb-an__inner {
+          display: flex; align-items: center; gap: 16px; min-height: 46px; padding-block: 10px;
+          ${p.align === 'left' ? '' : 'justify-content: center; text-align: center;'}
+        }
+        ${s} .cb-an__msg { font-size: .92em; font-weight: 500; line-height: 1.45; color: inherit; ${p.dismiss ? 'flex: 1 1 auto;' : ''} }
+        ${s} .cb-an__link { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: .18em; white-space: nowrap; }
+        ${s} .cb-an__close { position: relative; flex: none; display: grid; place-items: center; width: 32px; height: 32px; cursor: pointer; border-radius: 50%; }
+        ${s} .cb-an__close:hover { background: rgba(127,127,127,.18); }
+        ${s} .cb-an__x { font-size: 1.12em; line-height: 1; font-weight: 700; color: inherit; }
+        ${s} .cb-an__toggle:focus-visible + .cb-an__x { outline: 2px solid currentColor; outline-offset: 5px; border-radius: 50%; }
+        /* Closing is a checkbox and :has(), so it needs no script. */
+        ${s}:has(.cb-an__toggle:checked) { display: none; }
+        ${pair.pin ? c.pin([s + ' .cb-an__msg', s + ' .cb-an__link', s + ' .cb-an__x'], pair.ink) : ''}`;
+
+      var js = p.dismiss ? c.wrap(c.cls, `
+        var key = "cb-an-${anHash(String(p.message || '') + '|' + String(p.linkText || ''))}";
+        try { if (window.sessionStorage && sessionStorage.getItem(key)) { root.style.display = "none"; return; } } catch (e) {}
+        var box = root.querySelector(".cb-an__toggle");
+        if (!box) return;
+        box.addEventListener("change", function () {
+          if (!box.checked) return;
+          try { sessionStorage.setItem(key, "1"); } catch (e) {}
+        });`) : '';
+
+      return { html: html, css: css, js: js };
+    }
+  });
 })();
-
-
