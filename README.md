@@ -50,7 +50,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 ---
 
-## The 30 components
+## The 41 components
 
 | Category | Component | Notes |
 |---|---|---|
@@ -59,6 +59,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Video Hero | Muted looping background video, poster fallback, pause control |
 | | Split Hero | Copy + image, reversible, optional tick list |
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
+| | Announcement Bar | A thin strip for a launch, a recall or a notice. Closing it is a checkbox and `:has()`, so it works where scripts are stripped; where they run, it stays closed for the rest of the visit, and a new message shows again |
 | **Content** | Card Grid | "Whole card clickable" via a pseudo-element, so text stays selectable |
 | | Feature Grid | Icon + title + blurb, four icon treatments |
 | | Stats Counter | Counts up on scroll via `IntersectionObserver` |
@@ -67,16 +68,24 @@ so the deploy that introduces it is the last one that can go stale.
 | | Webinar Library | Recorded and upcoming sessions, newest first. Sorted when the code is generated, not in the browser, so the order survives an editor that strips scripts |
 | | Kinetic Text Reveal | A statement that assembles as it scrolls in, by line, word or letter. The split happens when the code is generated, not by a script in the browser — so it is the CSS-only version of an effect every library builds with JavaScript. The whole sentence stays on the heading as its accessible name, and the pieces are hidden from the accessibility tree |
 | | Table | Ships empty and offers **Import cells** first — paste a block from a spreadsheet and it builds the table. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
+| | Article | Long-form copy typed as plain text: a line is a paragraph, and `##`, `-`, `1.`, `>`, `![alt](url)`, `[text](url)` and `**bold**` become headings, lists, a pull quote, a captioned figure, links and emphasis. Converted when the code is generated, so there is no parser in the page and the result is ordinary HTML. Zero JS |
+| | Step-by-Step | Numbered steps in a real `<ol>`, with photos and tip or caution callouts. A caution is labelled in words, not only by colour. Optional `HowTo` JSON-LD with a total time. Zero JS |
+| | Data Bars | Figures as bars or rings, each against its own maximum and held at full past it. Ships empty — every number in it is a claim — and pastes from a spreadsheet. The figure is always written as text as well as drawn. Zero JS |
+| | People | Reps and specialists: photo or initials, role, territory, and email and phone as real `mailto:` / `tel:` links, with the address shown so it can be copied. Pastes from a spreadsheet. Zero JS |
 | **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
 | | Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay. Slides are either captioned images or **product cards** — flag, spec line and button underneath — from the one mechanism, because the scrolling and keyboard handling is the part worth having only one copy of |
 | | Testimonial Slider | Cross-fade, ratings, height-equalised so the page doesn't jump |
 | | Interactive Diagram | Hotspots over an image with a docked detail panel, zoom-to-point and a filtering legend. Core needs no JS |
+| | Jump Links | “On this page” links to sections further down. Can stay fixed at the top while you scroll and mark where you are with `aria-current`. Plain anchor links without the script; preflight warns about any link whose section is not on the page |
+| | Video Library | One player and a list of videos beside it. Every video is a real link to its watch page, so it still works with scripts stripped, and nothing loads from YouTube or Vimeo until someone presses play |
+| | Voltage Drop Calculator | Copper or aluminum, single- or three-phase, 14 AWG to 750 kcmil, from NEC Chapter 9, Table 8 circular mils. The starting result is written into the markup, so it reads correctly before any script runs. Voltage drop only, with the formula and its limits printed under it — it never suggests a conductor size, and preflight asks for an engineering check before it ships |
 | **Media & Utility** | Before / After Slider | Built on a real `<input type="range">` |
 | | Gallery + Lightbox | Masonry or uniform; lightbox is a native `<dialog>` |
-| | Logo Marquee | Seamless loop, duplicate track hidden from screen readers |
+| | Logo Marquee | Seamless loop, duplicate track hidden from screen readers. Can also sit still as a wrapping row, for a page where motion is not wanted |
 | | Countdown Timer | Announces once a minute, not once a second |
 | | Video Embed (lite) | Click-to-load facade — nothing loads from YouTube until you press play |
+| | Events | Trade shows and training days, sorted soonest first when the code is generated. Google Calendar and `.ics` links, `Event` JSON-LD, and past events hide themselves where scripts run. Pastes from a spreadsheet |
 | **Modern Layout** | Bento Grid | Asymmetric tiles with mixed spans and per-tile tones. Zero JS |
 | | Sticky Stacking Cards | Cards pin and stack on scroll, built on `position: sticky`. Zero JS |
 | | Split Reveal | A panel that opens like blinds as you scroll. The copy sits *beside* the panel, never under it, so a cover that never opens costs you the photograph and not the message. Zero JS |
@@ -84,6 +93,8 @@ so the deploy that introduces it is the last one that can go stale.
 | **Product Showcase** | Finish Switcher | Swatches crossfade the product shot. Real radio inputs + `:has()`, zero JS |
 | | Pinned Product Scroller | Product pins centre-screen while copy scrolls past, swapping shots per step |
 | | Spec Strip | Row of headline specs with hairline dividers |
+| | Resource Library | Spec sheets, guides and safety data sheets, filtered by category with radio inputs and `:has()`. The filter needs no JavaScript, so it survives any editor that keeps styles. Pastes from a spreadsheet |
+| | Where to Buy | Retailers, distributors and online sellers as logo tiles, grouped by the kind of seller. A seller with no logo gets a wordmark; new-tab links say so to a screen reader. Pastes from a spreadsheet. Zero JS |
 
 ---
 
@@ -211,7 +222,7 @@ the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-30 components, 240 round-trips, 154 assertions.
+41 components, 328 round-trips, 211 assertions.
 
 Run it in a **desktop-width window**. Several blocks deliberately drop a behaviour below a
 breakpoint — sticky pinning, multi-column spans — and the probes assert whichever branch
@@ -221,27 +232,31 @@ are measured at 1280px.
 
 | Insertion path | Fully working | Keeps CSS | Keeps JS |
 |---|---|---|---|
-| **Code / embed block** (verbatim) | **30/30** | yes | yes |
-| **TinyMCE**, permissive config | **30/30** | yes | yes |
-| **DOMPurify**, style+script allowed | **30/30** | yes | yes |
-| DOMPurify, defaults | 19/30 | yes | no |
-| GrapesJS (page builder) | 17/30 | yes | no |
-| `wp_kses_post` (approximated) | 6/30 | no | no |
-| TinyMCE, stock config | 6/30 | no | no |
-| Quill | 0/30 | no | no |
+| **Code / embed block** (verbatim) | **41/41** | yes | yes |
+| **TinyMCE**, permissive config | **41/41** | yes | yes |
+| **DOMPurify**, style+script allowed | **41/41** | yes | yes |
+| DOMPurify, defaults | 28/41 | yes | no |
+| GrapesJS (page builder) | 25/41 | yes | no |
+| `wp_kses_post` (approximated) | 12/41 | no | no |
+| TinyMCE, stock config | 12/41 | no | no |
+| Quill | 0/41 | no | no |
 
 The pattern is consistent and worth internalising:
 
 - **Paste into a code/embed block, never a rich-text area.** Rich-text editors are *supposed*
   to strip `<script>` and `<style>` — that is their job, not a bug. Every platform that
   matters offers a raw-HTML block; use it.
-- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 15 components
+- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 21 components
   that need no JavaScript still work perfectly and the rest render correctly but sit inert.
   Nothing looks broken, it just doesn't move. This is why the newest blocks — Bento Grid,
   Sticky Stacking Cards, Mosaic Grid, Split Reveal, Kinetic Text Reveal, the scroll reveal
   and the Interactive Diagram — are built in pure CSS: they are the ones that survive here.
   Half the library now needs no JavaScript at all, which is a deliberate direction rather
-  than a coincidence: every block added since the scroll work has been built CSS-first.
+  than a coincidence: blocks are built CSS-first wherever the behaviour allows it. Of the
+  eleven added most recently, six need no script, and the other five degrade to something
+  that still does its job — Jump Links to plain anchor links, Video Library to links to
+  each watch page, Announcement Bar to a close button that forgets on the next page, the
+  calculator to its starting result, and Events to a list that no longer hides past dates.
 - **Structure and ARIA are resilient.** Even where all styling is stripped, sanitisers keep
   the semantics — so a stripped component stays readable and screen-reader navigable.
 
@@ -281,7 +296,7 @@ Choose a target platform and the format switches to what that platform actually 
 | **Split files** | Webflow, HubSpot — separate HTML / CSS / JS panes |
 | **Full page** | Wix and other iframe-sandboxed embeds; also a standalone hand-off file |
 
-Platform notes cover the real gotchas: Webflow's 50 kB embed cap, Squarespace not
+Platform notes cover the real gotchas: Webflow's 50,000-character embed cap, Squarespace not
 running scripts in edit mode, the WordPress Visual tab stripping `<script>`, Wix
 embeds being sandboxed iframes that can't self-size.
 
@@ -289,7 +304,7 @@ embeds being sandboxed iframes that can't self-size.
 
 Every block needs the same ~9.5 kB of defensive reset and design tokens. Stating it inside
 each one meant a page of five blocks spent **most of its CSS on the same rules repeated
-five times** — and cleared Webflow's 50 kB cap on its own.
+five times** — and cleared Webflow's 50,000-character cap on its own.
 
 With more than one block, that base is now stated once for the page against a shared
 `cb-scope` class that every component root already carries. Measured on the four starter
@@ -297,11 +312,11 @@ pages the library actually ships, rather than on an abstract five:
 
 | Page | Blocks | Reset per block | Reset shared | |
 |---|---|---|---|---|
-| Support page | 4 | 48.1 kB CSS | **17.5 kB** | −64% |
-| Product page | 5 | 68.8 kB CSS | **27.2 kB** | −61% |
-| Capability page | 5 | 71.6 kB CSS | **30.6 kB** | −57% |
-| Landing page | 6 | 78.7 kB CSS | **27.5 kB** | −65% |
-| All 30 | 30 | 409.0 kB CSS | **114.6 kB** | −72% |
+| Support page | 4 | 50.9 kB CSS | **18.3 kB** | −64% |
+| Product page | 5 | 73.6 kB CSS | **29.3 kB** | −60% |
+| Capability page | 5 | 75.7 kB CSS | **32.1 kB** | −58% |
+| Landing page | 6 | 83.2 kB CSS | **28.8 kB** | −65% |
+| All 41 | 41 | 573.3 kB CSS | **154.2 kB** | −73% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -311,14 +326,18 @@ Complete exports of those starters, HTML + CSS + JS together:
 
 | Page | As written | Minified |
 |---|---|---|
-| Support page | 28.0 kB | **20.4 kB** |
-| Product page | 42.8 kB | **32.1 kB** |
-| Capability page | 50.4 kB | **39.9 kB** |
-| Landing page | 61.7 kB | **48.6 kB** |
+| Support page | 29.3 kB | **21.4 kB** |
+| Product page | 45.9 kB | **33.8 kB** |
+| Capability page | 52.5 kB | **41.6 kB** |
+| Landing page | 64.0 kB | **50.5 kB** |
 
-All four fit inside Webflow's 50 kB embed cap minified, though the Landing page only just —
-at 48.6 kB it is the one to watch if you add to it. Any single block is far under; the
-largest, Interactive Diagram, is about 26 kB.
+Three of the four fit in one Webflow embed minified. **The Landing page no longer does:** it
+has grown to 50,464 characters, and Webflow stops at 50,000. For a while that went unseen,
+because preflight had the cap as 50 × 1024 — 51,200 — and so passed it. Webflow's own
+advice is the way round it, and what the Webflow export already does: HTML in the Embed
+element, CSS in the page's head code, script before `</body>`. Split that way the largest
+piece is under 20,000 characters. Any single block fits on its own; the largest,
+Interactive Diagram, is about 28,600 characters minified.
 
 The markup is **byte-identical either way** — switching modes never means re-pasting your
 HTML — and a single block is unchanged, since it has nothing to share with. Rendering is
@@ -381,8 +400,9 @@ a claim that the block takes tabular data. A list now opts in, so the decision s
 whoever knows the shape of the content.
 
 The rule: a list offers it when it **routinely runs long, or arrives already written down
-somewhere else** — webinars, milestones, questions, logos, specs. Three cards with images
-do not.
+somewhere else** — webinars, milestones, questions, logos, specs, and now documents,
+events, people, sellers and figures. Three cards with images do not, and nor do the steps
+of a how-to or the videos in a library: those are written for the page, not copied into it.
 
 Where it is offered: Excel and Sheets put tab-separated text on the clipboard, a CSV export
 gives commas and quotes, and both are read. Columns are matched to fields by the name
@@ -545,7 +565,7 @@ Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
 
 ### Advanced controls (every component)
 
-Applied centrally, so they behave identically on all 30 blocks:
+Applied centrally, so they behave identically on all 41 blocks:
 
 | Control | Why it's there |
 |---|---|
@@ -563,10 +583,11 @@ Applied centrally, so they behave identically on all 30 blocks:
 | **Visibility** | Hide on mobile (≤640px) or desktop (>640px) |
 | **Reveal on scroll** | Fade, fade-up or scale as the block enters the viewport |
 
-The three type controls only appear where they can do something. Logo Marquee
-has a kicker and logos but no heading, so it is not offered heading size or
-heading letter spacing; every other block is. A control that cannot change
-anything is just noise, and Advanced repeats on all 30 blocks.
+The three type controls only appear where they can do something. Logo Marquee,
+Announcement Bar and Jump Links have no heading, and Table has none until it is
+given cells, so none of them is offered heading size or heading letter spacing;
+every other block is. A control that cannot change anything is just noise, and
+Advanced repeats on all 41 blocks.
 
 
 ### Typography (Design tokens → Typography)
@@ -611,12 +632,13 @@ counted per component:
 
 | Control group | Reaches |
 |---|---|
-| Body size · letter spacing · line height | **30 of 30** |
-| Heading size · letter spacing · line height · weight | **28 of 30** |
-| Eyebrow size · letter spacing · weight | **19 of 30** |
+| Body size · letter spacing · line height | **41 of 41** |
+| Heading size · letter spacing · line height · weight | **37 of 41** |
+| Eyebrow size · letter spacing · weight | **26 of 41** |
 
-Both heading misses are correct rather than gaps. Logo Marquee has no heading —
-which is why it is not offered the control at all. Table ships empty, so at
+All four heading misses are correct rather than gaps. Logo Marquee, Announcement
+Bar and Jump Links have no heading — which is why they are not offered the
+control at all. Table ships empty, so at
 default content it renders a placeholder line and no heading; give it cells and
 its title and eyebrow follow the tokens like everything else. The eyebrow figure
 is simply how many blocks have an eyebrow.
@@ -1049,7 +1071,7 @@ thing anyone did was delete somebody else's page.
 
 Four starters sit above the component list instead, each dropping a ready arrangement you
 can edit down: **Landing page**, **Product page**, **Capability page**, **Support page**.
-Search finds them by name too. Quicker than deciding which of 30 blocks belong together
+Search finds them by name too. Quicker than deciding which of 41 blocks belong together
 before you've seen any of them.
 
 ### Contrast, while you choose
@@ -1078,7 +1100,7 @@ a copy, or point image fields at URLs instead of uploading.
 - **Countdown → when it reaches zero**: show a message, hide the block, or hold at zero.
 
 Toggles that are off cost nothing: the code for them isn't emitted at all, which keeps
-exports under Webflow's 50 kB embed cap.
+exports under Webflow's 50,000-character embed cap.
 
 **Shortcuts:** `Ctrl+Z` undo · `Ctrl+Shift+Z` redo · `Ctrl+S` save · `Ctrl+E` export ·
 `Delete` remove selected.
@@ -1100,16 +1122,21 @@ js/app.js               State, history, persistence, wiring
 js/freshness.js         Notices when the browser is holding a stale index.html
 version.txt             Build id, written by bump.sh; what freshness.js compares against
 js/components/
-  heroes.js             parallax-banner, video-hero, split-hero, cta-banner, hero-slider
+  heroes.js             parallax-banner, video-hero, split-hero, cta-banner, hero-slider,
+                        announcement
   content.js            card-grid, feature-grid, stats-counter, timeline, pricing,
-                        webinar-grid, kinetic-text, table
-  interactive.js        accordion, tabs, carousel, testimonials
-  media.js              before-after, gallery, logo-marquee, countdown, video-embed
+                        webinar-grid, kinetic-text, table, article, steps,
+                        data-bars, people
+  interactive.js        accordion, tabs, carousel, testimonials, jump-links,
+                        video-library, calculator
+  media.js              before-after, gallery, logo-marquee, countdown, video-embed,
+                        events
   modern.js             bento-grid, sticky-stack, mosaic-grid, split-reveal (all zero-JS)
-  product.js            finish-switcher, pinned-product, spec-strip
+  product.js            finish-switcher, pinned-product, spec-strip, resource-library,
+                        where-to-buy
   diagram.js            hotspot-diagram
 test/
-  gallery.html          Renders all 30 through the real export path; reports failures,
+  gallery.html          Renders all 41 through the real export path; reports failures,
                         and fails if any laid-out image reserves no space for
                         itself — the omission half of Cumulative Layout Shift
   hostile-host.html     Pastes exports into a deliberately awful theme, and asserts
@@ -1118,8 +1145,10 @@ test/
                         paint — the checks that would have caught the page below a
                         Parallax Banner turning bold; 173 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
-                        240 round-trips, then functionally probes what survives;
-                        154 assertions
+                        328 round-trips, then functionally probes what survives.
+                        Structured data (JSON-LD) is left in the markup rather
+                        than run as script, so a stripped editor that keeps it
+                        is credited for it; 211 assertions
   degrade.html          Removes one CSS capability at a time (background-clip,
                         gradients, clip-path, backdrop-filter, images, scroll
                         timelines) and reports text that becomes unreadable.
@@ -1137,8 +1166,11 @@ test/
   preflight.html        Asserts the findings are actionable: nothing fires on an
                         untouched project, everything fires once a real image
                         goes in undescribed, a dead image link is an error, a
-                        correct 2x image is left alone, and an untouched table
-                        is caught before it ships; 31 assertions
+                        correct 2x image is left alone, an untouched table
+                        is caught before it ships, a calculator asks for an
+                        engineering check, a jump link to a section the
+                        project lacks is named, and Webflow's cap is held in
+                        the characters Webflow counts; 42 assertions
   scroll-range.html     The case the degradation harness cannot reach: scroll
                         timelines exist but never advance — a block nobody
                         scrolls to, a preview frame that does not scroll. Asserts
@@ -1209,8 +1241,8 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 653 assertions**, plus two that report coverage rather than a count:
-`gallery.html` builds all 30 through the real export path, and `degrade.html` judges all 30
+**Thirteen harnesses, 721 assertions**, plus two that report coverage rather than a count:
+`gallery.html` builds all 41 through the real export path, and `degrade.html` judges all 41
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
 Open the files in `test/` in a browser — each prints a pass/fail banner at the top.

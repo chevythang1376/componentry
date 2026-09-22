@@ -759,6 +759,177 @@ window.CBProbe = (function () {
     radios[0].checked = true;
   });
 
+  /* ------------------------------------------- resources, contact, wayfinding */
+  /* Several of these blocks are links first and script second: a video is a
+     link to its watch page, the play button is a link, the calculator is a
+     form. Where an editor has stripped the script, clicking one of those links
+     would navigate the harness itself away, so any probe that clicks checks
+     first that the block's script actually ran (it stamps data-cb-ready). */
+
+  function scripted(root) { return !!root.getAttribute('data-cb-ready'); }
+
+  register('announcement', function (root, t) {
+    var msg = q(root, '.cb-an__msg');
+    t.ok('message rendered', !!msg && msg.textContent.trim().length > 0);
+    var box = q(root, '.cb-an__toggle');
+    t.ok('close control present, with a name', !!box && !!box.getAttribute('aria-label'));
+    if (!box) return;
+    /* Set the property rather than clicking, so no change event fires and the
+       session is not told to keep it closed for the rest of this run. */
+    box.checked = true;
+    t.ok('closing hides it with no script', getComputedStyle(root).display === 'none');
+    box.checked = false;
+    t.ok('and it returns when unchecked', getComputedStyle(root).display !== 'none');
+  });
+
+  register('article', function (root, t) {
+    var body = q(root, '.cb-ar__body');
+    t.ok('title rendered', !!q(root, '.cb-ar__title'));
+    if (!body) return;
+    t.ok('the marks became headings', qa(body, 'h3').length >= 1 && qa(body, 'h4').length >= 1);
+    t.ok('dashes became a bulleted list', qa(body, 'ul li').length >= 2);
+    t.ok('numbers became an ordered list', qa(body, 'ol li').length >= 2);
+    t.ok('an angle bracket became a pull quote', !!q(body, 'blockquote'));
+    t.ok('an image with its caption', !!q(body, 'figure img') && !!q(body, 'figcaption'));
+    t.ok('a link', !!q(body, 'a[href^="https://"]'));
+    t.ok('no raw marks left in the text', !/(^|\s)#{2,3}\s|\*\*|!\[/.test(body.textContent));
+    t.ok('the reset’s missing bullets were asked back for',
+         getComputedStyle(q(body, 'ul')).listStyleType === 'disc', getComputedStyle(q(body, 'ul')).listStyleType);
+  });
+
+  register('steps', function (root, t) {
+    var items = qa(root, '.cb-stp__item');
+    t.ok('steps rendered', items.length >= 3, items.length + ' steps');
+    t.ok('in a real ordered list', !!q(root, 'ol.cb-stp__list'));
+    var nums = qa(root, '.cb-stp__num').map(function (n) { return n.textContent.trim(); }).join(',');
+    t.ok('numbered in order', nums === items.map(function (_, i) { return i + 1; }).join(','), nums);
+    t.ok('a caution is labelled in words, not only by colour',
+         /Caution/.test((q(root, '.cb-stp__note--caution') || {}).textContent || ''));
+    var ld = q(root, 'script[type="application/ld+json"]'), data = null;
+    try { data = JSON.parse(ld.textContent); } catch (e) { data = null; }
+    t.ok('the steps are described to search engines',
+         !!data && data['@type'] === 'HowTo' && data.step.length === items.length,
+         data ? data.step.length + ' HowToStep' : 'no structured data');
+  });
+
+  /* Data Bars ships empty — every figure in it is a claim — so the probe
+     brings its own, obviously test figures, the same way Table's does. */
+  sample('data-bars', {
+    items: [
+      { label: 'Test figure one', value: 78, max: 100, display: '', note: '' },
+      { label: 'Test figure two', value: 12, max: 40, display: '12 of 40', note: '' },
+      { label: 'Test figure three', value: 140, max: 100, display: '', note: '' }
+    ]
+  });
+  register('data-bars', function (root, t) {
+    var fills = qa(root, '.cb-db__fill');
+    t.ok('a bar for every figure', fills.length === 3, fills.length + ' bars');
+    t.ok('a bar is as long as its figure', !!fills[0] && fills[0].style.width === '78%', fills[0] && fills[0].style.width);
+    t.ok('against its own maximum, not 100', !!fills[1] && fills[1].style.width === '30%', fills[1] && fills[1].style.width);
+    t.ok('a figure over the maximum is held at full', !!fills[2] && fills[2].style.width === '100%', fills[2] && fills[2].style.width);
+    t.ok('the figure is written as text, not only drawn', qa(root, '.cb-db__val').length === fills.length);
+  });
+
+  register('people', function (root, t) {
+    var cards = qa(root, '.cb-pp__card');
+    t.ok('people rendered', cards.length >= 3, cards.length + ' cards');
+    var mail = qa(root, 'a[href^="mailto:"]'), tel = qa(root, 'a[href^="tel:"]');
+    t.ok('email is a real mailto link', mail.length === cards.length);
+    t.ok('phone is a real tel link, digits only',
+         tel.length === cards.length && tel.every(function (a) { return /^tel:\+?\d+$/.test(a.getAttribute('href')); }),
+         tel[0] && tel[0].getAttribute('href'));
+    t.ok('the address itself is shown, so it can be copied', !!mail[0] && /@/.test(mail[0].textContent));
+  });
+
+  register('jump-links', function (root, t) {
+    var links = qa(root, '.cb-jl__a');
+    t.ok('links rendered', links.length >= 3, links.length + ' links');
+    t.ok('each points at an anchor', links.every(function (a) { return /^#[\w-]+$/.test(a.getAttribute('href')); }));
+    t.ok('a navigation landmark with a name', root.getAttribute('role') === 'navigation' && !!root.getAttribute('aria-label'));
+    t.ok('not a bare nav element for a theme to restyle', root.tagName.toLowerCase() !== 'nav');
+  });
+
+  register('video-library', function (root, t) {
+    var items = qa(root, '.cb-vl__item');
+    var frame = q(root, '.cb-vl__frame');
+    t.ok('videos listed', items.length >= 3, items.length + ' videos');
+    t.ok('nothing loaded from the video host yet', !q(root, 'iframe'));
+    t.ok('every video is a real link, for when scripts are stripped',
+         items.every(function (a) { return /^https:\/\//.test(a.getAttribute('href')); }));
+    if (!scripted(root)) { t.skip('switching and playing need the script'); return; }
+    click(items[1]);
+    t.ok('choosing a video marks it current',
+         items[1].getAttribute('aria-current') === 'true' && !items[0].hasAttribute('aria-current'));
+    t.ok('and the player takes its title', frame.getAttribute('data-label') === items[1].getAttribute('data-title'));
+    click(q(root, '.cb-vl__play'));
+    var iframe = q(root, '.cb-vl__frame iframe');
+    t.ok('play loads the player', !!iframe);
+    t.ok('player iframe is titled', !!iframe && !!iframe.title);
+  });
+
+  register('calculator', function (root, t) {
+    var form = q(root, '.cb-vd__form');
+    function out(n) { return ((q(root, '[data-out="' + n + '"]') || {}).textContent || '').trim(); }
+    /* 2 x 12.9 x 20 A x 100 ft / 6,530 cmil = 7.90 V. Written into the markup
+       when the code is generated, so it is right before any script runs. */
+    t.ok('the starting values are already worked out in the markup', out('vd') === '7.90 V', out('vd'));
+    if (!form || !scripted(root)) { t.skip('recalculating needs the script'); return; }
+    form.elements.size.value = '8';
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+    t.ok('changing the size recalculates', out('vd') === '3.13 V', out('vd'));
+    t.ok('and the percentage follows', out('pct') === '2.60%', out('pct'));
+    form.elements.system.value = '3';
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+    t.ok('three-phase uses the square root of 3', out('vd') === '2.71 V', out('vd'));
+    t.ok('the verdict is in words', /Within|Above/.test(out('verdict')), out('verdict'));
+    form.elements.size.value = '12';
+    form.elements.system.value = '1';
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  register('events', function (root, t) {
+    var items = qa(root, '.cb-ev__item');
+    t.ok('events rendered', items.length >= 2, items.length + ' events');
+    var starts = qa(root, '.cb-ev__meta time').map(function (x) { return x.getAttribute('datetime'); });
+    t.ok('soonest first survived the paste',
+         starts.length > 1 && starts.every(function (d, i) { return i === 0 || starts[i - 1] <= d; }), starts.join(' < '));
+    t.ok('an add-to-calendar link is offered', !!q(root, 'a[href^="https://calendar.google.com/"]'));
+    var ics = q(root, 'a[href^="data:text/calendar"]');
+    if (ics) t.ok('the .ics file is a real calendar entry', /BEGIN%3AVCALENDAR/.test(ics.getAttribute('href')));
+    else t.skip('the .ics link was removed on this path — data: links often are');
+    var ld = q(root, 'script[type="application/ld+json"]'), data = null;
+    try { data = JSON.parse(ld.textContent); } catch (e) { data = null; }
+    var list = data ? (data['@graph'] || [data]) : [];
+    t.ok('the events are described to search engines',
+         list.length === items.length && list.every(function (e) { return e['@type'] === 'Event' && !!e.startDate; }),
+         list.length + ' Event');
+  });
+
+  register('resource-library', function (root, t) {
+    var items = qa(root, '.cb-rl__item');
+    var radios = qa(root, '.cb-rl__f');
+    t.ok('documents rendered', items.length >= 3, items.length + ' documents');
+    t.ok('a filter for each category, and All', radios.length >= 3, radios.length + ' filters');
+    function visible() { return items.filter(function (li) { return getComputedStyle(li).display !== 'none'; }).length; }
+    t.ok('everything shows to begin with', visible() === items.length);
+    if (radios.length < 2) return;
+    var pick = radios[1];
+    pick.checked = true;
+    var want = items.filter(function (li) { return li.getAttribute('data-cat') === pick.value; }).length;
+    t.ok('choosing a category filters, with no script', want > 0 && visible() === want, visible() + ' of ' + items.length);
+    radios[0].checked = true;
+    t.ok('All brings everything back', visible() === items.length);
+  });
+
+  register('where-to-buy', function (root, t) {
+    var tiles = qa(root, '.cb-wtb__tile');
+    t.ok('sellers rendered', tiles.length >= 3, tiles.length + ' tiles');
+    t.ok('grouped by the kind of seller', qa(root, '.cb-wtb__gname').length >= 2);
+    t.ok('a seller without a logo still has a name', tiles.every(function (a) { return a.textContent.trim().length > 0; }));
+    t.ok('new-tab links say so to a screen reader',
+         tiles.every(function (a) { return a.target !== '_blank' || /new tab/.test(a.textContent); }));
+  });
+
   /* -------------------------------------------------------------- run */
 
   function run(id, root) {

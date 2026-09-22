@@ -594,4 +594,347 @@
     }
   });
 
+  /* --------------------------------------------------------------------- */
+  /* Resource Library                                                       */
+  /*                                                                        */
+  /* Spec sheets, installation guides, safety data sheets, catalogs. The     */
+  /* category filter is radio buttons and :has(), with no script, in the    */
+  /* same spirit as Table's "only show differences" — so it still filters   */
+  /* where an editor strips scripts.                                        */
+  /*                                                                        */
+  /* The inputs sit inside their labels rather than being joined by id and */
+  /* for. A page with the same block pasted twice would otherwise have two  */
+  /* copies of every id, and a click in one copy would work the filter in   */
+  /* the other. The radio group's name is still shared between two identical*/
+  /* pastes, which costs the other copy nothing worse than falling back to  */
+  /* showing everything.                                                    */
+  /* --------------------------------------------------------------------- */
+
+  function rlSlug(s) {
+    return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'other';
+  }
+  var RL_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function rlDate(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim());
+    return m ? RL_MONTHS[+m[2] - 1] + ' ' + (+m[3]) + ', ' + m[1] : String(v || '').trim();
+  }
+
+  CB.register({
+    id: 'resource-library',
+    name: 'Resource Library',
+    category: CAT,
+    icon: '⎙',
+    blurb: 'Spec sheets, installation guides and safety data sheets, filterable by category — with no JavaScript, so the filter survives any editor.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Resources' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Documents and downloads' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'Spec sheets, installation guides and safety data, all in one place.' },
+
+      { t: 'section', label: 'Documents' },
+      {
+        k: 'items', t: 'list', label: 'Documents', itemLabel: 'title', paste: true,
+        fields: [
+          { k: 'title', t: 'text', label: 'Title', value: 'Document title' },
+          { k: 'category', t: 'text', label: 'Category', value: 'Spec sheets', help: 'Documents with the same category share one filter button.' },
+          { k: 'type', t: 'text', label: 'File type', value: 'PDF' },
+          { k: 'size', t: 'text', label: 'File size', value: '' },
+          { k: 'lang', t: 'text', label: 'Language', value: '' },
+          { k: 'date', t: 'date', label: 'Updated', value: '' },
+          { k: 'url', t: 'text', label: 'Link', value: '#' },
+          { k: 'text', t: 'text', label: 'Description', value: '' }
+        ],
+        value: [
+          { title: 'THHN/THWN-2 building wire — spec sheet', category: 'Spec sheets', type: 'PDF', size: '480 KB', lang: 'English', date: '2026-06-01', url: '#', text: '' },
+          { title: 'Metal-clad armored cable — spec sheet', category: 'Spec sheets', type: 'PDF', size: '512 KB', lang: 'English', date: '2026-05-14', url: '#', text: '' },
+          { title: 'Pulling cable through conduit', category: 'Installation guides', type: 'PDF', size: '2.1 MB', lang: 'English', date: '2026-04-02', url: '#', text: 'Tension, sidewall pressure and lubrication for a clean pull.' },
+          { title: 'Terminating aluminum conductors', category: 'Installation guides', type: 'PDF', size: '1.4 MB', lang: 'English', date: '2026-03-18', url: '#', text: 'Preparation, lugs and torque.' },
+          { title: 'Copper building wire — safety data sheet', category: 'Safety data sheets', type: 'PDF', size: '220 KB', lang: 'English', date: '2026-01-09', url: '#', text: '' },
+          { title: 'Copper building wire — safety data sheet', category: 'Safety data sheets', type: 'PDF', size: '228 KB', lang: 'Español', date: '2026-01-09', url: '#', text: '' }
+        ]
+      },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'filter', t: 'toggle', label: 'Filter by category', value: true },
+      { k: 'layout', t: 'select', label: 'Show as', value: 'rows', options: [['rows', 'A list'], ['cards', 'Cards']] },
+      { k: 'cols', t: 'range', label: 'Columns', min: 2, max: 4, step: 1, value: 3, when: { layout: ['cards'] } },
+      { k: 'newTab', t: 'toggle', label: 'Open documents in a new tab', value: false },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var items = (p.items || []).filter(function (it) { return it && it.title; });
+      var cards = p.layout === 'cards';
+      var target = p.newTab ? ' target="_blank" rel="noopener"' : '';
+
+      var cats = [];
+      items.forEach(function (it) {
+        var name = String(it.category || '').trim() || 'Other';
+        var slug = rlSlug(name);
+        var hit = cats.filter(function (x) { return x.slug === slug; })[0];
+        if (hit) hit.n++; else cats.push({ name: name, slug: slug, n: 1 });
+      });
+      var filtering = p.filter && cats.length > 1;
+      var group = 'cb-rl-' + c.cls;
+
+      var chips = filtering ? '<div class="cb-rl__filters" role="group" aria-label="Filter documents by category">' +
+        '<label class="cb-rl__chip"><input class="cb-rl__f cb-sr" type="radio" name="' + c.attr(group) + '" value="all" checked>' +
+        '<span>All <span class="cb-rl__n">' + items.length + '</span></span></label>' +
+        cats.map(function (x) {
+          return '<label class="cb-rl__chip"><input class="cb-rl__f cb-sr" type="radio" name="' + c.attr(group) + '" value="' + x.slug + '">' +
+            '<span>' + c.esc(x.name) + ' <span class="cb-rl__n">' + x.n + '</span></span></label>';
+        }).join('') + '</div>' : '';
+
+      var rows = items.map(function (it) {
+        var slug = rlSlug(String(it.category || '').trim() || 'Other');
+        var meta = [it.category, it.size, it.lang, it.date ? 'Updated ' + rlDate(it.date) : ''].filter(Boolean).map(c.esc)
+          .join('<span aria-hidden="true"> · </span>');
+        return c.dedent(`
+          <li class="cb-rl__item" data-cat="${slug}">
+            <span class="cb-rl__type" aria-hidden="true">${c.esc(String(it.type || 'File').slice(0, 5))}</span>
+            <div class="cb-rl__body">
+              <a class="cb-rl__a" href="${c.url(it.url)}"${target}>${c.esc(it.title)}<span class="cb-sr">${it.type ? ' (' + c.esc(it.type) + (it.size ? ', ' + c.esc(it.size) : '') + ')' : ''}${p.newTab ? ', opens in a new tab' : ''}</span></a>
+              ${meta ? '<p class="cb-rl__meta">' + meta + '</p>' : ''}
+              ${it.text ? '<p class="cb-rl__x">' + c.esc(it.text) + '</p>' : ''}
+            </div>
+          </li>`);
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-rl">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? `<header class="cb-rl__head">
+              ${p.eyebrow ? '<p class="cb-rl__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-rl__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-rl__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+            ${chips}
+            <ul class="cb-rl__list cb-rl__list--${cards ? 'cards' : 'rows'}">
+        ${c.indent(rows, 6)}
+            </ul>
+          </div>
+        </section>`);
+
+      /* One rule per category, generated here where the categories are known.
+         Nothing checked — which a duplicated paste can cause — shows everything. */
+      var filterCss = filtering ? cats.map(function (x) {
+        return s + ':has(.cb-rl__f[value="' + x.slug + '"]:checked) .cb-rl__item:not([data-cat="' + x.slug + '"]) { display: none; }';
+      }).join('\n') : '';
+
+      var css = `
+        ${s}.cb-rl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-rl__head { max-width: 660px; margin-bottom: 28px; }
+        ${s} .cb-rl__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-rl__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-rl__sub { margin-top: 10px; color: var(--cb-muted); }
+
+        ${s} .cb-rl__filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+        ${s} .cb-rl__chip {
+          position: relative; display: inline-flex; cursor: pointer; padding: 7px 14px; border-radius: 999px;
+          border: 1px solid var(--cb-border); background: var(--cb-surface); color: var(--cb-ink);
+          font-size: .92em; font-weight: 600; transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+        }
+        ${s} .cb-rl__chip:hover { border-color: var(--cb-ink); }
+        ${s} .cb-rl__chip:has(.cb-rl__f:checked) { background: var(--cb-ink); border-color: var(--cb-ink); color: var(--cb-page); }
+        ${s} .cb-rl__chip:has(.cb-rl__f:focus-visible) { outline: 2px solid var(--cb-brand); outline-offset: 2px; }
+        ${s} .cb-rl__n { font-weight: 400; opacity: .8; font-variant-numeric: tabular-nums; }
+
+        ${s} .cb-rl__list--rows { display: grid; }
+        ${s} .cb-rl__list--rows .cb-rl__item { border-top: 1px solid var(--cb-border); }
+        ${s} .cb-rl__list--rows .cb-rl__item:last-child { border-bottom: 1px solid var(--cb-border); }
+        ${s} .cb-rl__list--cards {
+          display: grid; gap: 18px; grid-template-columns: repeat(${c.clamp(c.num(p.cols, 3), 2, 4)}, minmax(0, 1fr));
+        }
+        ${s} .cb-rl__list--cards .cb-rl__item {
+          background: var(--cb-surface); border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+          grid-template-columns: 1fr; align-content: start;
+        }
+        ${s} .cb-rl__item { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 16px; align-items: start; padding: 18px 4px; }
+        ${s} .cb-rl__list--cards .cb-rl__item { padding: 20px; }
+        ${s} .cb-rl__type {
+          display: grid; place-items: center; width: 52px; aspect-ratio: 1; border-radius: calc(var(--cb-radius) * .5);
+          background: var(--cb-subtle); color: var(--cb-brand-ink, var(--cb-brand));
+          font-size: .75em; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+        }
+        ${s} .cb-rl__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        ${s} .cb-rl__a {
+          font-weight: 700; color: var(--cb-ink); text-decoration: underline; text-decoration-color: var(--cb-border);
+          text-underline-offset: .2em; overflow-wrap: anywhere;
+        }
+        ${s} .cb-rl__a:hover { text-decoration-color: currentColor; }
+        ${s} .cb-rl__meta { font-size: .85em; color: var(--cb-muted); }
+        ${s} .cb-rl__x { font-size: .92em; color: var(--cb-muted); }
+        ${filterCss}
+
+        @media (max-width: 860px) { ${s} .cb-rl__list--cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 520px) { ${s} .cb-rl__list--cards { grid-template-columns: 1fr; } }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /* Where to Buy                                                           */
+  /*                                                                        */
+  /* Retailers, distributors and online sellers, grouped by the kind of     */
+  /* seller. A seller without a logo gets its name set as a wordmark, so a   */
+  /* list can go live before every logo has been collected.                 */
+  /* --------------------------------------------------------------------- */
+
+  CB.register({
+    id: 'where-to-buy',
+    name: 'Where to Buy',
+    category: CAT,
+    icon: '⌂',
+    blurb: 'Retailers, distributors and online sellers as logo tiles, grouped by the kind of seller.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Where to buy' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Find our products' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'In stores, through electrical distributors, and online.' },
+      { k: 'align', t: 'select', label: 'Heading alignment', value: 'center', options: [['center', 'Center'], ['left', 'Left']] },
+
+      { t: 'section', label: 'Sellers' },
+      {
+        k: 'items', t: 'list', label: 'Sellers', itemLabel: 'name', paste: true,
+        fields: [
+          { k: 'name', t: 'text', label: 'Name', value: 'Seller name' },
+          { k: 'logo', t: 'image', label: 'Logo', value: '', help: 'Optional. Without one, the name is shown instead.' },
+          { k: 'group', t: 'text', label: 'Group', value: 'Retail', help: 'Sellers in the same group are shown together — “Retail”, “Electrical distributors”, “Online”.' },
+          { k: 'url', t: 'text', label: 'Link', value: '#' },
+          { k: 'note', t: 'text', label: 'Note', value: '' }
+        ],
+        value: [
+          { name: 'National home center', logo: '', group: 'Retail', url: '#', note: 'In store and online' },
+          { name: 'Hardware cooperative', logo: '', group: 'Retail', url: '#', note: 'Find a store' },
+          { name: 'Regional electrical supply', logo: '', group: 'Electrical distributors', url: '#', note: 'Find a branch' },
+          { name: 'Independent distributor', logo: '', group: 'Electrical distributors', url: '#', note: 'Find a branch' },
+          { name: 'Online marketplace', logo: '', group: 'Online', url: '#', note: '' },
+          { name: 'Pro supply online', logo: '', group: 'Online', url: '#', note: '' }
+        ]
+      },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'grouped', t: 'toggle', label: 'Group by the Group field', value: true },
+      { k: 'cols', t: 'range', label: 'Tiles per row', min: 2, max: 6, step: 1, value: 4 },
+      { k: 'newTab', t: 'toggle', label: 'Open sellers in a new tab', value: true },
+
+      { t: 'section', label: 'Style' },
+      { k: 'variant', t: 'select', label: 'Tile style', value: 'outline', options: [['outline', 'Outlined'], ['elevated', 'Elevated'], ['flat', 'Flat / borderless']] },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var items = (p.items || []).filter(function (it) { return it && (it.name || it.logo); });
+      var target = p.newTab ? ' target="_blank" rel="noopener"' : '';
+
+      function tile(it) {
+        var inner = it.logo
+          ? '<img class="cb-wtb__logo" src="' + c.url(it.logo) + '" alt="' + c.attr(it.name) + '" loading="lazy" decoding="async">'
+          : '<span class="cb-wtb__word">' + c.esc(it.name) + '</span>';
+        return '<li><a class="cb-wtb__tile" href="' + c.url(it.url) + '"' + target + '>' + inner +
+          (it.note ? '<span class="cb-wtb__note">' + c.esc(it.note) + '</span>' : '') +
+          (p.newTab ? '<span class="cb-sr"> (opens in a new tab)</span>' : '') + '</a></li>';
+      }
+
+      var groups = [];
+      if (p.grouped) {
+        items.forEach(function (it) {
+          var name = String(it.group || '').trim() || 'Other';
+          var g = groups.filter(function (x) { return x.name === name; })[0];
+          if (!g) { g = { name: name, items: [] }; groups.push(g); }
+          g.items.push(it);
+        });
+      } else {
+        groups.push({ name: '', items: items });
+      }
+
+      var body = groups.map(function (g) {
+        return '<div class="cb-wtb__group">' +
+          (g.name ? '<h3 class="cb-wtb__gname">' + c.esc(g.name) + '</h3>' : '') +
+          '<ul class="cb-wtb__grid">' + g.items.map(tile).join('') + '</ul></div>';
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-wtb">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? `<header class="cb-wtb__head">
+              ${p.eyebrow ? '<p class="cb-wtb__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-wtb__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-wtb__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+        ${c.indent(body, 4)}
+          </div>
+        </section>`);
+
+      var tileCss = {
+        outline: 'background: var(--cb-surface); border: 1px solid var(--cb-border);',
+        elevated: 'background: var(--cb-surface); border: 1px solid transparent; box-shadow: 0 12px 30px -22px rgba(20,18,16,.5);',
+        flat: 'background: var(--cb-subtle); border: 1px solid transparent;'
+      }[p.variant] || '';
+      var cols = c.clamp(c.num(p.cols, 4), 2, 6);
+
+      var css = `
+        ${s}.cb-wtb { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-wtb__head { max-width: 660px; margin-bottom: 34px; ${p.align === 'left' ? '' : 'margin-inline: auto; text-align: center;'} }
+        ${s} .cb-wtb__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-wtb__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-wtb__sub { margin-top: 10px; color: var(--cb-muted); }
+        ${s} .cb-wtb__group + .cb-wtb__group { margin-top: 32px; }
+        ${s} .cb-wtb__gname {
+          margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--cb-border);
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-muted);
+        }
+        ${s} .cb-wtb__grid { display: grid; gap: 14px; grid-template-columns: repeat(${cols}, minmax(0, 1fr)); }
+        /* The row stretches each list item; the link inside has to fill it,
+           or a tile whose name wraps stands taller than its neighbour. */
+        ${s} .cb-wtb__grid > li { display: grid; }
+        ${s} .cb-wtb__tile {
+          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+          min-height: 108px; padding: 18px 14px; text-align: center; text-decoration: none; color: var(--cb-ink);
+          border-radius: var(--cb-radius); ${tileCss}
+          transition: border-color .2s ease, box-shadow .2s ease;
+        }
+        ${s} .cb-wtb__tile:hover { border-color: var(--cb-ink); }
+        ${s} .cb-wtb__tile:focus-visible { outline: 2px solid var(--cb-brand); outline-offset: 2px; }
+        ${s} .cb-wtb__logo { display: block; width: 100%; height: 44px; object-fit: contain; }
+        ${s} .cb-wtb__word { font-size: 1.12em; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+        ${s} .cb-wtb__note { font-size: .85em; color: var(--cb-muted); }
+        @media (max-width: 860px) { ${s} .cb-wtb__grid { grid-template-columns: repeat(${Math.min(3, cols)}, minmax(0, 1fr)); } }
+        @media (max-width: 520px) { ${s} .cb-wtb__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }`;
+
+      return { html: html, css: css, js: '' };
+    }
+  });
 })();

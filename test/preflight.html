@@ -177,6 +177,46 @@ window.addEventListener('load', function () {
   check('a group heading on its own counts too',
         emptyFindings([inst('table', { rows: groupOnly })]).length, 0);
 
+  // --- a calculator does not ship on a designer's say alone ---------------
+  function titled(list, re) {
+    return (CB.Preflight.run(list, Object.assign({}, CB.DEFAULT_TOKENS), {}) || [])
+      .filter(function (f) { return re.test(f.title); });
+  }
+  var calc = titled([inst('calculator')], /engineering/);
+  check('a calculator asks for an engineering check', calc.length, 1);
+  check('as a warning, since it may already have had one', calc.length ? calc[0].level : '', 'warn');
+  check('and nothing else is asked the same', titled([inst('spec-strip')], /engineering/).length, 0);
+
+  // --- jump links that go nowhere -----------------------------------------
+  var jl = inst('jump-links');
+  jl.props.items = [{ label: 'Specs', target: 'specs' }, { label: 'FAQ', target: '#faq' }];
+  var nowhere = titled([jl], /jump link/);
+  check('links to sections the project lacks are reported', nowhere.length, 1);
+  check('naming each one', nowhere.length ? nowhere[0].detail.indexOf('#specs, #faq') === 0 : false, true);
+  var specs = inst('spec-strip', { _anchor: 'specs' }); specs.uid = 's';
+  var faq = inst('accordion', { _anchor: ' faq ' }); faq.uid = 'f';
+  check('and silent once every section has its Anchor ID',
+        titled([jl, specs, faq], /jump link/).length, 0);
+  var half = titled([jl, specs], /jump link/);
+  check('one still missing is reported alone',
+        half.length ? half[0].title + ' / ' + half[0].detail.split(' ')[0] : '',
+        'A jump link goes to a section this project does not have / #faq');
+
+  // --- Webflow's cap is 50,000 characters, not 50 KiB ----------------------
+  /* It was 50 * 1024, and the Landing page starter grew into the 1,200
+     characters between the two without preflight saying anything. */
+  function capFindings(ids) {
+    var list = ids.map(function (id, i) { var x = inst(id); x.uid = 'c' + i; x.cls = 'cb-' + id + '-k3f9' + i; return x; });
+    return (CB.Preflight.run(list, Object.assign({}, CB.DEFAULT_TOKENS), { platform: 'webflow' }) || [])
+      .filter(function (f) { return /embed limit/.test(f.title); });
+  }
+  check('the Webflow cap is counted in characters', CB.Export.PLATFORMS.webflow.cap, 50000);
+  var landing = capFindings(['hero-slider', 'stats-counter', 'feature-grid', 'testimonials', 'accordion', 'cta-banner']);
+  check('a page over it is stopped', landing.length ? landing[0].level : 'nothing said', 'error');
+  check('and told in characters, the unit Webflow counts',
+        landing.length ? /[\d,]+ characters minified, and Webflow caps a single embed at 50,000\./.test(landing[0].detail) : false, true);
+  check('a page under it is left alone', capFindings(['split-hero', 'accordion', 'video-embed', 'cta-banner']).length, 0);
+
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
   bar.className = 'bar ' + (fail ? 'bad' : 'ok');

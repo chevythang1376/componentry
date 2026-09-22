@@ -1052,6 +1052,692 @@ ${card ? `
       return { html: html, css: css, js: js };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Jump Links                                                             */
+  /*                                                                        */
+  /* A row of in-page links for long product and capability pages. Every   */
+  /* block already has an Anchor ID under Advanced, so this is the other    */
+  /* half of a feature that was sitting there unused.                       */
+  /*                                                                        */
+  /* The root is a div with role="navigation" rather than a nav element,    */
+  /* deliberately: themes style bare nav elements for their own site menu — */
+  /* fixed position, flex rows, uppercase links — and a pasted block has no */
+  /* business inheriting that. The landmark is the same to a screen reader.*/
+  /*                                                                        */
+  /* Staying at the top is done by script, not position: sticky. Sticky     */
+  /* only works inside the element's parent, and a CMS usually wraps each   */
+  /* HTML block in a container that ends right after it — so a sticky row   */
+  /* would stick for exactly its own height and then scroll away. Without   */
+  /* the script it is an ordinary row of links, which still works.          */
+  /* --------------------------------------------------------------------- */
+
+  function anchorId(v) {
+    return String(v == null ? '' : v).trim().replace(/^#+/, '').replace(/\s+/g, '-');
+  }
+
+  CB.register({
+    id: 'jump-links',
+    name: 'Jump Links',
+    category: CAT,
+    icon: '⇣',
+    blurb: 'A row of links to sections further down a long page, that can stay at the top while you scroll and highlight where you are.',
+    props: [
+      { t: 'section', label: 'Links' },
+      { k: 'heading', t: 'text', label: 'Label', value: 'On this page', help: 'Shown at the start of the row, and used as the name screen readers announce. Leave empty to show none.' },
+      {
+        k: 'items', t: 'list', label: 'Links', itemLabel: 'text',
+        fields: [
+          { k: 'text', t: 'text', label: 'Link text', value: 'Section' },
+          { k: 'target', t: 'text', label: 'Goes to (Anchor ID)', value: '',
+            help: 'The Anchor ID set under Advanced on the block this jumps to, without the #.' }
+        ],
+        value: [
+          { text: 'Overview', target: 'overview' },
+          { text: 'Specifications', target: 'specifications' },
+          { text: 'Installation', target: 'installation' },
+          { text: 'Resources', target: 'resources' },
+          { text: 'FAQ', target: 'faq' }
+        ]
+      },
+
+      { t: 'section', label: 'Behavior' },
+      {
+        k: 'stick', t: 'toggle', label: 'Stay at the top while scrolling', value: true,
+        help: 'Needs JavaScript. Where scripts are stripped it is an ordinary row of links, which still works.'
+      },
+      {
+        k: 'offset', t: 'range', label: 'Room for a fixed site header', min: 0, max: 160, step: 4, unit: 'px', value: 0,
+        help: 'If your site header stays on screen, set this to its height so the row sits under it rather than behind it.'
+      },
+      { k: 'spy', t: 'toggle', label: 'Highlight the section in view', value: true },
+
+      { t: 'section', label: 'Style' },
+      { k: 'style', t: 'select', label: 'Link style', value: 'underline', options: [['underline', 'Underlined tabs'], ['pills', 'Pills']] },
+      { k: 'align', t: 'select', label: 'Alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center']] },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var items = (p.items || []).filter(function (it) { return it && it.text; });
+      var pills = p.style === 'pills';
+      var offset = Math.max(0, Math.round(c.num(p.offset, 0)));
+
+      var links = items.map(function (it) {
+        var id = anchorId(it.target);
+        return '<li><a class="cb-jl__a" href="#' + c.attr(id) + '">' + c.esc(it.text) + '</a></li>';
+      }).join('');
+
+      var html = c.dedent(`
+        <div class="${c.cls} cb-jl" role="navigation" aria-label="${c.attr(p.heading || 'On this page')}">
+          <div class="cb-jl__bar">
+            <div class="cb-wrap cb-jl__inner">
+              ${p.heading ? '<span class="cb-jl__label" aria-hidden="true">' + c.esc(p.heading) + '</span>' : ''}
+              <ul class="cb-jl__list">${links}</ul>
+            </div>
+          </div>
+        </div>`);
+
+      var css = `
+        ${s}.cb-jl { background: ${c.bg(p)}; border-bottom: 1px solid var(--cb-border); }
+        ${s} .cb-jl__bar { background: ${c.bg(p)}; }
+        ${s} .cb-jl__inner {
+          display: flex; align-items: center; gap: 22px; min-height: 58px;
+          ${p.align === 'center' ? 'justify-content: center;' : ''}
+        }
+        ${s} .cb-jl__label {
+          flex: none; font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-muted);
+        }
+        /* On a phone the row scrolls sideways rather than wrapping into a
+           second line that pushes the page down. */
+        ${s} .cb-jl__list {
+          display: flex; gap: ${pills ? '8px' : '26px'}; overflow-x: auto; scrollbar-width: none;
+          padding-block: ${pills ? '10px' : '0'};
+        }
+        ${s} .cb-jl__list::-webkit-scrollbar { display: none; }
+        ${s} .cb-jl__a {
+          display: block; white-space: nowrap; font-size: .92em; font-weight: 600; color: var(--cb-muted);
+          text-decoration: none; transition: color .2s ease, background-color .2s ease, border-color .2s ease;
+          ${pills
+            ? 'padding: 7px 14px; border-radius: 999px; border: 1px solid var(--cb-border);'
+            : 'padding-block: 18px 16px; border-bottom: 2px solid transparent;'}
+        }
+        ${s} .cb-jl__a:hover { color: var(--cb-ink); }
+        ${s} .cb-jl__a[aria-current] {
+          color: var(--cb-ink);
+          ${pills ? 'border-color: var(--cb-ink); background: var(--cb-subtle);' : 'border-bottom-color: var(--cb-brand);'}
+        }
+        ${s} .cb-jl__a:focus-visible { outline: 2px solid var(--cb-brand); outline-offset: 2px; }
+        ${s} .cb-jl__bar.is-fixed {
+          position: fixed; left: 0; right: 0; top: ${offset}px; z-index: 30;
+          border-bottom: 1px solid var(--cb-border); box-shadow: 0 8px 20px -16px rgba(20,18,16,.45);
+        }
+        @media (max-width: 640px) { ${s} .cb-jl__label { display: none; } }`;
+
+      var body = '';
+      if (p.stick || p.spy) {
+        body = `
+        var bar = root.querySelector(".cb-jl__bar");
+        var list = root.querySelector(".cb-jl__list");
+        if (!bar || !list) return;
+        var OFFSET = ${offset};
+        var links = Array.prototype.slice.call(root.querySelectorAll(".cb-jl__a"));
+
+        /* Moving the page: a click scrolls to the section, allowing for the
+           row itself and any fixed header, and hands focus to the section so a
+           keyboard user lands where they asked to go. */
+        list.addEventListener("click", function (ev) {
+          var a = ev.target.closest ? ev.target.closest("a") : null;
+          if (!a) return;
+          var id = (a.getAttribute("href") || "").slice(1);
+          var target = id && document.getElementById(id);
+          if (!target) return;
+          ev.preventDefault();
+          var y = target.getBoundingClientRect().top + window.pageYOffset - OFFSET - bar.offsetHeight - 8;
+          var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          try { window.scrollTo({ top: y, behavior: still ? "auto" : "smooth" }); } catch (e) { window.scrollTo(0, y); }
+          if (window.history && history.replaceState) history.replaceState(null, "", "#" + id);
+          if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+          try { target.focus({ preventScroll: true }); } catch (e) {}
+        });`;
+        if (p.stick) body += `
+
+        /* Held open at its own height while the bar is fixed, so the page
+           under it does not jump up by that much when it detaches. */
+        var queued = false;
+        function place() {
+          queued = false;
+          var fix = root.getBoundingClientRect().top < OFFSET;
+          if (fix === bar.classList.contains("is-fixed")) return;
+          root.style.minHeight = fix ? bar.offsetHeight + "px" : "";
+          bar.classList.toggle("is-fixed", fix);
+        }
+        function onScroll() { if (queued) return; queued = true; window.requestAnimationFrame(place); }
+        window.addEventListener("scroll", onScroll, { passive: true });
+        window.addEventListener("resize", onScroll, { passive: true });
+        place();`;
+        if (p.spy) body += `
+
+        /* Which section is in view. The targets live elsewhere on the page;
+           this only reads them, and only marks its own links. */
+        if ("IntersectionObserver" in window) {
+          var byId = {};
+          links.forEach(function (a) {
+            var id = (a.getAttribute("href") || "").slice(1);
+            var el = id && document.getElementById(id);
+            if (el) byId[id] = { a: a, el: el };
+          });
+          var watch = new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+              if (!en.isIntersecting) return;
+              links.forEach(function (a) { a.removeAttribute("aria-current"); });
+              var hit = byId[en.target.id];
+              if (hit) hit.a.setAttribute("aria-current", "location");
+            });
+          }, { rootMargin: "-35% 0px -60% 0px" });
+          Object.keys(byId).forEach(function (k) { watch.observe(byId[k].el); });
+        }`;
+      }
+
+      return { html: html, css: css, js: body ? c.wrap(c.cls, body) : '' };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /* Video Library                                                          */
+  /*                                                                        */
+  /* One player and a list of videos beside it. Nothing loads from YouTube  */
+  /* or Vimeo until somebody presses play, like Video Embed. Every video is */
+  /* also a real link to its watch page, so where scripts are stripped the  */
+  /* list still works — it just opens the video on the host's own site.     */
+  /* --------------------------------------------------------------------- */
+
+  function videoRef(provider, raw) {
+    raw = String(raw == null ? '' : raw).trim();
+    var id = raw, m;
+    if (provider === 'vimeo') {
+      m = raw.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+      if (m) id = m[1];
+    } else {
+      m = raw.match(/(?:youtu\.be\/|v=|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{6,})/);
+      if (m) id = m[1];
+    }
+    id = id.replace(/[^A-Za-z0-9_-]/g, '');
+    return {
+      id: id,
+      embed: provider === 'vimeo'
+        ? 'https://player.vimeo.com/video/' + id + '?autoplay=1'
+        : 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0',
+      watch: provider === 'vimeo' ? 'https://vimeo.com/' + id : 'https://www.youtube.com/watch?v=' + id,
+      thumb: provider === 'vimeo' ? '' : 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg'
+    };
+  }
+
+  CB.register({
+    id: 'video-library',
+    name: 'Video Library',
+    category: CAT,
+    icon: '▶',
+    blurb: 'Training and product videos: one player and a list beside it. Nothing loads from YouTube or Vimeo until someone presses play.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Training' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Installation videos' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'Short walkthroughs from the people who train contractors.' },
+
+      { t: 'section', label: 'Videos' },
+      { k: 'provider', t: 'select', label: 'Videos are on', value: 'youtube', options: [['youtube', 'YouTube'], ['vimeo', 'Vimeo']] },
+      {
+        k: 'items', t: 'list', label: 'Videos', itemLabel: 'title',
+        fields: [
+          { k: 'title', t: 'text', label: 'Title', value: 'Video title' },
+          { k: 'videoId', t: 'text', label: 'Video ID or URL', value: 'aqz-KE-bpKQ', help: 'Paste the full watch or share address and the ID is worked out from it.' },
+          { k: 'duration', t: 'text', label: 'Length', value: '', help: 'Shown on the thumbnail, like “4:32”.' },
+          { k: 'poster', t: 'image', label: 'Thumbnail', value: '', help: 'Optional for YouTube, which supplies one. Needed for Vimeo.' },
+          { k: 'text', t: 'textarea', label: 'Description', value: '' }
+        ],
+        value: [
+          { title: 'Pulling cable through conduit', videoId: 'aqz-KE-bpKQ', duration: '6:12', poster: '', text: 'Setting up the reel, lubricating, and keeping the pull inside the cable’s limits.' },
+          { title: 'Stripping and terminating', videoId: 'aqz-KE-bpKQ', duration: '4:48', poster: '', text: 'Clean strips without nicking the conductor, and torque that holds.' },
+          { title: 'Reading a spec sheet', videoId: 'aqz-KE-bpKQ', duration: '3:20', poster: '', text: 'What each rating means and where to find it.' },
+          { title: 'Choosing a pulling lubricant', videoId: 'aqz-KE-bpKQ', duration: '2:55', poster: '', text: 'Matching the lubricant to the jacket and the run.' }
+        ]
+      },
+
+      { t: 'section', label: 'Style' },
+      { k: 'listSide', t: 'select', label: 'List sits', value: 'right', options: [['right', 'Beside the player'], ['below', 'Under the player']] },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var provider = p.provider === 'vimeo' ? 'vimeo' : 'youtube';
+      var items = (p.items || []).filter(function (it) { return it && it.videoId; }).map(function (it) {
+        var ref = videoRef(provider, it.videoId);
+        return { it: it, ref: ref, poster: it.poster || ref.thumb || CB.ph(640, 360, '', '#1c1a18', '#96694c') };
+      });
+      var first = items[0];
+      var below = p.listSide === 'below';
+
+      var stage = first ? c.dedent(`
+        <div class="cb-vl__stage">
+          <div class="cb-vl__frame" data-src="${c.attr(first.ref.embed)}" data-label="${c.attr(first.it.title)}">
+            <img class="cb-vl__poster" src="${c.url(first.poster)}" alt="" loading="lazy" decoding="async">
+            <a class="cb-vl__play" href="${c.url(first.ref.watch)}">
+              <span class="cb-vl__tri" aria-hidden="true"></span>
+              <span class="cb-sr">Play: <span class="cb-vl__playName">${c.esc(first.it.title)}</span></span>
+            </a>
+          </div>
+          <h3 class="cb-vl__now">${c.esc(first.it.title)}</h3>
+          <p class="cb-vl__nowText"${first.it.text ? '' : ' hidden'}>${c.esc(first.it.text || '')}</p>
+        </div>`) : '';
+
+      var list = items.map(function (v, i) {
+        return c.dedent(`
+          <li>
+            <a class="cb-vl__item" href="${c.url(v.ref.watch)}"${i === 0 ? ' aria-current="true"' : ''}
+               data-src="${c.attr(v.ref.embed)}" data-poster="${c.url(v.poster)}"
+               data-title="${c.attr(v.it.title)}" data-text="${c.attr(v.it.text || '')}">
+              <span class="cb-vl__thumb">
+                <img src="${c.url(v.poster)}" alt="" loading="lazy" decoding="async">
+                ${v.it.duration ? '<span class="cb-vl__dur">' + c.esc(v.it.duration) + '</span>' : ''}
+              </span>
+              <span class="cb-vl__t">${c.esc(v.it.title)}</span>
+            </a>
+          </li>`);
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-vl">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? `<header class="cb-vl__head">
+              ${p.eyebrow ? '<p class="cb-vl__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-vl__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-vl__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+            <div class="cb-vl__layout${below ? ' cb-vl__layout--below' : ''}">
+        ${c.indent(stage, 6)}
+              <ol class="cb-vl__list" aria-label="Videos">
+        ${c.indent(list, 8)}
+              </ol>
+            </div>
+          </div>
+        </section>`);
+
+      var css = `
+        ${s}.cb-vl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-vl__head { max-width: 660px; margin-bottom: 30px; }
+        ${s} .cb-vl__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-vl__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-vl__sub { margin-top: 10px; color: var(--cb-muted); }
+
+        ${s} .cb-vl__layout { display: grid; gap: 28px; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: start; }
+        ${s} .cb-vl__layout--below { grid-template-columns: 1fr; }
+        ${s} .cb-vl__frame {
+          position: relative; overflow: hidden; aspect-ratio: 16 / 9; background: #000;
+          border-radius: var(--cb-radius);
+        }
+        ${s} .cb-vl__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        ${s} .cb-vl__frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+        ${s} .cb-vl__play {
+          position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+          display: grid; place-items: center; width: 76px; height: 76px; border-radius: 50%;
+          background: var(--cb-brand); box-shadow: 0 12px 30px -12px rgba(0,0,0,.7);
+          transition: scale .2s ease;
+        }
+        ${s} .cb-vl__play:hover { scale: 1.07; }
+        ${s} .cb-vl__play:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+        ${s} .cb-vl__tri {
+          width: 0; height: 0; margin-left: 5px; border-style: solid;
+          border-width: 11px 0 11px 18px; border-color: transparent transparent transparent currentColor;
+        }
+        ${s} .cb-vl__now {
+          margin-top: 16px; font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-vl__nowText { margin-top: 6px; font-size: .92em; color: var(--cb-muted); }
+        ${s} .cb-vl__nowText[hidden] { display: none; }
+
+        ${s} .cb-vl__list { display: grid; gap: 6px; }
+        ${s} .cb-vl__layout--below .cb-vl__list { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+        ${s} .cb-vl__item {
+          display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 12px; align-items: center;
+          padding: 8px; border-radius: calc(var(--cb-radius) * .6); color: var(--cb-ink); text-decoration: none;
+          border: 1px solid transparent; transition: background-color .2s ease, border-color .2s ease;
+        }
+        ${s} .cb-vl__layout--below .cb-vl__item { grid-template-columns: 1fr; }
+        ${s} .cb-vl__item:hover { background: var(--cb-subtle); }
+        ${s} .cb-vl__item[aria-current] { background: var(--cb-subtle); border-color: var(--cb-border); }
+        ${s} .cb-vl__item:focus-visible { outline: 2px solid var(--cb-brand); outline-offset: 2px; }
+        ${s} .cb-vl__thumb {
+          position: relative; display: block; overflow: hidden; aspect-ratio: 16 / 9;
+          border-radius: calc(var(--cb-radius) * .5); background: var(--cb-subtle);
+        }
+        ${s} .cb-vl__thumb img { width: 100%; height: 100%; object-fit: cover; }
+        ${s} .cb-vl__dur {
+          position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: calc(var(--cb-radius) * .3);
+          background: rgba(0,0,0,.78); font-size: .75em; font-weight: 700; font-variant-numeric: tabular-nums;
+        }
+        ${s} .cb-vl__t { font-size: .92em; font-weight: 600; line-height: 1.35; }
+        ${c.pin([s + ' .cb-vl__play', s + ' .cb-vl__dur'], 'var(--cb-on-dark, #fff)')}
+
+        @media (max-width: 860px) { ${s} .cb-vl__layout { grid-template-columns: 1fr; } }`;
+
+      var js = c.wrap(c.cls, `
+        var frame = root.querySelector(".cb-vl__frame");
+        var play = root.querySelector(".cb-vl__play");
+        var now = root.querySelector(".cb-vl__now");
+        var nowText = root.querySelector(".cb-vl__nowText");
+        var items = Array.prototype.slice.call(root.querySelectorAll(".cb-vl__item"));
+        if (!frame) return;
+        var poster = frame.innerHTML;
+
+        function load() {
+          var iframe = document.createElement("iframe");
+          iframe.src = frame.getAttribute("data-src");
+          iframe.title = frame.getAttribute("data-label") || "Video player";
+          iframe.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share");
+          iframe.setAttribute("allowfullscreen", "");
+          iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+          frame.innerHTML = "";
+          frame.appendChild(iframe);
+          iframe.focus();
+        }
+        function bindPlay() {
+          var p = frame.querySelector(".cb-vl__play");
+          if (p) p.addEventListener("click", function (ev) { ev.preventDefault(); load(); });
+        }
+        bindPlay();
+
+        /* Choosing a video swaps what the player will load, and only starts it
+           straight away if a video was already playing — otherwise it would be
+           autoplaying something nobody asked to hear yet. */
+        items.forEach(function (item) {
+          item.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            var playing = !!frame.querySelector("iframe");
+            frame.setAttribute("data-src", item.getAttribute("data-src"));
+            frame.setAttribute("data-label", item.getAttribute("data-title"));
+            items.forEach(function (i) { i.removeAttribute("aria-current"); });
+            item.setAttribute("aria-current", "true");
+            if (now) now.textContent = item.getAttribute("data-title");
+            if (nowText) {
+              nowText.textContent = item.getAttribute("data-text");
+              nowText.hidden = !item.getAttribute("data-text");
+            }
+            if (playing) { load(); return; }
+            frame.innerHTML = poster;
+            var img = frame.querySelector(".cb-vl__poster");
+            if (img) img.src = item.getAttribute("data-poster");
+            var a = frame.querySelector(".cb-vl__play");
+            if (a) a.href = item.href;
+            var name = frame.querySelector(".cb-vl__playName");
+            if (name) name.textContent = item.getAttribute("data-title");
+            bindPlay();
+          });
+        });`);
+
+      return { html: html, css: css, js: js };
+    }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /* Voltage Drop Calculator                                                */
+  /*                                                                        */
+  /* The K-factor estimate every electrician knows: drop = 2 x K x I x L /  */
+  /* CM, with the square root of 3 in place of 2 for three-phase. The       */
+  /* conductor areas are the circular-mil figures from NEC Chapter 9,       */
+  /* Table 8, and K is the usual 12.9 for copper and 21.2 for aluminum.    */
+  /*                                                                        */
+  /* It reports voltage drop and nothing else, on purpose. It does not      */
+  /* suggest a wire size, because the smallest size that meets a drop        */
+  /* target can be too small for the current — 14 AWG clears 3% on a short */
+  /* 20 A run and is still not allowed to carry it. Sizing for ampacity is  */
+  /* a code calculation with correction factors, and it is left to the      */
+  /* people whose tables those are. Preflight asks for an engineering check */
+  /* before any page with this on it ships.                                 */
+  /*                                                                        */
+  /* The table and the formula live in one place and are used twice: here, */
+  /* to write the correct figures for the starting values into the markup, */
+  /* and in the script, for whatever somebody types next. Two copies of the */
+  /* same arithmetic are two chances for them to disagree.                  */
+  /* --------------------------------------------------------------------- */
+
+  var VD_SIZES = [
+    ['14', '14 AWG', 4110], ['12', '12 AWG', 6530], ['10', '10 AWG', 10380], ['8', '8 AWG', 16510],
+    ['6', '6 AWG', 26240], ['4', '4 AWG', 41740], ['3', '3 AWG', 52620], ['2', '2 AWG', 66360],
+    ['1', '1 AWG', 83690], ['1/0', '1/0 AWG', 105600], ['2/0', '2/0 AWG', 133100], ['3/0', '3/0 AWG', 167800],
+    ['4/0', '4/0 AWG', 211600], ['250', '250 kcmil', 250000], ['300', '300 kcmil', 300000],
+    ['350', '350 kcmil', 350000], ['400', '400 kcmil', 400000], ['500', '500 kcmil', 500000],
+    ['600', '600 kcmil', 600000], ['750', '750 kcmil', 750000]
+  ];
+  var VD_K = { cu: 12.9, al: 21.2 };
+
+  function vdCalc(system, material, size, volts, amps, feet) {
+    var cm = 0;
+    VD_SIZES.forEach(function (r) { if (r[0] === String(size)) cm = r[2]; });
+    var k = VD_K[material] || VD_K.cu;
+    var mult = String(system) === '3' ? Math.sqrt(3) : 2;
+    if (!cm || !(volts > 0) || !(amps >= 0) || !(feet >= 0)) return null;
+    var vd = mult * k * amps * feet / cm;
+    return { vd: vd, pct: vd / volts * 100, load: volts - vd };
+  }
+
+  CB.register({
+    id: 'calculator',
+    name: 'Voltage Drop Calculator',
+    category: CAT,
+    icon: '⚡',
+    blurb: 'A voltage drop estimate for one run of copper or aluminum conductor. Needs JavaScript to recalculate; preflight asks for an engineering check before it ships.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Tools' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Voltage drop calculator' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'An estimate for a single run of copper or aluminum conductor.' },
+
+      { t: 'section', label: 'Starting values' },
+      { k: 'system', t: 'select', label: 'System', value: '1', options: [['1', 'Single-phase'], ['3', 'Three-phase']] },
+      { k: 'material', t: 'select', label: 'Conductor', value: 'cu', options: [['cu', 'Copper'], ['al', 'Aluminum']] },
+      { k: 'size', t: 'select', label: 'Size', value: '12', options: VD_SIZES.map(function (r) { return [r[0], r[1]]; }) },
+      { k: 'volts', t: 'number', label: 'Voltage', value: 120 },
+      { k: 'amps', t: 'number', label: 'Current (amps)', value: 20 },
+      { k: 'feet', t: 'number', label: 'One-way length (feet)', value: 100 },
+      {
+        k: 'target', t: 'range', label: 'Flag drops above', min: 1, max: 10, step: 0.5, unit: '%', value: 3,
+        help: 'NEC informational notes suggest 3% for a branch circuit and 5% for feeder and branch together.'
+      },
+
+      { t: 'section', label: 'Style' },
+      { k: 'showFormula', t: 'toggle', label: 'Show the formula', value: true },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var target = c.clamp(c.num(p.target, 3), 0.5, 20);
+      var volts = c.num(p.volts, 120), amps = c.num(p.amps, 20), feet = c.num(p.feet, 100);
+      var r = vdCalc(p.system, p.material, p.size, volts, amps, feet);
+
+      function verdict(res) {
+        if (!res) return 'Enter a voltage, current and length to see the drop.';
+        return res.pct <= target
+          ? 'Within the ' + target + '% you set.'
+          : 'Above the ' + target + '% you set.';
+      }
+      function opt(list, val) {
+        return list.map(function (o) {
+          return '<option value="' + c.attr(o[0]) + '"' + (String(o[0]) === String(val) ? ' selected' : '') + '>' + c.esc(o[1]) + '</option>';
+        }).join('');
+      }
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-vd cb-vd--static">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? `<header class="cb-vd__head">
+              ${p.eyebrow ? '<p class="cb-vd__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-vd__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-vd__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+            <div class="cb-vd__card">
+              <form class="cb-vd__form" data-target="${target}">
+                <label class="cb-vd__f"><span class="cb-vd__l">System</span>
+                  <select name="system">${opt([['1', 'Single-phase'], ['3', 'Three-phase']], p.system)}</select></label>
+                <label class="cb-vd__f"><span class="cb-vd__l">Conductor</span>
+                  <select name="material">${opt([['cu', 'Copper'], ['al', 'Aluminum']], p.material)}</select></label>
+                <label class="cb-vd__f"><span class="cb-vd__l">Size</span>
+                  <select name="size">${opt(VD_SIZES.map(function (x) { return [x[0], x[1]]; }), p.size)}</select></label>
+                <label class="cb-vd__f"><span class="cb-vd__l">Voltage</span>
+                  <input name="volts" type="number" inputmode="decimal" min="1" step="any" value="${c.attr(volts)}"></label>
+                <label class="cb-vd__f"><span class="cb-vd__l">Current (A)</span>
+                  <input name="amps" type="number" inputmode="decimal" min="0" step="any" value="${c.attr(amps)}"></label>
+                <label class="cb-vd__f"><span class="cb-vd__l">One-way length (ft)</span>
+                  <input name="feet" type="number" inputmode="decimal" min="0" step="any" value="${c.attr(feet)}"></label>
+              </form>
+              <div class="cb-vd__out" aria-live="polite">
+                <div class="cb-vd__stat cb-vd__stat--main">
+                  <span class="cb-vd__k">Voltage drop</span>
+                  <output class="cb-vd__big" data-out="vd">${r ? r.vd.toFixed(2) + ' V' : '—'}</output>
+                </div>
+                <div class="cb-vd__stat">
+                  <span class="cb-vd__k">Percent drop</span>
+                  <output class="cb-vd__mid" data-out="pct">${r ? r.pct.toFixed(2) + '%' : '—'}</output>
+                </div>
+                <div class="cb-vd__stat">
+                  <span class="cb-vd__k">At the load</span>
+                  <output class="cb-vd__mid" data-out="load">${r ? r.load.toFixed(1) + ' V' : '—'}</output>
+                </div>
+                <p class="cb-vd__verdict" data-out="verdict" data-over="${r && r.pct > target ? 'true' : 'false'}">${c.esc(verdict(r))}</p>
+              </div>
+            </div>
+            <p class="cb-vd__static">Changing the values needs JavaScript, which this page is not running. The figures shown are for the starting values.</p>
+            ${p.showFormula ? `<p class="cb-vd__formula">Voltage drop = 2 × K × I × L ÷ CM, with 1.732 in place of 2 for three-phase. K is 12.9 for copper and 21.2 for aluminum; CM is the conductor’s area in circular mils, from NEC Chapter 9, Table 8.</p>` : ''}
+            <p class="cb-vd__note">An estimate, not a design. It leaves out reactance and power factor, which matter more on large conductors, and it checks voltage drop only — not whether the conductor is rated for the current. Confirm against the NEC and the product data before you specify.</p>
+          </div>
+        </section>`);
+
+      var css = `
+        ${s}.cb-vd { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-vd__head { max-width: 660px; margin-bottom: 30px; }
+        ${s} .cb-vd__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-vd__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-vd__sub { margin-top: 10px; color: var(--cb-muted); }
+        ${s} .cb-vd__card {
+          display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0;
+          background: var(--cb-surface); border: 1px solid var(--cb-border);
+          border-radius: var(--cb-radius); overflow: hidden;
+        }
+        ${s} .cb-vd__form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; padding: 26px; }
+        ${s} .cb-vd__f { display: flex; flex-direction: column; gap: 6px; }
+        ${s} .cb-vd__l { font-size: .85em; font-weight: 600; color: var(--cb-muted); }
+        /* Themes style bare inputs and selects heavily — fixed heights, thick
+           borders, their own fonts — so every property that shapes these is
+           stated rather than left to inherit. */
+        ${s} .cb-vd__f select, ${s} .cb-vd__f input {
+          width: 100%; height: auto; min-height: 44px; margin: 0; padding: 9px 12px;
+          font: inherit; font-size: 1em; color: var(--cb-ink); background: var(--cb-page);
+          border: 1px solid var(--cb-border); border-radius: calc(var(--cb-radius) * .5); box-shadow: none;
+        }
+        ${s} .cb-vd__f select:focus-visible, ${s} .cb-vd__f input:focus-visible { outline: 2px solid var(--cb-brand); outline-offset: 1px; }
+        ${s} .cb-vd__out {
+          display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 26px;
+          background: var(--cb-subtle); border-left: 1px solid var(--cb-border);
+        }
+        ${s} .cb-vd__stat { display: flex; flex-direction: column; gap: 2px; }
+        ${s} .cb-vd__stat--main { padding-bottom: 14px; border-bottom: 1px solid var(--cb-border); }
+        ${s} .cb-vd__k { font-size: .85em; color: var(--cb-muted); }
+        ${s} .cb-vd__big {
+          font-size: calc(clamp(30px, 5vw, 46px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: 1; letter-spacing: -.03em; color: var(--cb-ink); font-variant-numeric: tabular-nums;
+        }
+        ${s} .cb-vd__mid {
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700);
+          line-height: 1.2; color: var(--cb-ink); font-variant-numeric: tabular-nums;
+        }
+        /* The verdict is words first. The mark beside it adds emphasis but
+           never carries the meaning on its own. */
+        ${s} .cb-vd__verdict { font-size: .92em; font-weight: 600; color: var(--cb-ink); display: flex; align-items: center; gap: 8px; }
+        ${s} .cb-vd__verdict::before {
+          content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; background: #3f7d4f;
+        }
+        ${s} .cb-vd__verdict[data-over="true"]::before { background: #c2410c; }
+        ${s} .cb-vd__static { display: none; }
+        ${s}.cb-vd--static .cb-vd__static { display: block; margin-top: 14px; font-size: .85em; color: var(--cb-muted); }
+        ${s} .cb-vd__formula { margin-top: 18px; font-size: .85em; color: var(--cb-muted); max-width: 72ch; }
+        ${s} .cb-vd__note { margin-top: 10px; font-size: .85em; color: var(--cb-muted); max-width: 72ch; }
+
+        @media (max-width: 820px) {
+          ${s} .cb-vd__card { grid-template-columns: 1fr; }
+          ${s} .cb-vd__out { border-left: 0; border-top: 1px solid var(--cb-border); }
+        }
+        @media (max-width: 480px) { ${s} .cb-vd__form { grid-template-columns: 1fr; } }`;
+
+      var table = JSON.stringify(VD_SIZES.map(function (x) { return [x[0], x[2]]; }));
+      var js = c.wrap(c.cls, `
+        var form = root.querySelector(".cb-vd__form");
+        if (!form) return;
+        root.classList.remove("cb-vd--static");
+        var SIZES = ${table};
+        var K = { cu: ${VD_K.cu}, al: ${VD_K.al} };
+        var TARGET = parseFloat(form.getAttribute("data-target")) || 3;
+        function out(name) { return root.querySelector("[data-out=" + name + "]"); }
+        function num(name) { return parseFloat(form.elements[name].value); }
+
+        function run() {
+          var size = form.elements.size.value, cm = 0;
+          SIZES.forEach(function (r) { if (r[0] === size) cm = r[1]; });
+          var k = K[form.elements.material.value] || K.cu;
+          var mult = form.elements.system.value === "3" ? Math.sqrt(3) : 2;
+          var v = num("volts"), a = num("amps"), l = num("feet");
+          var ok = cm && v > 0 && a >= 0 && l >= 0;
+          var vd = ok ? mult * k * a * l / cm : 0;
+          var pct = ok ? vd / v * 100 : 0;
+          out("vd").textContent = ok ? vd.toFixed(2) + " V" : "\\u2014";
+          out("pct").textContent = ok ? pct.toFixed(2) + "%" : "\\u2014";
+          out("load").textContent = ok ? (v - vd).toFixed(1) + " V" : "\\u2014";
+          var verdict = out("verdict");
+          verdict.textContent = !ok ? "Enter a voltage, current and length to see the drop."
+            : (pct <= TARGET ? "Within the " + TARGET + "% you set." : "Above the " + TARGET + "% you set.");
+          verdict.setAttribute("data-over", ok && pct > TARGET ? "true" : "false");
+        }
+        form.addEventListener("input", run);
+        form.addEventListener("change", run);
+        form.addEventListener("submit", function (ev) { ev.preventDefault(); run(); });
+        run();`);
+
+      return { html: html, css: css, js: js };
+    }
+  });
 })();
-
-

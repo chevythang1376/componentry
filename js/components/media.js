@@ -421,15 +421,20 @@
       },
 
       { t: 'section', label: 'Motion' },
-      { k: 'speed', t: 'range', label: 'Duration (one loop)', min: 10, max: 90, step: 5, unit: 's', value: 34 },
-      { k: 'direction', t: 'select', label: 'Direction', value: 'left', options: [['left', 'Right to left'], ['right', 'Left to right']] },
-      { k: 'pause', t: 'toggle', label: 'Pause on hover', value: true },
+      {
+        k: 'layout', t: 'select', label: 'Layout', value: 'marquee',
+        options: [['marquee', 'Scrolling'], ['grid', 'Still, in a wrapping row']],
+        help: 'Still suits certifications and standards marks, where movement is a distraction from reading them.'
+      },
+      { k: 'speed', t: 'range', label: 'Duration (one loop)', min: 10, max: 90, step: 5, unit: 's', value: 34, when: { layout: ['marquee'] } },
+      { k: 'direction', t: 'select', label: 'Direction', value: 'left', options: [['left', 'Right to left'], ['right', 'Left to right']], when: { layout: ['marquee'] } },
+      { k: 'pause', t: 'toggle', label: 'Pause on hover', value: true, when: { layout: ['marquee'] } },
 
       { t: 'section', label: 'Style' },
       { k: 'height', t: 'range', label: 'Logo height', min: 20, max: 80, step: 2, unit: 'px', value: 34 },
       { k: 'gap', t: 'range', label: 'Gap', min: 20, max: 120, step: 4, unit: 'px', value: 64 },
       { k: 'grayscale', t: 'toggle', label: 'Desaturate until hover', value: true },
-      { k: 'fade', t: 'toggle', label: 'Fade edges', value: true },
+      { k: 'fade', t: 'toggle', label: 'Fade edges', value: true, when: { layout: ['marquee'] } },
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'page',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -442,6 +447,9 @@
     render: function (p, c) {
       var s = c.s;
       var items = (p.items || []).filter(function (i) { return i && (i.name || i.image); });
+      /* Still is the reduced-motion arrangement, chosen on purpose: one row,
+         no clone, wrapping and centred. */
+      var still = p.layout === 'grid';
 
       function one(it) {
         var inner = it.image
@@ -460,7 +468,7 @@
           <div class="cb-mq__viewport">
             <div class="cb-mq__track">
               <ul class="cb-mq__row">${list}</ul>
-              <ul class="cb-mq__row" aria-hidden="true">${list}</ul>
+              ${still ? '' : '<ul class="cb-mq__row" aria-hidden="true">' + list + '</ul>'}
             </div>
           </div>
         </section>`);
@@ -478,7 +486,7 @@
         }
         ${s} .cb-mq__viewport {
           position: relative; overflow: hidden;
-          ${p.fade ? '-webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);' : ''}
+          ${p.fade && !still ? '-webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);' : ''}
         }
         ${s} .cb-mq__track {
           display: flex; width: max-content;
@@ -505,12 +513,15 @@
         ${s} .cb-mq__item:hover .cb-mq__word { color: var(--cb-ink); }
         /* Translating by exactly one row width is what hides the seam. */
         @keyframes cb-mq-${c.cls} { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        ${still ? `
+        ${s} .cb-mq__track { animation: none; width: 100%; }
+        ${s} .cb-mq__row { flex-wrap: wrap; justify-content: center; row-gap: 24px; width: 100%; padding-right: 0; }` : `
         @media (prefers-reduced-motion: reduce) {
           ${s} .cb-mq__track { animation: none; }
           ${s} .cb-mq__row:last-child { display: none; }
           ${s} .cb-mq__row { flex-wrap: wrap; justify-content: center; row-gap: 24px; width: 100%; padding-right: 0; }
           ${s} .cb-mq__track { width: 100%; }
-        }`;
+        }`}`;
 
       return { html: html, css: css, js: '' };
     }
@@ -857,6 +868,284 @@
       return { html: html, css: css, js: js };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Events                                                                 */
+  /*                                                                        */
+  /* Trade shows and training days. Soonest first, sorted when the code is  */
+  /* generated like Webinar Library, so the order survives an editor that   */
+  /* strips scripts. Where scripts do run, events that have already ended   */
+  /* hide themselves — the page cannot know today's date when it is built,  */
+  /* only when somebody reads it.                                           */
+  /*                                                                        */
+  /* The calendar links are built here too: a Google Calendar link, and an  */
+  /* .ics file written into the link itself, so there is nothing to host.   */
+  /* All-day events end on the day after, because that is what the format  */
+  /* means by an end date.                                                  */
+  /* --------------------------------------------------------------------- */
+
+  var EV_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  /* Parsed from the string rather than through new Date("2026-10-14"), which
+     is read as UTC midnight and shows as the day before for anyone west of
+     Greenwich. */
+  function evParts(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim());
+    return m ? { y: +m[1], m: +m[2], d: +m[3], iso: m[0] } : null;
+  }
+  function evCompact(parts, addDays) {
+    var t = new Date(Date.UTC(parts.y, parts.m - 1, parts.d + (addDays || 0)));
+    function two(n) { return (n < 10 ? '0' : '') + n; }
+    return t.getUTCFullYear() + two(t.getUTCMonth() + 1) + two(t.getUTCDate());
+  }
+  function evRange(a, b) {
+    if (!a) return '';
+    var start = EV_MONTHS[a.m - 1] + ' ' + a.d;
+    if (!b || b.iso === a.iso) return start + ', ' + a.y;
+    if (a.y === b.y && a.m === b.m) return start + '–' + b.d + ', ' + a.y;
+    if (a.y === b.y) return start + ' – ' + EV_MONTHS[b.m - 1] + ' ' + b.d + ', ' + a.y;
+    return start + ', ' + a.y + ' – ' + EV_MONTHS[b.m - 1] + ' ' + b.d + ', ' + b.y;
+  }
+  function icsText(s) {
+    return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\r?\n/g, '\\n');
+  }
+  function plain(s) {
+    return String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').trim();
+  }
+
+  CB.register({
+    id: 'events',
+    name: 'Events',
+    category: CAT,
+    icon: '◷',
+    blurb: 'Trade shows and training days, soonest first, with add-to-calendar links. Past events hide themselves where scripts run.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Events' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'Where to find us' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'Trade shows and training days coming up.' },
+
+      { t: 'section', label: 'Events' },
+      {
+        k: 'items', t: 'list', label: 'Events', itemLabel: 'name', paste: true,
+        fields: [
+          { k: 'name', t: 'text', label: 'Event', value: 'Event name' },
+          { k: 'start', t: 'date', label: 'Starts', value: '' },
+          { k: 'end', t: 'date', label: 'Ends', value: '', help: 'Leave empty for a one-day event.' },
+          { k: 'venue', t: 'text', label: 'Venue', value: '' },
+          { k: 'city', t: 'text', label: 'City', value: '' },
+          { k: 'booth', t: 'text', label: 'Booth or room', value: '' },
+          { k: 'text', t: 'textarea', label: 'Details', value: '' },
+          { k: 'btnText', t: 'text', label: 'Button label', value: 'Event details' },
+          { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' }
+        ],
+        value: [
+          { name: 'Regional contractor expo', start: '2026-10-14', end: '2026-10-16', venue: 'Convention Center', city: 'Atlanta, GA',
+            booth: 'Booth 1427', text: 'New building wire and the tools to install it, with live pulling demos every hour.',
+            btnText: 'Event details', btnUrl: '#' },
+          { name: 'Code update workshop', start: '2026-11-05', end: '', venue: 'Training Center', city: 'Carrollton, GA',
+            booth: 'Room B', text: 'A half-day walkthrough of the changes most likely to affect how you specify.',
+            btnText: 'Reserve a seat', btnUrl: '#' },
+          { name: 'Distributor summit', start: '2027-01-20', end: '2027-01-22', venue: 'Conference Hotel', city: 'Nashville, TN',
+            booth: '', text: 'Product roadmap, pricing programs and training resources for distributor partners.',
+            btnText: 'Event details', btnUrl: '#' }
+        ]
+      },
+      { k: 'sort', t: 'select', label: 'Order', value: 'soon', options: [['soon', 'Soonest first'], ['manual', 'Exactly as listed']] },
+      { k: 'hidePast', t: 'toggle', label: 'Hide events that have ended', value: true, help: 'Done in the visitor’s browser, so it needs JavaScript. Without it, past events stay listed.' },
+      { k: 'calendar', t: 'toggle', label: 'Offer add to calendar', value: true },
+      {
+        k: 'schema', t: 'toggle', label: 'Describe the events to search engines', value: true,
+        help: 'Adds Event structured data, so search results can show dates and places. Invisible on the page.'
+      },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var list = (p.items || []).filter(function (it) { return it && it.name; }).map(function (it, i) {
+        return { it: it, i: i, a: evParts(it.start), b: evParts(it.end) };
+      });
+      if (p.sort !== 'manual') {
+        list.sort(function (x, y) {
+          if (!x.a && !y.a) return x.i - y.i;
+          if (!x.a) return 1;
+          if (!y.a) return -1;
+          return x.a.iso === y.a.iso ? x.i - y.i : (x.a.iso < y.a.iso ? -1 : 1);
+        });
+      }
+
+      function place(it) { return [it.venue, it.city].filter(Boolean).join(', '); }
+
+      var rows = list.map(function (e) {
+        var it = e.it, a = e.a, b = e.b;
+        var last = (b || a) ? (b || a).iso : '';
+        /* The date goes in a time element on its own; the venue and booth are
+           not part of it. */
+        var when = a ? '<time datetime="' + c.attr(a.iso) + '">' + c.esc(evRange(a, b)) + '</time>' : '';
+        var meta = [when].concat([place(it), it.booth].filter(Boolean).map(c.esc)).filter(Boolean)
+          .join('<span aria-hidden="true"> · </span>');
+
+        var cal = '';
+        if (p.calendar && a) {
+          var endEx = evCompact(b || a, 1);
+          var g = 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+            '&text=' + encodeURIComponent(plain(it.name)) +
+            '&dates=' + evCompact(a, 0) + '/' + endEx +
+            (place(it) ? '&location=' + encodeURIComponent(place(it)) : '') +
+            (it.text ? '&details=' + encodeURIComponent(plain(it.text)) : '');
+          var ics = [
+            'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Componentry//Events//EN', 'BEGIN:VEVENT',
+            'UID:' + evCompact(a, 0) + '-' + (String(it.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'event') + '@componentry',
+            /* DTSTAMP is required. The start date stands in for it so the same
+               project always exports the same bytes. */
+            'DTSTAMP:' + evCompact(a, 0) + 'T000000Z',
+            'DTSTART;VALUE=DATE:' + evCompact(a, 0),
+            'DTEND;VALUE=DATE:' + endEx,
+            'SUMMARY:' + icsText(plain(it.name)),
+            place(it) ? 'LOCATION:' + icsText(place(it)) : '',
+            it.text ? 'DESCRIPTION:' + icsText(plain(it.text)) : '',
+            'END:VEVENT', 'END:VCALENDAR'
+          ].filter(Boolean).join('\r\n');
+          var file = (String(it.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'event') + '.ics';
+          cal = '<p class="cb-ev__cal"><span class="cb-ev__calLabel">Add to calendar:</span> ' +
+            '<a href="' + c.attr(g) + '" target="_blank" rel="noopener">Google<span class="cb-sr"> (opens in a new tab)</span></a>' +
+            '<span aria-hidden="true"> · </span>' +
+            '<a href="' + c.attr('data:text/calendar;charset=utf-8,' + encodeURIComponent(ics)) + '" download="' + c.attr(file) + '">Apple, Outlook (.ics)</a></p>';
+        }
+
+        return c.dedent(`
+          <li class="cb-ev__item"${last ? ' data-end="' + c.attr(last) + '"' : ''}>
+            <div class="cb-ev__date" aria-hidden="true">
+              ${a ? '<span class="cb-ev__mon">' + EV_MONTHS[a.m - 1] + '</span><span class="cb-ev__day">' + a.d + '</span>'
+                  : '<span class="cb-ev__mon">TBA</span>'}
+            </div>
+            <div class="cb-ev__body">
+              <h3 class="cb-ev__t">${c.rich(it.name)}</h3>
+              ${meta ? '<p class="cb-ev__meta">' + meta + '</p>' : ''}
+              ${it.text ? '<p class="cb-ev__x">' + c.rich(it.text) + '</p>' : ''}
+              ${cal}
+            </div>
+            ${c.actions([{ text: it.btnText, url: it.btnUrl }], { tight: true, cls: 'cb-ev__cta' })}
+          </li>`);
+      }).join('\n');
+
+      var schema = '';
+      if (p.schema) {
+        var events = list.filter(function (e) { return e.a; }).map(function (e) {
+          var it = e.it;
+          var ev = {
+            '@type': 'Event',
+            name: plain(it.name),
+            startDate: e.a.iso,
+            endDate: (e.b || e.a).iso,
+            eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+            eventStatus: 'https://schema.org/EventScheduled',
+            location: { '@type': 'Place', name: it.venue || it.city || plain(it.name), address: it.city || it.venue || '' }
+          };
+          if (it.text) ev.description = plain(it.text);
+          if (it.btnUrl && it.btnUrl !== '#' && /^https?:/i.test(it.btnUrl)) ev.url = String(it.btnUrl);
+          return ev;
+        });
+        if (events.length) {
+          var data = events.length === 1
+            ? Object.assign({ '@context': 'https://schema.org' }, events[0])
+            : { '@context': 'https://schema.org', '@graph': events };
+          schema = '\n  <script type="application/ld+json">' + JSON.stringify(data, null, 2).replace(/</g, '\\u003c') + '<\/script>';
+        }
+      }
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-ev">
+          <div class="cb-wrap">
+            ${(p.eyebrow || p.title || p.sub) ? `<header class="cb-ev__head">
+              ${p.eyebrow ? '<p class="cb-ev__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+              ${p.title ? '<h2 class="cb-ev__title">' + c.rich(p.title) + '</h2>' : ''}
+              ${p.sub ? '<p class="cb-ev__sub">' + c.rich(p.sub) + '</p>' : ''}
+            </header>` : ''}
+            <ul class="cb-ev__list">
+        ${c.indent(rows, 6)}
+            </ul>
+            <p class="cb-ev__none" hidden>No upcoming events right now. Check back soon.</p>
+          </div>${schema}
+        </section>`);
+
+      var css = `
+        ${s}.cb-ev { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
+        ${s} .cb-ev__head { max-width: 660px; margin-bottom: 32px; }
+        ${s} .cb-ev__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-ev__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-ev__sub { margin-top: 10px; color: var(--cb-muted); }
+        ${s} .cb-ev__list { display: grid; }
+        ${s} .cb-ev__item {
+          display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 22px; align-items: start;
+          padding-block: 24px; border-top: 1px solid var(--cb-border);
+        }
+        ${s} .cb-ev__item:last-child { border-bottom: 1px solid var(--cb-border); }
+        ${s} .cb-ev__date {
+          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+          padding: 10px 6px; border-radius: calc(var(--cb-radius) * .6); background: var(--cb-brand); text-align: center;
+        }
+        ${s} .cb-ev__mon {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+        }
+        ${s} .cb-ev__day {
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: 1; font-variant-numeric: tabular-nums;
+        }
+        ${c.pin([s + ' .cb-ev__mon', s + ' .cb-ev__day'], 'var(--cb-on-brand, #fff)')}
+        ${s} .cb-ev__body { display: flex; flex-direction: column; gap: 6px; }
+        ${s} .cb-ev__t {
+          font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-ev__meta { font-size: .92em; font-weight: 600; color: var(--cb-ink); }
+        ${s} .cb-ev__x { color: var(--cb-muted); font-size: .92em; }
+        ${s} .cb-ev__cal { margin-top: 4px; font-size: .85em; color: var(--cb-muted); }
+        ${s} .cb-ev__cal a { color: var(--cb-brand-ink, var(--cb-brand)); text-decoration: underline; text-underline-offset: .18em; }
+        ${s} .cb-ev__cta { align-self: center; }
+        ${s} .cb-ev__none { color: var(--cb-muted); padding-block: 20px; }
+        /* A row is display: grid, which outranks the hidden attribute, so the
+           script's hiding has to be restated here or past events stay put. */
+        ${s} .cb-ev__item[hidden], ${s} .cb-ev__none[hidden] { display: none; }
+
+        @media (max-width: 720px) {
+          ${s} .cb-ev__item { grid-template-columns: 64px minmax(0, 1fr); }
+          ${s} .cb-ev__cta { grid-column: 2; justify-self: start; }
+        }`;
+
+      var js = p.hidePast ? c.wrap(c.cls, `
+        /* Today in the reader's own time zone, as YYYY-MM-DD, to compare with
+           the end dates written into the markup. */
+        var d = new Date();
+        function two(n) { return (n < 10 ? "0" : "") + n; }
+        var today = d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
+        var items = Array.prototype.slice.call(root.querySelectorAll(".cb-ev__item"));
+        var shown = 0;
+        items.forEach(function (li) {
+          var end = li.getAttribute("data-end");
+          if (end && end < today) li.hidden = true; else shown++;
+        });
+        var none = root.querySelector(".cb-ev__none");
+        if (none && items.length && !shown) none.hidden = false;`) : '';
+
+      return { html: html, css: css, js: js };
+    }
+  });
 })();
-
-
