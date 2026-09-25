@@ -10,7 +10,7 @@ crush, pump, delay, reverb and a DJ filter make it loud.
 
 ![Groove Forge, the MIDI instrument](preview-inst.png)
 
-*A layout preview rendered from the build: the display is the device's own drawing code;
+*A layout preview rendered from the build: the displays are the device's own drawing code;
 Live draws its own knobs and menus, so those will look like Live, not like this.*
 
 ---
@@ -21,26 +21,27 @@ Live draws its own knobs and menus, so those will look like Live, not like this.
 |---|---|
 | `Groove Forge.amxd` | **Max Instrument.** Goes on a MIDI track. Play it from your keyboard or a clip. |
 | `Groove Forge FX.amxd` | **Max Audio Effect.** Goes on any track. Captures what the track plays and grooves it. |
-| `groove-forge-ui.js` | The display and step grid. **Keep it in the same folder as the devices.** |
+
+Each device is **one file**. Both are frozen: the script that draws the display and the
+step grid is stored inside the `.amxd`, so nothing else has to sit next to it, and you
+can move it, share it or *Collect All and Save* it like any other device.
 
 Everything else (`src/`, `test/`, `tools/`) is how the devices are made and checked.
 You only need it to change them.
 
 ## Install
 
-1. Copy this whole folder into your Live **User Library** (or anywhere, then add that
-   folder to Live's browser with *Add Folder…* under **Places**).
+1. Put the two `.amxd` files anywhere Live's browser can see: your **User Library**, or
+   a folder you add under **Places** with *Add Folder…*.
 2. Drag `Groove Forge.amxd` onto a MIDI track, or `Groove Forge FX.amxd` onto any
    audio track (or after an instrument).
 3. Press play in Live.
 
 Needs Live 11 or 12 with Max for Live (Suite, or Standard with the add-on).
 
-**Keep `groove-forge-ui.js` next to the `.amxd` files.** The devices find it in their own
-folder. If the grid shows up blank, that file is missing. To make a device a single
-self-contained file — for sharing, or for *Collect All and Save* — open it in Max (the
-Edit button on the device's title bar), click **Freeze Device** in the patcher's toolbar,
-and save. Max then folds the script inside the `.amxd`.
+**Updating from an earlier download?** Delete the old Groove Forge from the track and
+drag the new file in, so the track is sure to run the new version. The old
+`groove-forge-ui.js` is no longer used by anything, so you can delete it too.
 
 ## Quick start
 
@@ -100,8 +101,9 @@ of hats, or two basslines, are one menu away.
 ### The display (left)
 
 Your sound's waveform, with each lane's start marked in its colour and **Walk** shown as
-a bar underneath. It shows the held chord on the Instrument, and **ARMED** / **REC** with
-a progress bar while the FX device captures.
+a bar underneath: click or drag on it to move the selected lane's **Start**. It shows
+the held chord on the Instrument, and **ARMED** / **REC** with a progress bar while the
+FX device captures.
 
 ### The grid (middle)
 
@@ -194,7 +196,7 @@ It assumes 4/4.
 
 | What you see | Why, and what to do |
 |---|---|
-| The grid is blank | `groove-forge-ui.js` is not in the device's folder. Put it back, or freeze the device |
+| A white box with a grey circle and a line where the display should be, and no lane buttons | That is Max's placeholder for a display whose script did not load: an earlier download, which kept the script in a separate file. Delete the device from the track and drag in the current `.amxd`, which carries its script inside. If it still shows, open the device in Max (the Edit button on its title bar), then the Max Console (*Window* menu), and look for a line naming `groove-forge-display.js` |
 | No sound | The groove follows Live's transport: press play. In *Hold*, hold a key. Check the lane buttons are lit |
 | The TONE lane does not follow my keys | **Keys** (GROOVE page) is on for TONE only by default; turn it on for any lane |
 | Capture records silence | Capture records the track the FX device is on, at that point in the chain. Put the device after the sound |
@@ -209,18 +211,25 @@ Nothing here is hand-edited in Max. Both devices are generated:
 |---|---|
 | `src/spec.js` | every parameter: name, range, default, where its knob goes |
 | `src/engine.genexpr` | the gen~ engine, as a template: lanes and voices are unrolled when built |
-| `groove-forge-ui.js` | the display, grid and pattern brain (ES5: Max's jsui engine) |
-| `src/build.js` | writes both `.amxd` files, after checking every cord and parameter |
-| `src/amxd.js` | the `.amxd` container |
+| `src/groove-forge-display.js` | the display, grid and pattern brain (ES5: Max's jsui engine). Each device runs it twice, as the waveform part and the grid part |
+| `src/build.js` | writes both `.amxd` files, after checking every cord, every parameter, and that nothing sits under a display |
+| `src/amxd.js` | the `.amxd` container, frozen: the patcher and the display script in one file |
 
 ```sh
+npm install         # once: acorn, which checks the display script is ES5
 npm test            # engine, display and wiring: about 30 seconds
 npm run build       # rewrite both .amxd files
 npm run engine      # print the expanded gen~ code
 ```
 
 The tests fail if the committed `.amxd` files are not exactly what the sources build,
-so run `npm run build` after any change. Node 18 or later; no dependencies.
+so run `npm run build` after any change. Node 18 or later. The one dependency, acorn, is
+for building and testing only: the build refuses to freeze a display script that does
+not parse as ES5, since Max's jsui would not load it.
+
+Nothing may overlap a display. Max draws the first box in a patcher's list in front, so
+a jsui listed before a control covers it; the build checks that no box sits under
+either display, and the dark cards behind them are panels in Max's background layer.
 
 `tools/preview.js` redraws the preview images (`npm install --no-save @napi-rs/canvas`
 first).
@@ -236,13 +245,15 @@ Live yet. What is checked instead:
   sample they should land on; swing, nudge, rolls, polymeter, chance, fills, the ADSR,
   the filters, delay timing, pump, capture and the output limit all have tests.
 - **The display** runs in a stand-in for Max's jsui host whose drawing API only has the
-  calls Max documents.
+  calls Max documents, with the built-ins newer than ES5 taken out, and which fails on
+  anything drawn outside the part's own box (Max would clip it away).
 - **The wiring** runs in a message-passing simulation of the whole patch with the real
   display inside it: knobs reach the parameter they are named for, grid clicks reach the
   stored pattern and then gen~, the right knobs show for each lane and page, a stored set
   loads without the grid rewriting it.
-- **The `.amxd` container** is byte-identical to a reference writer that was itself
-  checked against devices exported by Max.
+- **The `.amxd` container** uses the layout Max 9 writes for a frozen device. The writer
+  was checked by taking a frozen device exported by Max 9.1 apart and rebuilding it:
+  the result was identical to the byte.
 
 What only Live can confirm: that gen~ compiles the engine (watch the Max window the first
 time), and how Live's own controls look at these sizes.

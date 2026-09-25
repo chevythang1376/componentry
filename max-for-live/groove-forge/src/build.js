@@ -4,6 +4,9 @@
 //   Groove Forge.amxd      Max Instrument: play it from a MIDI track
 //   Groove Forge FX.amxd   Max Audio Effect: feed it any track's audio
 //
+// Both are frozen: the display script is written inside each .amxd, so a
+// device is one file that works wherever it is put.
+//
 // Every knob is generated from its entry in spec.js and wired to gen~ by name,
 // so there is no hand-drawn patch cord to get wrong. validate() then checks
 // every cord against the port counts of the object at each end, every Param in
@@ -20,7 +23,10 @@ const { buildEngine } = require('./genexpr');
 const { packAmxd, projectBlock, MAX_EPOCH_OFFSET } = require('./amxd');
 
 const ROOT = path.join(__dirname, '..');
-const UI_SCRIPT = 'groove-forge-ui.js';
+// The display script, frozen into both devices under this name. A new name
+// for a new layout: a stale copy of the old script, anywhere Max looks, can
+// never stand in for it.
+const UI_SCRIPT = 'groove-forge-display.js';
 const DEVICE_HEIGHT = 169;
 // A fixed date keeps the build reproducible: the same source gives the same bytes.
 const BUILD_TIME = Date.UTC(2026, 8, 25) / 1000 + MAX_EPOCH_OFFSET;
@@ -154,6 +160,9 @@ function registerParam(patch, longname, box) {
 
 const rgb = (c, a = 1) => [c[0], c[1], c[2], a];
 const GROOVE_COLOR = [1.0, 0.72, 0.26];
+// The displays paint the same colour (BG in the display script), edge to edge,
+// over these cards.
+const CARD_COLOR = [0.075, 0.08, 0.09, 1.0];
 const FX_COLOR = [0.7, 0.62, 1.0];
 
 // ------------------------------------------------------------------ controls
@@ -345,10 +354,19 @@ const APPVERSION = { major: 8, minor: 6, revision: 5, architecture: 'x64', moder
 
 // ------------------------------------------------------------------ layout
 // Device-view coordinates (the device is 169 px high).
+//
+// Nothing is drawn on top of anything else. Max draws the first box in a
+// patcher's list in front and the last at the back, so a display listed
+// before a control it covers hides it. Here the two displays (the jsui boxes)
+// sit beside the controls, never under them, and the dark cards behind both
+// are panels in Max's background layer, which is drawn behind every other box.
 const L = {
   width: 956,
+  srcCard: [6, 4, 166, 66],
+  srcView: [8, 6, 162, 62],
   drop: [6, 74, 166, 22],
-  jsui: [0, 0, 620, 100],
+  gridCard: [180, 4, 434, 94],
+  gridView: [222, 6, 358, 90],
   laneButton: (l) => [184, 16 + l * 20, 38, 18],
   levelDial: (l) => [582, 16 + l * 20, 18, 18],
   laneTab: [184, 106, 196, 15],
@@ -424,36 +442,43 @@ function buildDevice(variant) {
     return pre;
   };
 
-  // ---- the display / grid
-  const ui = P.add({
+  // ---- the displays: the waveform (source) and the step grid (grid)
+  // One script, two jsui boxes. Each gets every display message and acts on
+  // its own share; both answer through the same route.
+  const view = (part, rect, patchingY, annotationName, annotation) => P.add({
     maxclass: 'jsui',
     filename: UI_SCRIPT,
-    jsarguments: [variant],
+    jsarguments: [variant, part, rect[0], rect[1]],
     numinlets: 1,
     numoutlets: 1,
     outlettype: [''],
     border: 0,
     parameter_enable: 0,
     presentation: 1,
-    presentation_rect: L.jsui,
-    varname: 'gf_display',
-    annotation: 'Click a step: on, accent, off. Shift-click: accent. Alt-click: roll. Cmd/Ctrl-click: the lane ends here. Drag LEN, HIT and ROT up or down; HIT and ROT write a Euclidean rhythm. The die rewrites one lane. Click the waveform to choose where the selected lane starts.',
-    annotation_name: 'Groove Forge',
+    presentation_rect: rect,
+    varname: 'gf_' + part,
+    annotation,
+    annotation_name: annotationName,
     // The same size in patching as in presentation. A jsui whose two sizes
     // differ keeps mapping its drawing and its mouse to the patching one, so
-    // in Live the grid would be drawn at the wrong scale under the controls
-    // that sit on it. It gets its own spot, clear of the patching columns.
-    patching_rect: [1960, 20, L.jsui[2], L.jsui[3]],
+    // in Live it would draw at the wrong scale. Each gets its own spot, clear
+    // of the patching columns.
+    patching_rect: [1960, patchingY, rect[2], rect[3]],
   }, 'ui');
+  const views = [
+    view('source', L.srcView, 20, 'Your Sound', 'The sound every lane is built from. Each lane\'s start is marked in its colour, with Walk as a bar underneath; click or drag to move the selected lane\'s Start.'),
+    view('grid', L.gridView, 100, 'Step Grid', 'Click a step: on, accent, off. Shift-click: accent. Alt-click: roll. Cmd/Ctrl-click: the lane ends here. Drag LEN, HIT and ROT up or down; HIT and ROT write a Euclidean rhythm. The die rewrites one lane.'),
+  ];
+  const toViews = (source, outlet) => views.forEach((v) => P.connect(source, outlet, v, 0));
   const toUI = (source, outlet, name) => {
     const pre = P.obj('prepend ' + name, 'ui');
     P.connect(source, outlet, pre, 0);
-    P.connect(pre, 0, ui, 0);
+    toViews(pre, 0);
     return pre;
   };
   const uiMsg = (text) => {
     const m = P.msg(text, 'ui');
-    P.connect(m, 0, ui, 0);
+    toViews(m, 0);
     return m;
   };
 
@@ -537,7 +562,7 @@ function buildDevice(variant) {
         }
         laneControls[l][PAGES.indexOf(page)].push(box);
         const pre = toGen(box, 0, name, longname);
-        if (p.jsui) P.connect(pre, 0, ui, 0);
+        if (p.jsui) toViews(pre, 0);
         if (p.id === 'stt') startDials[l] = box;
       });
     }
@@ -545,7 +570,7 @@ function buildDevice(variant) {
     const onP = LANE_PARAMS.find((p) => p.id === 'on');
     const onBox = liveText(P, { longname: `${lane.name} On`, label: 'On', text: lane.tag, mode: 1, def: 1, rect: L.laneButton(l), varname: 'gf_on' + l, section: 'lanes', color: lane.color, desc: onP.desc });
     const onPre = toGen(onBox, 0, 'on' + l, `${lane.name} On`);
-    P.connect(onPre, 0, ui, 0);
+    toViews(onPre, 0);
     const lvlP = LANE_PARAMS.find((p) => p.id === 'lvl');
     const lvl = liveDial(P, lvlP, { longname: `${lane.name} Level`, def: lvlP.def[l], rect: L.levelDial(l), varname: 'gf_lvl' + l, color: lane.color, section: 'lanes', appearance: 1, showname: 0, shownumber: 0 });
     toGen(lvl, 0, 'lvl' + l, `${lane.name} Level`);
@@ -559,12 +584,12 @@ function buildDevice(variant) {
       const box = storeBox(P, p, l);
       stores[name] = box;
       if (p.engine === false) toUI(box, 0, name);
-      else P.connect(toGen(box, 0, name, 'stored pattern data'), 0, ui, 0);
+      else toViews(toGen(box, 0, name, 'stored pattern data'), 0);
     }
   }
   const routeNames = [...Object.keys(stores), 'stt0', 'stt1', 'stt2', 'stt3', 'sel'];
   const route = P.obj('route ' + routeNames.join(' '), 'ui');
-  P.connect(ui, 0, route, 0);
+  views.forEach((v) => P.connect(v, 0, route, 0));
 
   // ---- lane and page selection, and which knobs show
   const laneTab = liveTab(P, { kind: 'enum', items: LANES.map((x) => x.tag), label: 'Lane' }, { longname: 'Edit Lane', def: 0, rect: L.laneTab, varname: 'gf_lanetab', section: 'pages', hiddenParam: true });
@@ -615,12 +640,12 @@ function buildDevice(variant) {
     const p = byId[id];
     const box = liveDial(P, p, { longname: p.label, def: p.def, rect, varname: 'gf_' + id, color: GROOVE_COLOR, section: 'groove', ...extra });
     const pre = toGen(box, 0, id, p.label);
-    if (p.jsui) P.connect(pre, 0, ui, 0);
+    if (p.jsui) toViews(pre, 0);
     return box;
   };
   gDial('swingamt', [G0, 4, 62, 80]);
   const grid = liveTab(P, byId.swgrid, { longname: 'Swing Grid', def: 0, rect: [G0 + 4, 86, 56, 13], varname: 'gf_swgrid', section: 'groove' });
-  P.connect(toGen(grid, 0, 'swgrid', 'Swing Grid'), 0, ui, 0);
+  toViews(toGen(grid, 0, 'swgrid', 'Swing Grid'), 0);
   gDial('humanize', [G0 + 64, 3, 44, 46]);
   gDial('accamt', [G0 + 64, 53, 44, 46]);
   gDial('varamt', [G0 + 110, 3, 44, 46]);
@@ -636,7 +661,7 @@ function buildDevice(variant) {
   // [route bang] keeps only presses, and the gate stays shut until the set has
   // loaded. Without both, loading a set would press GENERATE on it.
   const actions = pressesOnly(P, settle, 'groove');
-  P.connect(actions, 0, ui, 0);
+  toViews(actions, 0);
   const button = (label, message, rect, desc) => {
     const b = liveText(P, { longname: label, label, text: label.toUpperCase(), mode: 0, rect, varname: 'gf_btn_' + message, section: 'groove', desc });
     const press = P.obj('route bang', 'groove');
@@ -697,7 +722,7 @@ function buildDevice(variant) {
     toUI(pack, 0, 'note');
   } else {
     const srcsel = liveTab(P, byId.srcsel, { longname: 'Source', def: 0, rect: [6, 106, 166, 16], varname: 'gf_srcsel', section: 'source' });
-    P.connect(toGen(srcsel, 0, 'srcsel', 'Source'), 0, ui, 0);
+    toViews(toGen(srcsel, 0, 'srcsel', 'Source'), 0);
     const capture = liveText(P, { longname: 'Capture', label: 'Capture', text: 'CAPTURE', mode: 0, rect: [6, 126, 80, 18], varname: 'gf_capture', section: 'source', color: [0.95, 0.3, 0.3], desc: 'Record this track into the groove: starts on the next downbeat (at once while stopped) and switches the Source to Live.' });
     const capPress = P.obj('route bang', 'source');
     P.connect(capture, 0, capPress, 0);
@@ -747,6 +772,28 @@ function buildDevice(variant) {
     P.connect(toSample, 0, srcsel, 0);
   }
 
+  // ---- the dark cards behind the displays, last in the list and in the
+  // background layer: behind everything, by both of Max's rules
+  const card = (rect, varname, patchingY) => P.add({
+    maxclass: 'panel',
+    angle: 270.0,
+    background: 1,
+    bgcolor: CARD_COLOR,
+    border: 0,
+    ignoreclick: 1,
+    mode: 0,
+    numinlets: 1,
+    numoutlets: 0,
+    presentation: 1,
+    presentation_rect: rect,
+    proportion: 0.39,
+    rounded: 6,
+    varname,
+    patching_rect: [2340, patchingY, rect[2], rect[3]],
+  }, 'ui');
+  card(L.srcCard, 'gf_card_source', 20);
+  card(L.gridCard, 'gf_card_grid', 100);
+
   return { patch: P, code };
 }
 
@@ -780,6 +827,30 @@ function validate({ patch }) {
     if (!box.presentation) continue;
     const [x, y, w, h] = box.presentation_rect;
     if (x < 0 || y < 0 || x + w > L.width || y + h > DEVICE_HEIGHT) throw new Error(`${box.varname || box.maxclass} is outside the device: ${box.presentation_rect}`);
+  }
+  // Nothing in front covers anything else: only background-layer panels may
+  // sit under another box. A display drawn over a control hides it in Live.
+  const shown = patch.boxes.map((b) => b.box).filter((b) => b.presentation);
+  const overlaps = (a, b) => {
+    const [ax, ay, aw, ah] = a.presentation_rect;
+    const [bx, by, bw, bh] = b.presentation_rect;
+    return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
+  };
+  for (const box of shown.filter((b) => b.maxclass === 'jsui')) {
+    for (const other of shown) {
+      if (other === box || other.background) continue;
+      if (overlaps(box, other)) throw new Error(`${other.varname || other.maxclass} is under the display ${box.varname}`);
+    }
+    // a jsui maps itself to its patching size, and places its drawing by
+    // the origin it is given
+    if (box.patching_rect[2] !== box.presentation_rect[2] || box.patching_rect[3] !== box.presentation_rect[3]) throw new Error(`${box.varname} is a different size in patching and presentation`);
+    if (box.jsarguments[2] !== box.presentation_rect[0] || box.jsarguments[3] !== box.presentation_rect[1]) throw new Error(`${box.varname} is told the wrong origin`);
+  }
+  // background panels are last in the list: at the back even by list order
+  let seenBackground = false;
+  for (const { box } of patch.boxes) {
+    if (box.background) seenBackground = true;
+    else if (seenBackground) throw new Error(`${box.varname || box.text || box.maxclass} comes after a background panel`);
   }
   // live.* names Live will show must be short enough to read
   for (const [name] of patch.paramNames) if (name.length > 31) throw new Error('parameter name too long: ' + name);
@@ -824,7 +895,6 @@ function patcherJson({ patch }, deviceType) {
       assistshowspatchername: 0,
       boxes: patch.boxes,
       lines: patch.lines,
-      dependency_cache: [],
       latency: 0,
       is_mpe: 0,
       external_mpe_tuning_enabled: 0,
@@ -843,20 +913,44 @@ const DEVICES = [
   { variant: 'fx', deviceType: 'audio_effect', file: 'Groove Forge FX.amxd' },
 ];
 
+// Max's jsui runs the legacy engine: ES5. One newer token and the script
+// fails to load, and Live shows jsui's placeholder where the display should
+// be. So the script is parsed as ES5 before it is frozen in.
+function assertES5(source, label) {
+  let acorn;
+  try {
+    acorn = require('acorn');
+  } catch (e) {
+    throw new Error('the build parses the display script with acorn: run npm install first');
+  }
+  try {
+    acorn.parse(source, { ecmaVersion: 5, sourceType: 'script' });
+  } catch (e) {
+    throw new Error(`${label} is not ES5, the only JavaScript Max's jsui runs: ${e.message}`);
+  }
+}
+
+function displayScript() {
+  const data = fs.readFileSync(path.join(__dirname, UI_SCRIPT));
+  assertES5(data.toString('utf8'), UI_SCRIPT);
+  return data;
+}
+
 function buildAll({ write = true } = {}) {
   const out = [];
+  const script = displayScript();
   for (const d of DEVICES) {
     const built = buildDevice(d.variant);
     validate(built);
     const json = patcherJson(built, d.deviceType);
-    const bytes = packAmxd(json, { deviceType: d.deviceType, filename: d.file.replace(/\.amxd$/, '.maxpat'), mtime: BUILD_TIME });
+    const bytes = packAmxd(json, { deviceType: d.deviceType, name: d.file, mtime: BUILD_TIME, files: [{ name: UI_SCRIPT, type: 'TEXT', data: script }] });
     if (write) fs.writeFileSync(path.join(ROOT, d.file), bytes);
     out.push({ ...d, bytes, json, built });
   }
   return out;
 }
 
-module.exports = { buildAll, buildDevice, validate, patcherJson, portsFor, L, DEVICES };
+module.exports = { buildAll, buildDevice, validate, patcherJson, portsFor, assertES5, L, DEVICES, UI_SCRIPT, CARD_COLOR };
 
 if (require.main === module) {
   const check = process.argv.includes('--check');
