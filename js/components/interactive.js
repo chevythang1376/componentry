@@ -1234,13 +1234,18 @@ ${card ? `
             var el = id && document.getElementById(id);
             if (el) byId[id] = { a: a, el: el };
           });
+          var ids = links.map(function (a) { return (a.getAttribute("href") || "").slice(1); });
+          /* The observer only says when something crosses the band; which
+             section is current is then read from where they all are: the last
+             one, in link order, that starts above the band. Above the first,
+             none is — and a jump straight to the top of the page, which skips
+             every section in between, still lands there. */
           var watch = new IntersectionObserver(function (entries) {
-            entries.forEach(function (en) {
-              if (!en.isIntersecting) return;
-              links.forEach(function (a) { a.removeAttribute("aria-current"); });
-              var hit = byId[en.target.id];
-              if (hit) hit.a.setAttribute("aria-current", "location");
-            });
+            var band = entries[0] && entries[0].rootBounds ? entries[0].rootBounds.bottom : window.innerHeight * 0.4;
+            var pick = null;
+            ids.forEach(function (id) { if (byId[id] && byId[id].el.getBoundingClientRect().top < band) pick = id; });
+            links.forEach(function (a) { a.removeAttribute("aria-current"); });
+            if (pick) byId[pick].a.setAttribute("aria-current", "location");
           }, { rootMargin: "-35% 0px -60% 0px" });
           Object.keys(byId).forEach(function (k) { watch.observe(byId[k].el); });
         }`;
@@ -1451,6 +1456,9 @@ ${card ? `
         var items = Array.prototype.slice.call(root.querySelectorAll(".cb-vl__item"));
         if (!frame) return;
         var poster = frame.innerHTML;
+        /* These are real links. A click asking for a new tab or window gets
+           one, as it would anywhere else on the page. */
+        function newTab(ev) { return ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button > 0; }
 
         function load() {
           var iframe = document.createElement("iframe");
@@ -1465,7 +1473,7 @@ ${card ? `
         }
         function bindPlay() {
           var p = frame.querySelector(".cb-vl__play");
-          if (p) p.addEventListener("click", function (ev) { ev.preventDefault(); load(); });
+          if (p) p.addEventListener("click", function (ev) { if (newTab(ev)) return; ev.preventDefault(); load(); });
         }
         bindPlay();
 
@@ -1474,6 +1482,7 @@ ${card ? `
            autoplaying something nobody asked to hear yet. */
         items.forEach(function (item) {
           item.addEventListener("click", function (ev) {
+            if (newTab(ev)) return;
             ev.preventDefault();
             var playing = !!frame.querySelector("iframe");
             frame.setAttribute("data-src", item.getAttribute("data-src"));
@@ -1519,8 +1528,8 @@ ${card ? `
   /*                                                                        */
   /* The table and the formula live in one place and are used twice: here, */
   /* to write the correct figures for the starting values into the markup, */
-  /* and in the script, for whatever somebody types next. Two copies of the */
-  /* same arithmetic are two chances for them to disagree.                  */
+  /* and in the script, which is given vdCalc's own source. Two copies of   */
+  /* the same arithmetic are two chances for them to disagree.              */
   /* --------------------------------------------------------------------- */
 
   var VD_SIZES = [
@@ -1704,33 +1713,30 @@ ${card ? `
         }
         @media (max-width: 480px) { ${s} .cb-vd__form { grid-template-columns: 1fr; } }`;
 
-      var table = JSON.stringify(VD_SIZES.map(function (x) { return [x[0], x[2]]; }));
+      /* The script is handed vdCalc's own source, with the table and K it
+         reads, so the figure in the markup and the figure after a change come
+         from one piece of arithmetic rather than two that could drift. */
       var js = c.wrap(c.cls, `
         var form = root.querySelector(".cb-vd__form");
         if (!form) return;
         root.classList.remove("cb-vd--static");
-        var SIZES = ${table};
-        var K = { cu: ${VD_K.cu}, al: ${VD_K.al} };
+        var VD_SIZES = ${JSON.stringify(VD_SIZES)};
+        var VD_K = ${JSON.stringify(VD_K)};
+        ${vdCalc.toString()}
         var TARGET = parseFloat(form.getAttribute("data-target")) || 3;
         function out(name) { return root.querySelector("[data-out=" + name + "]"); }
         function num(name) { return parseFloat(form.elements[name].value); }
 
         function run() {
-          var size = form.elements.size.value, cm = 0;
-          SIZES.forEach(function (r) { if (r[0] === size) cm = r[1]; });
-          var k = K[form.elements.material.value] || K.cu;
-          var mult = form.elements.system.value === "3" ? Math.sqrt(3) : 2;
-          var v = num("volts"), a = num("amps"), l = num("feet");
-          var ok = cm && v > 0 && a >= 0 && l >= 0;
-          var vd = ok ? mult * k * a * l / cm : 0;
-          var pct = ok ? vd / v * 100 : 0;
-          out("vd").textContent = ok ? vd.toFixed(2) + " V" : "\\u2014";
-          out("pct").textContent = ok ? pct.toFixed(2) + "%" : "\\u2014";
-          out("load").textContent = ok ? (v - vd).toFixed(1) + " V" : "\\u2014";
+          var r = vdCalc(form.elements.system.value, form.elements.material.value, form.elements.size.value,
+                         num("volts"), num("amps"), num("feet"));
+          out("vd").textContent = r ? r.vd.toFixed(2) + " V" : "\\u2014";
+          out("pct").textContent = r ? r.pct.toFixed(2) + "%" : "\\u2014";
+          out("load").textContent = r ? r.load.toFixed(1) + " V" : "\\u2014";
           var verdict = out("verdict");
-          verdict.textContent = !ok ? "Enter a voltage, current and length to see the drop."
-            : (pct <= TARGET ? "Within the " + TARGET + "% you set." : "Above the " + TARGET + "% you set.");
-          verdict.setAttribute("data-over", ok && pct > TARGET ? "true" : "false");
+          verdict.textContent = !r ? "Enter a voltage, current and length to see the drop."
+            : (r.pct <= TARGET ? "Within the " + TARGET + "% you set." : "Above the " + TARGET + "% you set.");
+          verdict.setAttribute("data-over", r && r.pct > TARGET ? "true" : "false");
         }
         form.addEventListener("input", run);
         form.addEventListener("change", run);

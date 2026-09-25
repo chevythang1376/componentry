@@ -157,7 +157,9 @@
            white at 1:1. The gradient is opaque, so the solid never shows while
            it works. */
         ${s} .cb-bn__tile[data-tone="brand"]   { background: var(--cb-brand); background-image: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
-        ${s} .cb-bn__tile[data-tone="dark"]    { background: var(--cb-deep, #141210); }
+        /* A faint light rim, so a dark tile still has an edge on a dark page.
+           On a light page it disappears into the tile. */
+        ${s} .cb-bn__tile[data-tone="dark"]    { background: var(--cb-deep, #141210); border: 1px solid rgba(255,255,255,.09); }
         ${s} .cb-bn__tile[data-tone="image"]   { background: var(--cb-deep, #141210); }
         ${s} .cb-bn__media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         ${s} .cb-bn__tile[data-tone="image"] .cb-bn__body {
@@ -336,7 +338,7 @@
         ${s} .cb-stk__card[data-tone="surface"] { background: var(--cb-surface); border: 1px solid var(--cb-border); }
         ${s} .cb-stk__card[data-tone="subtle"]  { background: var(--cb-subtle); border: 1px solid var(--cb-border); }
         ${s} .cb-stk__card[data-tone="brand"]   { background: var(--cb-brand); background-image: linear-gradient(140deg, var(--cb-brand), var(--cb-brand-2)); }
-        ${s} .cb-stk__card[data-tone="dark"]    { background: var(--cb-deep, #141210); }
+        ${s} .cb-stk__card[data-tone="dark"]    { background: var(--cb-deep, #141210); border: 1px solid rgba(255,255,255,.09); }
 
         ${s} .cb-stk__copy { display: flex; flex-direction: column; gap: 12px; ${p.layout === 'text' ? 'max-width: 62ch;' : ''} }
         ${s} .cb-stk__eyebrow {
@@ -752,7 +754,7 @@
         help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
       },
       { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
-      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 4, unit: 'px', value: 0 }
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 4, unit: 'px', value: 80 }
     ],
 
     render: function (p, c) {
@@ -845,7 +847,7 @@
       var dark = p.coverMode === 'deep' || p.coverMode === 'brand' || p.coverMode === 'custom';
 
       var css = `
-        ${s}.cb-spl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 72)}px; }
+        ${s}.cb-spl { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
         ${s} .cb-spl__row {
           display: grid; gap: clamp(24px, 4vw, 48px); align-items: center;
           grid-template-columns: ${p.mediaSide === 'left' ? '1.05fr .95fr' : '.95fr 1.05fr'};

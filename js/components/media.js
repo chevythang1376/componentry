@@ -99,7 +99,10 @@
         }
         ${s} .cb-ba__grip::before, ${s} .cb-ba__grip::after {
           content: ""; position: absolute; top: 50%; translate: 0 -50%;
-          border: solid var(--cb-ink); border-width: 0 2px 2px 0; width: 7px; height: 7px;
+          /* Chosen against the knob, not taken from the scheme: the knob keeps
+             its own colour in dark mode, so the scheme's light ink vanished on
+             a white knob. */
+          border: solid ${CB.readableInk(p.handleColor)}; border-width: 0 2px 2px 0; width: 7px; height: 7px;
         }
         ${s} .cb-ba__grip::before { left: 12px; rotate: 135deg; }
         ${s} .cb-ba__grip::after { right: 12px; rotate: -45deg; }
@@ -488,12 +491,12 @@
           position: relative; overflow: hidden;
           ${p.fade && !still ? '-webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);' : ''}
         }
-        ${s} .cb-mq__track {
+        ${still ? `${s} .cb-mq__track { display: flex; width: 100%; }` : `${s} .cb-mq__track {
           display: flex; width: max-content;
           animation: cb-mq-${c.cls} ${c.num(p.speed, 34)}s linear infinite;
           ${p.direction === 'right' ? 'animation-direction: reverse;' : ''}
-        }
-        ${p.pause ? `${s} .cb-mq__viewport:hover .cb-mq__track { animation-play-state: paused; }` : ''}
+        }`}
+        ${p.pause && !still ? `${s} .cb-mq__viewport:hover .cb-mq__track { animation-play-state: paused; }` : ''}
         ${s} .cb-mq__row {
           display: flex; align-items: center; gap: ${c.num(p.gap, 64)}px;
           padding-right: ${c.num(p.gap, 64)}px; flex-shrink: 0;
@@ -511,11 +514,11 @@
           transition: color .3s ease;
         }
         ${s} .cb-mq__item:hover .cb-mq__word { color: var(--cb-ink); }
+        ${still ? `
+        /* Still ships no animation at all, rather than one switched off. */
+        ${s} .cb-mq__row { flex-wrap: wrap; justify-content: center; row-gap: 24px; width: 100%; padding-right: 0; }` : `
         /* Translating by exactly one row width is what hides the seam. */
         @keyframes cb-mq-${c.cls} { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        ${still ? `
-        ${s} .cb-mq__track { animation: none; width: 100%; }
-        ${s} .cb-mq__row { flex-wrap: wrap; justify-content: center; row-gap: 24px; width: 100%; padding-right: 0; }` : `
         @media (prefers-reduced-motion: reduce) {
           ${s} .cb-mq__track { animation: none; }
           ${s} .cb-mq__row:last-child { display: none; }
@@ -884,15 +887,7 @@
   /* means by an end date.                                                  */
   /* --------------------------------------------------------------------- */
 
-  var EV_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  /* Parsed from the string rather than through new Date("2026-10-14"), which
-     is read as UTC midnight and shows as the day before for anyone west of
-     Greenwich. */
-  function evParts(v) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim());
-    return m ? { y: +m[1], m: +m[2], d: +m[3], iso: m[0] } : null;
-  }
+  var EV_MONTHS = CB.MONTHS;
   function evCompact(parts, addDays) {
     var t = new Date(Date.UTC(parts.y, parts.m - 1, parts.d + (addDays || 0)));
     function two(n) { return (n < 10 ? '0' : '') + n; }
@@ -909,9 +904,7 @@
   function icsText(s) {
     return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\r?\n/g, '\\n');
   }
-  function plain(s) {
-    return String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').trim();
-  }
+  var plain = CB.plainMarks;
 
   CB.register({
     id: 'events',
@@ -972,7 +965,7 @@
     render: function (p, c) {
       var s = c.s;
       var list = (p.items || []).filter(function (it) { return it && it.name; }).map(function (it, i) {
-        return { it: it, i: i, a: evParts(it.start), b: evParts(it.end) };
+        return { it: it, i: i, a: CB.isoDate(it.start), b: CB.isoDate(it.end) };
       });
       if (p.sort !== 'manual') {
         list.sort(function (x, y) {

@@ -320,7 +320,7 @@
           { k: 'sub', t: 'text', label: 'Sub-label', value: '' }
         ].concat(CB.ctaFields({ help: 'Leave empty for no button on this stat.' })),
         value: [
-          { prefix: '', value: '17', suffix: '', label: 'Components', sub: 'and counting' },
+          { prefix: '', value: '41', suffix: '', label: 'Components', sub: 'and counting' },
           { prefix: '', value: '0', suffix: '', label: 'Dependencies', sub: 'nothing to install' },
           { prefix: '', value: '98', suffix: '%', label: 'Lighthouse median', sub: 'across every block' },
           { prefix: '~', value: '12', suffix: 'kB', label: 'Typical export', sub: 'HTML, CSS and JS' }
@@ -649,7 +649,7 @@
           { k: 'badge', t: 'text', label: 'Badge text', value: '' }
         ],
         value: [
-          { name: 'Starter', price: '0', currency: '$', priceYear: '0', period: '/ month', blurb: 'For a single site.', features: 'All 17 components\nUnlimited exports\nLight and dark tokens\n-Priority support', cta: 'Start free', ctaUrl: '#', featured: false, badge: '' },
+          { name: 'Starter', price: '0', currency: '$', priceYear: '0', period: '/ month', blurb: 'For a single site.', features: 'All 41 components\nUnlimited exports\nLight and dark tokens\n-Priority support', cta: 'Start free', ctaUrl: '#', featured: false, badge: '' },
           { name: 'Studio', price: '29', currency: '$', priceYear: '290', period: '/ month', blurb: 'For teams shipping client work.', features: 'Everything in Starter\nSaved brand presets\nShareable project files\nPriority support', cta: 'Choose Studio', ctaUrl: '#', featured: true, badge: 'Most popular' },
           { name: 'Agency', price: '79', currency: '$', priceYear: '790', period: '/ month', blurb: 'For larger design teams.', features: 'Everything in Studio\nCustom component requests\nWhite-label exports\nOnboarding session', cta: 'Talk to us', ctaUrl: '#', featured: false, badge: '' }
         ]
@@ -810,20 +810,10 @@
   /* Webinar Library                                                        */
   /* --------------------------------------------------------------------- */
 
-  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  /* Built from the string parts rather than through Date. new Date("2026-08-25")
-     is parsed as UTC midnight, so anyone west of Greenwich renders it as the
-     24th — an off-by-one that only shows up for some of your visitors. */
-  function niceDate(iso) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '').trim());
-    if (!m) return String(iso || '').trim();   // "Coming soon" and the like pass through
-    return MONTHS[+m[2] - 1] + ' ' + (+m[3]) + ', ' + m[1];
-  }
-  function isoDate(v) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim());
-    return m ? m[0] : '';
-  }
+  /* Dates are read from the string parts, never through new Date() — see
+     CB.isoDate for why. */
+  var niceDate = CB.niceDate;
+  function isoDate(v) { var d = CB.isoDate(v); return d ? d.iso : ''; }
 
   /* Ordered here, at build time, so the exported markup is already in sequence
      and needs no script to stay that way — the same reason nothing else in this
@@ -1678,10 +1668,12 @@
       if ((m = /^(#{2,3})\s+(.+)$/.exec(t))) {
         flushAll();
         /* The block's own title is the h2, so the article's headings sit under
-           it: ## is an h3 and ### an h4. Heading level under Advanced shifts
-           all of them together. */
-        var tag = m[1].length === 2 ? 'h3' : 'h4';
-        out.push('<' + tag + '>' + inline(m[2]) + '</' + tag + '>');
+           it: ## is an h3 and ### an h4. Heading level under Advanced renumbers
+           all of them together, which is why they are styled by class: a rule
+           written for h3 would land on the wrong heading after the shift. */
+        var two = m[1].length === 2;
+        var tag = two ? 'h3' : 'h4';
+        out.push('<' + tag + ' class="' + (two ? 'cb-ar__h' : 'cb-ar__h cb-ar__h--minor') + '">' + inline(m[2]) + '</' + tag + '>');
         return;
       }
       if ((m = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(t))) {
@@ -1790,17 +1782,17 @@
         ${s} .cb-ar__body > * + * { margin-top: 1.1em; }
         ${s} .cb-ar__body p { color: var(--cb-ink); }
         ${s} .cb-ar__lead { font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); line-height: calc(1.5 + var(--cb-body-leading, 0)); }
-        ${s} .cb-ar__body h3 {
+        ${s} .cb-ar__h {
           margin-top: 1.9em;
           font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700);
           line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); text-wrap: balance;
         }
-        ${s} .cb-ar__body h4 {
+        ${s} .cb-ar__h--minor {
           margin-top: 1.6em;
           font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
           line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
         }
-        ${s} .cb-ar__body h3 + *, ${s} .cb-ar__body h4 + * { margin-top: .6em; }
+        ${s} .cb-ar__h + * { margin-top: .6em; }
         /* The reset takes bullets away from every list in the block, so an
            article has to ask for them back. */
         ${s} .cb-ar__body ul { list-style: disc; padding-left: 1.3em; }
@@ -1837,10 +1829,6 @@
   /* drawn for sighted readers and hidden from the accessibility tree so    */
   /* the position is not read out twice.                                    */
   /* --------------------------------------------------------------------- */
-
-  function plainMarks(s) {
-    return String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').trim();
-  }
 
   CB.register({
     id: 'steps',
@@ -1938,16 +1926,16 @@
         var data = {
           '@context': 'https://schema.org',
           '@type': 'HowTo',
-          name: plainMarks(p.title) || 'Steps',
+          name: CB.plainMarks(p.title) || 'Steps',
           step: items.map(function (it, i) {
-            var st = { '@type': 'HowToStep', position: i + 1, name: plainMarks(it.title), text: plainMarks(it.text) };
+            var st = { '@type': 'HowToStep', position: i + 1, name: CB.plainMarks(it.title), text: CB.plainMarks(it.text) };
             /* Only a real address is worth giving a search engine — a
                placeholder or an inline upload is not something it can fetch. */
             if (it.image && !/^data:/i.test(it.image)) st.image = String(it.image);
             return st;
           })
         };
-        if (p.sub) data.description = plainMarks(p.sub);
+        if (p.sub) data.description = CB.plainMarks(p.sub);
         if (mins > 0) data.totalTime = 'PT' + mins + 'M';
         schema = '\n  <script type="application/ld+json">' +
           JSON.stringify(data, null, 2).replace(/</g, '\\u003c') + '<\/script>';
@@ -2084,19 +2072,32 @@
 
     render: function (p, c) {
       var s = c.s;
-      var rows = (p.items || []).filter(function (it) {
-        return it && String(it.value == null ? '' : it.value).trim() !== '' && !isNaN(parseFloat(it.value));
-      });
+      var rows = (p.items || []).filter(function (it) { return it && !isNaN(figure(it.value)); });
       var rings = p.style === 'rings';
 
-      function pct(it) {
-        var max = c.num(it.max, 100) || 100;
-        return Math.round(c.clamp(c.num(it.value, 0) / max * 100, 0, 100) * 10) / 10;
+      /* Figures arrive the way a spreadsheet writes them — "1,200", "78%",
+         "$1.2M" — because a pasted cell is kept as text. parseFloat stops at
+         the first comma and gives up at a currency sign, which drew "1,200" as
+         a bar of 1 and dropped "$1.2M" altogether. */
+      function figure(v) {
+        var t = String(v == null ? '' : v).trim().replace(/[\s,$€£¥%]/g, '');
+        var m = /^([-+]?\d*\.?\d+)([kmb])?$/i.exec(t);
+        if (!m) return NaN;
+        return parseFloat(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1);
       }
+      function outOf(it) {
+        var max = figure(it.max);
+        return max > 0 ? max : 100;
+      }
+      function pct(it) {
+        return Math.round(c.clamp(figure(it.value) / outOf(it) * 100, 0, 100) * 10) / 10;
+      }
+      /* A bare number out of 100 is a percentage and gets its sign. A figure
+         somebody formatted themselves is shown exactly as they wrote it. */
       function shown(it) {
         if (String(it.display || '').trim()) return c.esc(it.display);
-        var max = c.num(it.max, 100);
-        return c.esc(String(it.value).trim()) + (max === 100 ? '%' : '');
+        var raw = String(it.value).trim();
+        return c.esc(raw) + (/^[-+]?\d*\.?\d+$/.test(raw) && outOf(it) === 100 ? '%' : '');
       }
 
       var body;
@@ -2258,9 +2259,15 @@
       var photos = p.photo !== 'none';
 
       var cards = items.map(function (it) {
-        var tel = String(it.phone || '').replace(/[^\d+]/g, '');
+        /* The dialed number is the line itself. An extension written after it
+           ("ext. 12", "x12") stays in the visible text but is not dialed —
+           stripping every non-digit used to run it into the number. */
+        var tel = String(it.phone || '').replace(/\s*(?:ext\.?|extension|x|#)\s*\d+\s*$/i, '').replace(/[^\d+]/g, '');
         var contact = [];
-        if (it.email) contact.push('<li><a class="cb-pp__link" href="mailto:' + c.attr(String(it.email).trim()) + '">' + c.esc(it.email) + '</a></li>');
+        /* A long address in a narrow card breaks after the @ first, rather than
+           wherever it runs out of room — "example.co" with "m" on a line alone. */
+        if (it.email) contact.push('<li><a class="cb-pp__link" href="mailto:' + c.attr(String(it.email).trim()) + '">' +
+          c.esc(it.email).replace('@', '@<wbr>') + '</a></li>');
         if (it.phone && tel) contact.push('<li><a class="cb-pp__link" href="tel:' + c.attr(tel) + '">' + c.esc(it.phone) + '</a></li>');
         if (it.link) contact.push('<li><a class="cb-pp__link" href="' + c.url(it.link) + '">' + c.esc(it.linkLabel || 'View profile') + '</a></li>');
         return c.dedent(`
