@@ -5,11 +5,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildAll, L } = require('../src/build');
-const { unpackAmxd, amxdType } = require('../src/amxd');
+const fs = require('fs');
+const path = require('path');
+const { buildAll, L, UI_SCRIPT, CARD_COLOR } = require('../src/build');
+const { unpackAmxd, amxdType, FROZEN } = require('../src/amxd');
+const { loadUI, SCRIPT } = require('./jsui-host');
 const { buildEngine } = require('../src/genexpr');
 const { engineParams, LANE_PARAMS, GLOBAL_PARAMS, LANES } = require('../src/spec');
-const { PatchSim } = require('./patch-sim');
+const { PatchSim, liveKeeps } = require('./patch-sim');
 
 const devices = buildAll({ write: false });
 const byVariant = Object.fromEntries(devices.map((d) => [d.variant, d]));
@@ -20,25 +23,34 @@ const sim = (variant, opts) => {
 };
 const bits = (m) => [...Array(16).keys()].filter((k) => (m >> k) & 1);
 
-test('each .amxd is an unfrozen device of the right type, wrapping the same JSON', () => {
+test('each .amxd is a frozen device of the right type: its patcher and its display script, in one file', () => {
+  const script = fs.readFileSync(SCRIPT);
   for (const d of devices) {
-    const { deviceType, json, chunks } = unpackAmxd(d.bytes);
-    assert.equal(deviceType, d.deviceType);
-    assert.equal(json, d.json);
-    const p = JSON.parse(json).patcher;
+    const u = unpackAmxd(d.bytes);
+    assert.equal(u.deviceType, d.deviceType);
+    assert.equal(u.meta, FROZEN);
+    assert.equal(u.name, d.file, 'Max files the main patcher under the device\'s own name');
+    assert.equal(u.json, d.json);
+    const main = u.directory[0];
+    assert.deepEqual([main.type, main.flag, main.offset, main.size], ['JSON', 17, 16, Buffer.byteLength(d.json) + 1]);
+    assert.equal(u.files.length, 1, 'one frozen file');
+    const [js] = u.files;
+    assert.deepEqual([js.type, js.name, js.flag], ['TEXT', UI_SCRIPT, 0]);
+    assert.ok(js.data.equals(script), 'the frozen script is the source, byte for byte');
+    const p = JSON.parse(u.json).patcher;
     assert.equal(p.project.amxdtype, amxdType(d.deviceType));
-    assert.equal(chunks.type.toString('ascii'), 'JSON');
-    assert.equal(chunks.sz32.readUInt32BE(0), Buffer.byteLength(json) + 1);
+    assert.deepEqual(p.project.contents, { patchers: {} });
     assert.equal(p.openinpresentation, 1);
     assert.equal(p.devicewidth, L.width);
+    const jsuis = p.boxes.filter((b) => b.box.maxclass === 'jsui').map((b) => b.box);
+    assert.equal(jsuis.length, 2);
+    for (const j of jsuis) assert.equal(j.filename, UI_SCRIPT, 'the displays load the script by the name it is frozen under');
   }
   assert.equal(byVariant.inst.deviceType, 'instrument');
   assert.equal(byVariant.fx.deviceType, 'audio_effect');
 });
 
 test('the committed .amxd files are exactly what the sources build (run npm run build after editing)', () => {
-  const fs = require('fs');
-  const path = require('path');
   for (const d of devices) {
     const file = path.join(__dirname, '..', d.file);
     assert.ok(fs.existsSync(file), d.file + ' exists');
@@ -81,20 +93,90 @@ test('every Live parameter is well formed: in range, named once, enums complete'
   }
 });
 
-test('the display is the same size in patching and presentation (a jsui maps itself to its patching size)', () => {
+test('each display is the same size in patching and presentation, and is told where it sits', () => {
   for (const d of devices) {
     const boxes = patcherOf(d).boxes;
-    const j = boxes.find((b) => b.box.maxclass === 'jsui').box;
-    assert.deepEqual(j.patching_rect.slice(2), j.presentation_rect.slice(2));
-    assert.deepEqual(j.presentation_rect, L.jsui);
-    // and nothing else in the patching view sits on top of it
-    for (const { box } of boxes) {
-      if (box === j) continue;
-      const [x, y, w, h] = box.patching_rect;
-      const [jx, jy, jw, jh] = j.patching_rect;
-      assert.ok(!(x < jx + jw && jx < x + w && y < jy + jh && jy < y + h), `${box.text || box.maxclass} overlaps the display in the patching view`);
+    const views = boxes.filter((b) => b.box.maxclass === 'jsui').map((b) => b.box);
+    assert.deepEqual(views.map((j) => j.jsarguments.slice(0, 2)), [[d.variant, 'source'], [d.variant, 'grid']]);
+    assert.deepEqual(views.map((j) => j.presentation_rect), [L.srcView, L.gridView]);
+    for (const j of views) {
+      // a jsui maps its drawing and its mouse to its patching size
+      assert.deepEqual(j.patching_rect.slice(2), j.presentation_rect.slice(2));
+      // and draws and hears the mouse relative to this origin
+      assert.deepEqual(j.jsarguments.slice(2), j.presentation_rect.slice(0, 2));
+      // nothing else in the patching view sits on top of it
+      for (const { box } of boxes) {
+        if (box === j) continue;
+        const [x, y, w, h] = box.patching_rect;
+        const [jx, jy, jw, jh] = j.patching_rect;
+        assert.ok(!(x < jx + jw && jx < x + w && y < jy + jh && jy < y + h), `${box.text || box.maxclass} overlaps ${j.varname} in the patching view`);
+      }
     }
   }
+});
+
+test('nothing sits under a display: in Live a jsui listed before a control hides it', () => {
+  for (const d of devices) {
+    const shown = patcherOf(d).boxes.map((b) => b.box).filter((b) => b.presentation);
+    for (const j of shown.filter((b) => b.maxclass === 'jsui')) {
+      for (const b of shown) {
+        if (b === j || b.background) continue;
+        const [ax, ay, aw, ah] = j.presentation_rect;
+        const [bx, by, bw, bh] = b.presentation_rect;
+        assert.ok(!(ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah), `${b.varname || b.maxclass} is under ${j.varname}`);
+      }
+    }
+  }
+});
+
+test('the dark cards are background panels, at the back of the list, the colour the displays paint', () => {
+  const BG = loadUI().sandbox.BG;
+  for (const d of devices) {
+    const boxes = patcherOf(d).boxes.map((b) => b.box);
+    const cards = boxes.filter((b) => b.maxclass === 'panel');
+    assert.deepEqual(cards.map((c) => c.presentation_rect), [L.srcCard, L.gridCard]);
+    assert.deepEqual(boxes.slice(-cards.length), cards, 'last in the list');
+    for (const c of cards) {
+      assert.equal(c.background, 1);
+      assert.equal(c.ignoreclick, 1);
+      assert.deepEqual(c.bgcolor, [...BG, 1]);
+    }
+    assert.deepEqual(CARD_COLOR, [...BG, 1]);
+    // each display lies inside its card, clear of the rounded corners
+    const [sv, gv] = [L.srcView, L.gridView];
+    for (const [v, c] of [[sv, L.srcCard], [gv, L.gridCard]]) {
+      assert.ok(v[0] >= c[0] + 2 && v[1] >= c[1] + 2 && v[0] + v[2] <= c[0] + c[2] - 2 && v[1] + v[3] <= c[1] + c[3] - 2);
+    }
+  }
+});
+
+test('every Int parameter fits Live\'s Int, which holds 0-255; the step masks are Floats', () => {
+  for (const d of devices) {
+    for (const { box } of patcherOf(d).boxes) {
+      const v = box.saved_attribute_attributes && box.saved_attribute_attributes.valueof;
+      if (!v || v.parameter_type !== 1) continue;
+      assert.ok(v.parameter_mmin >= 0 && v.parameter_mmax <= 255, `${v.parameter_longname}: ${v.parameter_mmin}..${v.parameter_mmax}`);
+    }
+    for (const lane of LANES) {
+      for (const what of ['Steps', 'Accents', 'Rolls']) {
+        const box = patcherOf(d).boxes.find((b) => (b.box.saved_attribute_attributes || {}).valueof?.parameter_longname === `${lane.name} ${what}`).box;
+        const v = box.saved_attribute_attributes.valueof;
+        assert.deepEqual([v.parameter_type, v.parameter_mmin, v.parameter_mmax], [0, 0, 65535], `${lane.name} ${what}`);
+      }
+    }
+  }
+});
+
+test('a step mask survives Live\'s 32-bit float storage: all 65536 of them, once rounded', () => {
+  const box = { isEnum: false, isInt: false, min: 0, max: 65535 };
+  let drifted = 0;
+  for (let m = 0; m <= 65535; m++) {
+    const back = liveKeeps(box, m);
+    if (back !== m) drifted++;
+    assert.equal(Math.round(back), m); // the display
+    assert.equal(Math.floor(back + 0.5), m); // gen~
+  }
+  assert.ok(drifted > 1000, 'and the model really does hand most of them back a hair off');
 });
 
 test('pattern storage is hidden from the device and from automation, but stored', () => {
@@ -108,9 +190,9 @@ test('pattern storage is hidden from the device and from automation, but stored'
   }
 });
 
-test('no two visible controls overlap', () => {
+test('no two visible boxes overlap, displays included (the cards are behind them all)', () => {
   for (const d of devices) {
-    const boxes = patcherOf(d).boxes.map((b) => b.box).filter((b) => b.presentation && !b.hidden && b.maxclass !== 'jsui');
+    const boxes = patcherOf(d).boxes.map((b) => b.box).filter((b) => b.presentation && !b.hidden && !b.background);
     for (let i = 0; i < boxes.length; i++) {
       for (let j = i + 1; j < boxes.length; j++) {
         const [ax, ay, aw, ah] = boxes[i].presentation_rect;
@@ -147,7 +229,7 @@ for (const variant of ['inst', 'fx']) {
     }
     assert.equal(s.gen.smp, '012gfsrc', 'sample buffer bound by its device-unique name');
     assert.equal(s.gen.cap, '012gfcap');
-    assert.equal(s.ui.state().bufName, '012gfsrc');
+    assert.equal(s.sourceUI.state().bufName, '012gfsrc');
     assert.ok(s.isShown('gf_tun0') && s.isShown('gf_syn0') && s.isShown('gf_lbl_syn0'));
     assert.ok(!s.isShown('gf_tun1') && !s.isShown('gf_atk0') && !s.isShown('gf_chc3'));
   });
@@ -155,10 +237,10 @@ for (const variant of ['inst', 'fx']) {
   test(`${variant}: a stored set loads without the grid rewriting anything`, () => {
     const s = sim(variant);
     s.load({ 'Kick Steps': 1 + 256, 'Tone Steps Length': 7, 'Hats Accents': 4, 'Edit Lane': 2, 'Edit Page': 1 });
-    assert.equal(s.gen.pat0, 257);
+    assert.equal(Math.round(s.gen.pat0), 257, 'gen~ rounds what Live hands back');
     assert.equal(s.gen.len3, 7);
     assert.equal(s.ui.state().pat[0], 257);
-    assert.deepEqual([...s.ui.outputs], []);
+    assert.deepEqual(s.pendingOutputs(), []);
     assert.ok(s.isShown('gf_cut2'), 'Hats SHAPE shows');
     assert.ok(!s.isShown('gf_tun0'));
   });
@@ -168,7 +250,7 @@ for (const variant of ['inst', 'fx']) {
     const stored = { 'Kick Steps': 1 + 16, 'Clap Steps': 4096, 'Hats Steps': 4, 'Tone Steps': 2, Generate: 0, Mutate: 0, Clear: 0, Undo: 0 };
     s.load(stored);
     s.recall(stored);
-    assert.deepEqual([s.gen.pat0, s.gen.pat1, s.gen.pat2, s.gen.pat3], [17, 4096, 4, 2], 'patterns as stored');
+    assert.deepEqual([s.gen.pat0, s.gen.pat1, s.gen.pat2, s.gen.pat3].map(Math.round), [17, 4096, 4, 2], 'patterns as stored');
     assert.equal(s.ui.state().pat[2], 4);
     if (variant === 'fx') {
       assert.equal(s.gen.srcsel, 0, 'Capture did not fire');
@@ -184,6 +266,31 @@ for (const variant of ['inst', 'fx']) {
     assert.ok(bits(s.gen.pat1).includes(2), 'engine');
     assert.equal(s.param('Edit Lane').value, 1, 'the clicked lane is now the one being edited');
     assert.ok(s.isShown('gf_tun1') && !s.isShown('gf_tun0'), 'and its knobs show');
+  });
+
+  test(`${variant}: every step of the bar, clicked on the grid, reaches gen~ and stays drawn`, () => {
+    const s = sim(variant);
+    s.load();
+    for (let lane = 0; lane < 4; lane++) {
+      for (let k = 0; k < 16; k++) {
+        const before = Math.round(s.gen['pat' + lane]);
+        const on = (before >> k) & 1;
+        const accented = (Math.round(s.gen['acc' + lane]) >> k) & 1;
+        s.uiDo((ui) => { ui.click(226 + k * 17 + 7, 16 + lane * 20 + 9); ui.release(0, 0); });
+        const after = Math.round(s.gen['pat' + lane]);
+        // a click cycles off, on, accent, off
+        assert.equal((after >> k) & 1, on && accented ? 0 : 1, `lane ${lane} step ${k + 1}`);
+        assert.ok([0, 1 << k].includes(after ^ before), 'no other step changes');
+        assert.equal(s.ui.state().pat[lane], after, 'the grid draws what gen~ plays');
+        assert.equal(s.sourceUI.state().pat[lane], after);
+      }
+    }
+    // turn every step on in lane 2, from an empty lane
+    s.turn('Edit Lane', 2);
+    s.press('Clear');
+    assert.equal(Math.round(s.gen.pat2), 0);
+    for (let k = 0; k < 16; k++) s.uiDo((ui) => { ui.click(226 + k * 17 + 7, 16 + 2 * 20 + 9); ui.release(0, 0); });
+    assert.equal(Math.round(s.gen.pat2), 65535, 'all sixteen');
   });
 
   test(`${variant}: choosing a lane and a page shows exactly those knobs`, () => {
@@ -228,9 +335,29 @@ for (const variant of ['inst', 'fx']) {
     const s = sim(variant);
     s.load();
     s.turn('Edit Lane', 2);
-    s.uiDo((ui) => ui.click(10 + 158 * 0.75, 40));
+    s.uiDo((ui) => ui.click(10 + 158 * 0.75, 40), 'source');
     assert.equal(s.param('Hats Start').value, 75);
     assert.equal(s.gen.stt2, 75);
+    assert.equal(s.sourceUI.state().stt[2], 75, 'the marker moves with it');
+  });
+
+  test(`${variant}: both displays hear what they draw, and each press or note does its work once`, () => {
+    const s = sim(variant);
+    s.load();
+    s.uiDo((ui) => { ui.click(226 + 5 * 17 + 7, 16 + 3 * 20 + 9); ui.release(0, 0); });
+    assert.equal(s.ui.state().sel, 3);
+    assert.equal(s.sourceUI.state().sel, 3, 'a lane picked on the grid is the lane the waveform edits');
+    s.turn('Tone Walk', 40);
+    assert.equal(s.sourceUI.state().wlk[3], 40);
+    const count = (name) => s.genLog.filter((m) => m[0] === name).length;
+    const before = count('pat0');
+    s.press('Generate');
+    assert.equal(count('pat0') - before, 1, 'one Generate, one new kick pattern');
+    if (variant === 'inst') {
+      const notes = count('arp_n');
+      s.note(62, 100);
+      assert.equal(count('arp_n') - notes, 1, 'one note, one chord update');
+    }
   });
 
   test(`${variant}: Generate, Mutate, Clear and Undo drive the stored patterns`, () => {

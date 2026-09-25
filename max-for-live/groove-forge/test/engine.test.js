@@ -88,6 +88,27 @@ test('a late lane does not fire the last step of the pattern when the transport 
   assert.equal(H.lanes(r.starts, 1).length, 0);
 });
 
+test('every one of the 16 steps plays, and only the steps in the mask', () => {
+  for (let step = 1; step <= 16; step++) {
+    const g = H.makeEngine(H.solo(1, { swingamt: 50, pat1: H.mask(step), acc1: 0, rol1: 0 }));
+    const r = H.run(g, { samples: 16 * SPB - 10 });
+    const at = H.lanes(r.starts, 1).map((s) => Math.round(s.i / SPB));
+    assert.deepEqual(at, [step - 1], 'step ' + step);
+  }
+});
+
+test('a mask that comes back from Live a hair off plays exactly its steps', () => {
+  // The masks live in Float parameters, and a stored float returns through
+  // Live's 0-1 range: 4369 can come back as 4368.9998 or 4369.0002.
+  const want = H.mask(1, 5, 9, 13, 16);
+  for (const drift of [-0.0002, 0.0002, -0.49, 0.49]) {
+    const g = H.makeEngine(H.solo(0, { swingamt: 50, pat0: want + drift, acc0: want + drift, rol0: 0.0001 }));
+    const r = H.run(g, { samples: 16 * SPB - 10 });
+    const at = H.lanes(r.starts, 0).map((s) => Math.round(s.i / SPB));
+    assert.deepEqual(at, [0, 4, 8, 12, 15], 'drift ' + drift);
+  }
+});
+
 test('lanes of different lengths run against each other (polymeter)', () => {
   const g = H.makeEngine(H.solo(3, { swingamt: 50, len3: 5, pat3: H.mask(1, 3) }));
   const r = H.run(g, { samples: 20 * SPB - 10 });

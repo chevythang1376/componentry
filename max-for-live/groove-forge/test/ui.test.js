@@ -1,11 +1,14 @@
 'use strict';
-// groove-forge-ui.js, run in a stand-in for Max's jsui host.
+// The display script, run in a stand-in for Max's jsui host: the grid part
+// unless a test says otherwise.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
-const { loadUI, SCRIPT } = require('./jsui-host');
+const vm = require('vm');
+const { loadUI, SCRIPT, PARTS } = require('./jsui-host');
 const { LANE_PARAMS } = require('../src/spec');
+const { assertES5 } = require('../src/build');
 
 const padAt = (lane, step) => [226 + step * 17 + 7, 16 + lane * 20 + 9];
 const fieldAt = (lane, f) => [500 + f * 20 + 9, 16 + lane * 20 + 9];
@@ -21,13 +24,18 @@ function echo(ui, outs) {
   for (const o of outs) if (/^(pat|acc|rol|len|hit|rot|stt)\d$/.test(o[1]) || o[1] === 'sel') ui.msg(o[1], o[2]);
 }
 
-test('is ES5: the jsui engine in Max 8 and 9 has no let, const, arrows, classes or template strings', () => {
-  const src = fs.readFileSync(SCRIPT, 'utf8').replace(/\/\/.*$/gm, '').replace(/'(?:[^'\\]|\\.)*'/g, "''");
-  for (const [re, what] of [[/\blet\s/, 'let'], [/\bconst\s/, 'const'], [/=>/, 'arrow function'], [/`/, 'template string'],
-    [/\bclass\s/, 'class'], [/\.\.\.[A-Za-z_[]/, 'spread'], [/function\s*\w*\([^)]*=/, 'default parameter'],
-    [/\bfor\s*\(\s*var\s+\w+\s+of\b/, 'for...of']]) {
-    assert.ok(!re.test(src), 'uses ' + what);
+test('parses as ES5, the only JavaScript Max\'s jsui runs (one newer token and it never loads)', () => {
+  assert.doesNotThrow(() => assertES5(fs.readFileSync(SCRIPT, 'utf8'), 'the display script'));
+  assert.throws(() => assertES5('f(1, 2,);', 'a trailing comma in a call'), /not ES5/);
+  assert.throws(() => assertES5('var f = () => 1;', 'an arrow'), /not ES5/);
+});
+
+test('runs where the built-ins newer than ES5 are missing, as in Max\'s legacy engine', () => {
+  const ui = loadUI();
+  for (const gone of ['Array.prototype.includes', 'Object.assign', 'Number.isFinite', 'Math.trunc', 'String.prototype.startsWith', 'this.Map']) {
+    assert.equal(vm.runInContext('typeof ' + gone, ui.sandbox), 'undefined', gone);
   }
+  // and every test below runs it that way
 });
 
 test('declares one inlet and one outlet', () => {
@@ -37,18 +45,71 @@ test('declares one inlet and one outlet', () => {
 });
 
 test('stored values arriving never write anything back (loading a set cannot change a pattern)', () => {
-  const ui = loadUI();
-  const stored = { pat0: 4369, acc0: 1, rol0: 0, len0: 12, hit0: 3, rot0: 0, pat2: 21845, len2: 7, on1: 0, stt3: 40, wlk3: 25, swd1: 50, ndg2: -10 };
-  for (const [k, v] of Object.entries(stored)) ui.msg(k, v);
-  ui.msg('swingamt', 62);
-  ui.msg('swgrid', 1);
-  ui.msg('style', 3);
-  ui.msg('sel', 2);
+  for (const part of ['source', 'grid']) {
+    const ui = loadUI({ part });
+    const stored = { pat0: 4369, acc0: 1, rol0: 0, len0: 12, hit0: 3, rot0: 0, pat2: 21845, len2: 7, on1: 0, stt3: 40, wlk3: 25, swd1: 50, ndg2: -10 };
+    for (const [k, v] of Object.entries(stored)) ui.msg(k, v);
+    ui.msg('swingamt', 62);
+    ui.msg('swgrid', 1);
+    ui.msg('style', 3);
+    ui.msg('sel', 2);
+    ui.msg('init');
+    assert.deepEqual(ui.take(), [], part);
+    assert.equal(ui.state().len[0], 12);
+    assert.equal(ui.state().pat[2], 21845);
+    assert.equal(ui.state().on[1], 0);
+  }
+});
+
+test('each part does its own share once: the source part keeps the chord, the grid part the pattern', () => {
+  const source = loadUI({ part: 'source' });
+  const grid = loadUI({ part: 'grid' });
+  for (const ui of [source, grid]) {
+    ui.msg('init');
+    ui.msg('note', 60, 100);
+    ui.msg('generate');
+    ui.msg('mutate');
+    ui.msg('clear');
+    ui.msg('undo');
+  }
+  const fromSource = source.take().map((o) => o[1]);
+  const fromGrid = grid.take().map((o) => o[1]);
+  assert.deepEqual(fromSource, ['arp0', 'arp_n'], 'the source part sends the chord and nothing else');
+  assert.ok(fromGrid.length > 0 && fromGrid.every((n) => /^(pat|acc|rol|len|hit|rot)\d$/.test(n)), 'the grid part writes patterns and nothing else');
+});
+
+test('a part redraws for what it shows, not for what the other part shows', () => {
+  const redraws = (part, name, ...args) => {
+    const ui = loadUI({ part });
+    ui.msg('init');
+    const before = ui.redraws();
+    ui.msg(name, ...args);
+    return ui.redraws() - before;
+  };
+  assert.equal(redraws('grid', 'steps', 65536 + 5), 1);
+  assert.equal(redraws('source', 'steps', 65536 + 5), 0);
+  assert.equal(redraws('source', 'stat', 2 + 16 * 40), 1);
+  assert.equal(redraws('grid', 'stat', 2 + 16 * 40), 0);
+  assert.equal(redraws('grid', 'pat1', 3), 1);
+  assert.equal(redraws('source', 'pat1', 3), 0);
+  assert.equal(redraws('source', 'stt1', 30), 1);
+  assert.equal(redraws('grid', 'stt1', 30), 0);
+  for (const part of ['source', 'grid']) {
+    assert.equal(redraws(part, 'sel', 2), 1, 'both show the selected lane');
+    assert.equal(redraws(part, 'len2', 9), 1, 'both show lane length');
+    assert.equal(redraws(part, 'act', 15), 1, 'both show activity');
+  }
+});
+
+test('the engine status redraws only when it changes, except while ARMED blinks', () => {
+  const ui = loadUI({ part: 'source', variant: 'fx' });
   ui.msg('init');
-  assert.deepEqual(ui.take(), []);
-  assert.equal(ui.state().len[0], 12);
-  assert.equal(ui.state().pat[2], 21845);
-  assert.equal(ui.state().on[1], 0);
+  let before = ui.redraws();
+  for (let i = 0; i < 5; i++) ui.msg('stat', 4);
+  assert.equal(ui.redraws() - before, 1, 'the same status five times is one redraw');
+  before = ui.redraws();
+  for (let i = 0; i < 5; i++) ui.msg('stat', 1);
+  assert.equal(ui.redraws() - before, 5, 'armed: every report redraws, to blink');
 });
 
 test('a click cycles a step: off, on, accent, off', () => {
@@ -242,7 +303,7 @@ test('Undo walks back through several edits', () => {
 });
 
 test('a held chord goes to the engine sorted, and stays after the keys are let go', () => {
-  const ui = loadUI();
+  const ui = loadUI({ part: 'source' });
   ui.msg('init');
   ui.msg('note', 67, 100);
   ui.msg('note', 60, 100);
@@ -281,7 +342,7 @@ test('the waveform is read from the buffer, and a click on it sets where the sel
   const frames = 48000;
   const data = [new Float64Array(frames), new Float64Array(frames)];
   for (let i = 0; i < frames; i++) data[0][i] = data[1][i] = 0.5 * Math.sin(i / 20) * (i < frames / 2 ? 1 : 0.25);
-  const ui = loadUI({ buffers: { '0123gfsrc': { frames, channels: 2, data } } });
+  const ui = loadUI({ part: 'source', buffers: { '0123gfsrc': { frames, channels: 2, data } } });
   ui.msg('setbuf', '0123gfsrc');
   assert.equal(ui.state().peaks, null, 'nothing is read before the device has loaded');
   ui.msg('init');
@@ -293,13 +354,29 @@ test('the waveform is read from the buffer, and a click on it sets where the sel
   ui.click(10 + 79, 40);
   const o = ui.take();
   assert.equal(last(o, 'stt3'), 50);
+  ui.release(10 + 79, 40);
+  ui.click(20, 10); // the title, not the waveform
+  assert.deepEqual(ui.take(), []);
 });
 
-test('paints in every state without a call Max would reject', () => {
-  for (const variant of ['inst', 'fx']) {
+test('the grid part never reads the sample: only the part that draws it does', () => {
+  let reads = 0;
+  const buffers = new Proxy({}, { get: () => { reads++; return { frames: 4800, channels: 1, data: [new Float64Array(4800)] }; } });
+  const ui = loadUI({ part: 'grid', buffers });
+  ui.msg('setbuf', 'x');
+  ui.msg('init');
+  ui.msg('loaded');
+  ui.msg('setcap', 'y');
+  ui.msg('stat', 8 + 2048 * 500);
+  assert.equal(reads, 0);
+  assert.equal(ui.state().peaks, null);
+});
+
+test('paints in every state inside its own box, without a call Max would reject', () => {
+  for (const [variant, part] of [['inst', 'source'], ['inst', 'grid'], ['fx', 'source'], ['fx', 'grid']]) {
     const frames = 9600;
     const data = [new Float64Array(frames).map((_, i) => Math.sin(i / 7))];
-    const ui = loadUI({ variant, buffers: { buf: { frames, channels: 1, data }, cap: { frames, channels: 2, data: [data[0], data[0]] } } });
+    const ui = loadUI({ variant, part, buffers: { buf: { frames, channels: 1, data }, cap: { frames, channels: 2, data: [data[0], data[0]] } } });
     ui.paint();
     ui.msg('setbuf', 'buf');
     ui.msg('setcap', 'cap');
@@ -316,13 +393,35 @@ test('paints in every state without a call Max would reject', () => {
       ui.msg('len3', 5);
       ui.msg('rol1', 65535);
       ui.msg('on2', 0);
+      // every lane started at each end of the sound, walked all the way
+      for (let l = 0; l < 4; l++) {
+        ui.msg('stt' + l, stat & 4 ? 100 : 0);
+        ui.msg('wlk' + l, 100);
+      }
       const calls = ui.paint();
-      assert.ok(calls.length > 100);
+      assert.ok(calls.length > (part === 'grid' ? 100 : 30), `${variant} ${part} draws`);
     }
-    ui.sandbox.onidle(300, 30, 0, 0, 0, 0, 0, 0);
-    ui.sandbox.onidle(510, 40, 0, 0, 0, 0, 0, 0);
-    ui.sandbox.onidleout();
+    const [x, y, w, h] = PARTS[part];
+    for (const [hx, hy] of [[x + 1, y + 1], [x + w / 2, y + h / 2], [x + w - 1, y + h - 1], [300, 30], [510, 40], [60, 40]]) {
+      if (hx >= x && hx < x + w && hy >= y && hy < y + h) ui.hover(hx, hy);
+      ui.paint();
+    }
+    ui.leave();
     ui.paint();
+  }
+});
+
+test('the parts sit where the geometry expects: the waveform in the source part, pads, fields and dice in the grid part', () => {
+  const inside = (r, x, y) => x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3];
+  const { G } = loadUI().sandbox;
+  const [wx, wy, ww, wh] = G.wave;
+  assert.ok(inside(PARTS.source, wx, wy) && inside(PARTS.source, wx + ww - 1, wy + wh - 1), 'the waveform');
+  for (let l = 0; l < 4; l++) {
+    const [px, py] = padAt(l, 0);
+    const [qx] = padAt(l, 15);
+    const [dx] = diceAt(l);
+    assert.ok(inside(PARTS.grid, px - 7, py - 9) && inside(PARTS.grid, qx + 8, py + 9), 'pads of lane ' + l);
+    assert.ok(inside(PARTS.grid, dx + 6, py), 'the die of lane ' + l);
   }
 });
 

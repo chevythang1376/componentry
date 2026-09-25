@@ -220,10 +220,12 @@ fdel_$L = 0;
 fpo_$L = 0;
 fst_$L = 0;
 if (trg_$L > 0.5) {
+    // The masks are whole numbers kept in Float parameters, which can arrive a
+    // hair off after a trip through Live: round before reading a bit.
     bw_$L = pow(2, ls_$L);
-    bon_$L = floor(pat$L / bw_$L) % 2;
-    bac_$L = floor(acc$L / bw_$L) % 2;
-    bro_$L = floor(rol$L / bw_$L) % 2;
+    bon_$L = floor(floor(pat$L + 0.5) / bw_$L) % 2;
+    bac_$L = floor(floor(acc$L + 0.5) / bw_$L) % 2;
+    bro_$L = floor(floor(rol$L + 0.5) / bw_$L) % 2;
     rb = (rb * 1664525 + 1013904223) % 4294967296;
     u1_$L = rb / 4294967296;
     rb = (rb * 1664525 + 1013904223) % 4294967296;

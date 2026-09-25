@@ -1,10 +1,22 @@
 // Groove Forge: the display, the step grid and the pattern brain.
 //
 // This runs in Max's jsui, which is the legacy JavaScript engine: ES5 only.
-// No let/const, arrow functions, template strings or classes.
+// No let/const, arrow functions, template strings or classes. The build
+// refuses a script that does not parse as ES5.
 //
-// Keep this file next to Groove Forge.amxd (Max finds it in the device's own
-// folder), or freeze the device in Max to fold it into the .amxd.
+// The build freezes this file into both devices, so it travels inside the
+// .amxd: nothing needs to sit next to the device.
+//
+// Each device runs it twice, as two jsui boxes that never overlap anything:
+//
+//   source   the waveform, each lane's start, the held chord, capture state
+//   grid     the step grid and the pattern brain: clicks, Generate, Mutate,
+//            Clear, Undo
+//
+// jsarguments: variant, part, and the part's left and top in the device. All
+// geometry below is in device pixels; drawing and the mouse shift by that
+// origin. Both parts get every message; each acts on its own share, so a
+// chord is sent to gen~ once and a Generate happens once.
 //
 // The grid never owns the pattern. Every step, accent, roll and lane length
 // lives in a hidden Live parameter, so it is saved with the set, recalled by
@@ -22,15 +34,18 @@ mgraphics.relative_coords = 0;
 mgraphics.autofill = 0;
 
 var VARIANT = jsarguments.length > 1 ? String(jsarguments[1]) : 'inst';
+var PART = jsarguments.length > 2 && String(jsarguments[2]) === 'source' ? 'source' : 'grid';
+var OX = jsarguments.length > 3 ? Number(jsarguments[3]) : 0;
+var OY = jsarguments.length > 4 ? Number(jsarguments[4]) : 0;
 
 var LANES = 4;
 var STEPS = 16;
-var TAGS = ['KICK', 'CLAP', 'HATS', 'TONE'];
 var COLORS = [[0.98, 0.58, 0.2], [0.98, 0.37, 0.6], [0.33, 0.82, 0.96], [0.68, 0.9, 0.33]];
 var FONT = 'Arial Bold';
 
-// Geometry, in device pixels. The jsui covers the source display and the grid;
-// the live.drop, the lane buttons and the level dials sit on top of it.
+// Geometry, in device pixels. The dark cards (src, grid) are panels behind
+// everything; the source part sits inside the first, the grid part inside the
+// second, between the lane buttons and the level dials.
 var G = {
   src: [6, 4, 166, 66],
   wave: [10, 19, 158, 45],
@@ -158,6 +173,10 @@ function pushUndo() {
 
 // ------------------------------------------------------------------ messages in
 var LANE_FIELDS = { pat: 1, acc: 1, rol: 1, len: 1, hit: 1, rot: 1, on: 1, stt: 1, wlk: 1, swd: 1, ndg: 1 };
+// Whole numbers, and their range. The masks are kept in Float parameters (a
+// Live Int holds 0-255 only) and can come back a hair off, so every one is
+// rounded before a bit of it is read: 4368.9998 truncated would lose step 1.
+var WHOLE = { pat: [0, 65535], acc: [0, 65535], rol: [0, 65535], len: [1, 16], hit: [0, 16], rot: [0, 15], on: [0, 1] };
 
 function anything() {
   var args = arrayfromargs(arguments);
@@ -168,31 +187,37 @@ function handle(name, args) {
   var v = args.length ? args[0] : 0;
   var m = /^([a-z]+)(\d)$/.exec(name);
   if (m && LANE_FIELDS[m[1]] && +m[2] < LANES) {
-    st[m[1]][+m[2]] = Number(v);
-    if (m[1] === 'len') st.len[+m[2]] = clampInt(v, 1, 16);
-    return redraw();
+    var w = WHOLE[m[1]];
+    st[m[1]][+m[2]] = w ? clampInt(Number(v), w[0], w[1]) : Number(v);
+    return redrawFor(m[1]);
   }
   switch (name) {
-    case 'swingamt': st.swing = Number(v); return redraw();
-    case 'swgrid': st.swgrid = Number(v); return redraw();
+    case 'swingamt': st.swing = Number(v); return redrawFor(name);
+    case 'swgrid': st.swgrid = Number(v); return redrawFor(name);
     case 'style': st.style = clampInt(v, 0, STYLES.length - 1); return;
-    case 'srcsel': st.srcsel = Number(v); return redraw();
+    case 'srcsel': st.srcsel = Number(v); return redrawFor(name);
     case 'sel': st.sel = clampInt(v, 0, LANES - 1); return redraw();
     case 'steps': return onSteps(Number(v));
     case 'act': return onAct(Number(v));
     case 'stat': return onStat(Number(v));
-    case 'setbuf': st.bufName = String(v); st.peaks = readPeaks(st.bufName, 1); return redraw();
-    case 'setcap': st.capName = String(v); return redraw();
-    case 'loaded': st.peaks = readPeaks(st.bufName, 1); st.hasSample = st.peaks ? 1 : 0; return redraw();
-    case 'note': return onNote(Number(args[0]), Number(args[1]));
-    case 'generate': return generateAll();
-    case 'mutate': return mutateAll();
-    case 'clear': return clearLane(st.sel);
-    case 'undo': return undo();
+    case 'setbuf': st.bufName = String(v); st.peaks = readPeaks(st.bufName, 1); return redrawFor(name);
+    case 'setcap': st.capName = String(v); return redrawFor(name);
+    case 'loaded': st.peaks = readPeaks(st.bufName, 1); st.hasSample = st.peaks ? 1 : 0; return redrawFor(name);
+    case 'note': return PART === 'source' ? onNote(Number(args[0]), Number(args[1])) : null;
     case 'init':
       ready = true;
       st.peaks = readPeaks(st.bufName, 1);
       return redraw();
+    default:
+      break;
+  }
+  // the pattern brain lives in the grid
+  if (PART !== 'grid') return;
+  switch (name) {
+    case 'generate': return generateAll();
+    case 'mutate': return mutateAll();
+    case 'clear': return clearLane(st.sel);
+    case 'undo': return undo();
     default:
       return;
   }
@@ -200,6 +225,14 @@ function handle(name, args) {
 
 function redraw() {
   mgraphics.redraw();
+}
+// What each part draws from: a message the other part draws redraws only that one.
+var DRAWN_BY = {
+  source: { stt: 1, wlk: 1, len: 1, srcsel: 1, stat: 1, setbuf: 1, setcap: 1, loaded: 1 },
+  grid: { pat: 1, acc: 1, rol: 1, len: 1, hit: 1, rot: 1, on: 1, swd: 1, ndg: 1, swingamt: 1, swgrid: 1, steps: 1 }
+};
+function redrawFor(what) {
+  if (DRAWN_BY[PART][what]) redraw();
 }
 
 // The engine packs every lane's step into one number, 4 bits a lane.
@@ -209,7 +242,7 @@ function onSteps(code) {
   st.playing = code >= 65536 ? 1 : 0;
   var c = code % 65536;
   for (var l = 0; l < LANES; l++) st.steps[l] = Math.floor(c / Math.pow(16, l)) % 16;
-  redraw();
+  redrawFor('steps');
 }
 function onAct(code) {
   if (code === lastActCode) return;
@@ -218,7 +251,12 @@ function onAct(code) {
   redraw();
 }
 // capture state + 4*(sample) + 8*(capture) + 16*(percent) + 2048*(capture length in thousandths)
+// It arrives 25 times a second; only a change redraws, except while armed,
+// when ARMED blinks.
+var lastStatCode = -1;
 function onStat(code) {
+  if (code === lastStatCode && st.cap !== 1) return;
+  lastStatCode = code;
   var wasCap = st.cap;
   var hadCap = st.hasCap;
   var lastFrac = st.capFrac;
@@ -230,7 +268,7 @@ function onStat(code) {
   if ((wasCap === 2 && st.cap !== 2) || (st.hasCap && !hadCap) || st.capFrac !== lastFrac) {
     st.capPeaks = readPeaks(st.capName, st.capFrac);
   }
-  redraw();
+  redrawFor('stat');
 }
 
 // ------------------------------------------------------------------ MIDI: the held chord
@@ -260,8 +298,9 @@ function noteName(p) {
 }
 
 // ------------------------------------------------------------------ the waveform
+// Only the source part draws it, so only the source part reads the buffer.
 function readPeaks(name, fraction) {
-  if (!name || !ready) return null;
+  if (PART !== 'source' || !name || !ready) return null;
   var b;
   try {
     b = new Buffer(name);
@@ -323,8 +362,20 @@ var INK = [0.86, 0.88, 0.9];
 var DIM = [0.46, 0.48, 0.52];
 var OFF = [0.17, 0.18, 0.2];
 
+// Every shape goes through these, in device pixels; they shift it into the
+// part's own box. (Not a transform: Max draws text where move_to put it, but
+// does not apply the matrix to text.)
+function rect(x, y, w, h) {
+  mgraphics.rectangle(x - OX, y - OY, w, h);
+}
 function roundRect(x, y, w, h, r) {
-  mgraphics.rectangle_rounded(x, y, w, h, r, r);
+  mgraphics.rectangle_rounded(x - OX, y - OY, w, h, r, r);
+}
+function moveTo(x, y) {
+  mgraphics.move_to(x - OX, y - OY);
+}
+function lineTo(x, y) {
+  mgraphics.line_to(x - OX, y - OY);
 }
 function text(str, x, y, size, c, a, align) {
   mgraphics.select_font_face(FONT);
@@ -332,22 +383,25 @@ function text(str, x, y, size, c, a, align) {
   var w = mgraphics.text_measure(str)[0];
   var tx = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x;
   rgba(c, a);
-  mgraphics.move_to(tx, y);
+  moveTo(tx, y);
   mgraphics.show_text(str);
   return w;
 }
 
 function paint() {
-  drawSource();
-  drawGrid();
+  // The whole box, in the colour of the card behind it: seamless whether or
+  // not Max leaves an unpainted jsui transparent.
+  var size = mgraphics.size;
+  rgba(BG);
+  mgraphics.rectangle(0, 0, size[0], size[1]);
+  mgraphics.fill();
+  if (PART === 'source') drawSource();
+  else drawGrid();
 }
 
 function drawSource() {
   var s = G.src;
   var w = G.wave;
-  rgba(BG);
-  roundRect(s[0], s[1], s[2], s[3], 5);
-  mgraphics.fill();
 
   text('GROOVE FORGE', s[0] + 6, s[1] + 11, 9, INK, 0.95);
   var showCap = VARIANT === 'fx' && st.srcsel > 0.5;
@@ -369,13 +423,13 @@ function drawSource() {
       var y0 = mid - peaks[c][1] * (w[3] / 2 - 2);
       var y1 = mid - peaks[c][0] * (w[3] / 2 - 2);
       if (y1 - y0 < 1) y1 = y0 + 1;
-      mgraphics.move_to(x, y0);
-      mgraphics.line_to(x, y1);
+      moveTo(x, y0);
+      lineTo(x, y1);
     }
     mgraphics.stroke();
   } else {
     rgba(LINE, 1);
-    mgraphics.rectangle(w[0] + 4, mid, w[2] - 8, 1);
+    rect(w[0] + 4, mid, w[2] - 8, 1);
     mgraphics.fill();
     var msg = showCap ? 'press Capture' : VARIANT === 'fx' ? 'drop a sample, or Capture' : 'drop a sample';
     text(msg, w[0] + w[2] / 2, mid - 6, 8, DIM, 1, 'center');
@@ -391,18 +445,20 @@ function drawSource() {
     var by = w[1] + w[3] - 3 - (LANES - 1 - l) * 3;
     if (span > 0.5) {
       rgba(col, 0.35);
-      mgraphics.rectangle(sx, by, Math.min(span, w[0] + w[2] - sx), 2);
+      rect(sx, by, Math.min(span, w[0] + w[2] - sx), 2);
       mgraphics.fill();
     }
     var glow = 0.45 + 0.55 * st.act[l];
     rgba(col, selected ? 1 : glow * 0.8);
-    mgraphics.rectangle(Math.round(sx) - (selected ? 1 : 0), w[1], selected ? 2 : 1, w[3]);
+    rect(Math.round(sx) - (selected ? 1 : 0), w[1], selected ? 2 : 1, w[3]);
     mgraphics.fill();
-    // a flag at the top, lit while the lane sounds
+    // a flag at the top, lit while the lane sounds; near the right edge it
+    // points back in, so it stays inside the display
+    var fw = sx + 5 > w[0] + w[2] ? -5 : 5;
     rgba(col, selected ? 1 : glow);
-    mgraphics.move_to(sx, w[1]);
-    mgraphics.line_to(sx + 5, w[1]);
-    mgraphics.line_to(sx, w[1] + 5);
+    moveTo(sx, w[1]);
+    lineTo(sx + fw, w[1]);
+    lineTo(sx, w[1] + 5);
     mgraphics.close_path();
     mgraphics.fill();
   }
@@ -411,7 +467,7 @@ function drawSource() {
   if (VARIANT === 'fx') {
     if (st.cap === 2) {
       rgba([0.95, 0.25, 0.25], 0.9);
-      mgraphics.rectangle(w[0], w[1] + w[3] - 2, w[2] * st.capProg, 2);
+      rect(w[0], w[1] + w[3] - 2, w[2] * st.capProg, 2);
       mgraphics.fill();
       text('REC', statusX, s[1] + 11, 8, [1, 0.35, 0.35], 1, 'right');
     } else if (st.cap === 1) {
@@ -436,9 +492,6 @@ function padX(k) {
 
 function drawGrid() {
   var g = G.grid;
-  rgba(BG);
-  roundRect(g[0], g[1], g[2], g[3], 5);
-  mgraphics.fill();
 
   // header: step numbers and the Euclid columns
   for (var k = 0; k < STEPS; k += 4) text(String(k + 1), padX(k) + 1, g[1] + 9, 8, DIM, 1);
@@ -462,7 +515,7 @@ function drawRow(l) {
     roundRect(G.laneX + G.laneW + 1, y - 1, G.diceX + G.diceW - G.laneX - G.laneW, h + 2, 3);
     mgraphics.fill();
     rgba(col, 0.9);
-    mgraphics.rectangle(G.laneX + G.laneW + 1, y + 1, 2, h - 2);
+    rect(G.laneX + G.laneW + 1, y + 1, 2, h - 2);
     mgraphics.fill();
   }
 
@@ -487,7 +540,7 @@ function drawRow(l) {
       roundRect(x, y, G.padW, h, 3);
       mgraphics.fill();
       rgba(DIM, 0.35);
-      mgraphics.rectangle(x + G.padW / 2 - 1, y + h / 2 - 1, 2, 2);
+      rect(x + G.padW / 2 - 1, y + h / 2 - 1, 2, 2);
       mgraphics.fill();
       continue;
     }
@@ -512,7 +565,7 @@ function drawRow(l) {
         var n = 2;
         rgba(BG, 0.85);
         for (var r = 1; r <= n; r++) {
-          mgraphics.rectangle(bx, byy + (bh * r) / (n + 1), bw, 1);
+          rect(bx, byy + (bh * r) / (n + 1), bw, 1);
         }
         mgraphics.fill();
       }
@@ -553,15 +606,20 @@ function drawRow(l) {
   var cy = y + h / 2;
   var pips = [[-2.5, -2.5], [0, 0], [2.5, 2.5]];
   for (var p = 0; p < pips.length; p++) {
-    mgraphics.rectangle(cx + pips[p][0] - 0.75, cy + pips[p][1] - 0.75, 1.5, 1.5);
+    rect(cx + pips[p][0] - 0.75, cy + pips[p][1] - 0.75, 1.5, 1.5);
   }
   mgraphics.fill();
 }
 
 // ------------------------------------------------------------------ the mouse
+// Max gives the mouse in the part's own pixels; everything here takes device
+// pixels, so each handler shifts by the origin first.
 function hitTest(x, y) {
   var w = G.wave;
-  if (x >= w[0] && x < w[0] + w[2] && y >= w[1] && y < w[1] + w[3]) return { kind: 'wave' };
+  if (PART === 'source') {
+    if (x >= w[0] && x < w[0] + w[2] && y >= w[1] && y < w[1] + w[3]) return { kind: 'wave' };
+    return null;
+  }
   for (var l = 0; l < LANES; l++) {
     var ry = rowY(l);
     if (y < ry - 1 || y > ry + G.rowH + 1) continue;
@@ -578,6 +636,8 @@ function hitTest(x, y) {
 }
 
 function onclick(x, y, but, cmd, shift, capslock, option, ctrl) {
+  x += OX;
+  y += OY;
   var t = hitTest(x, y);
   drag = null;
   if (!t) return;
@@ -656,6 +716,8 @@ function setStartFromX(x) {
 }
 
 function ondrag(x, y, but, cmd, shift, capslock, option, ctrl) {
+  x += OX;
+  y += OY;
   if (!drag) return;
   if (!but) {
     drag = null;
@@ -701,6 +763,8 @@ function ondrag(x, y, but, cmd, shift, capslock, option, ctrl) {
 ondrag.local = 1;
 
 function onidle(x, y, but, cmd, shift, capslock, option, ctrl) {
+  x += OX;
+  y += OY;
   var t = hitTest(x, y);
   var same = (!t && !hover) || (t && hover && t.kind === hover.kind && t.lane === hover.lane && t.step === hover.step && t.field === hover.field);
   if (!same) {

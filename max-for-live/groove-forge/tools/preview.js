@@ -2,10 +2,13 @@
 // Renders a device's presentation view to a PNG, for reviewing the layout
 // without Live.
 //
-// The display (the jsui) is the real drawing code, run through the same
-// stand-in host the tests use. Live draws its own knobs, menus and buttons, so
-// those are approximations here: right size, right place, right values, but
-// Live's look. Use it to check spacing, not to judge Live's styling.
+// The displays (the two jsui boxes) are the real drawing code, run through the
+// same stand-in host the tests use, each clipped to its own box as Max clips
+// it. Boxes are drawn in Max's order: the background layer first, then the
+// list from last to first, so the first box ends up in front; anything a box
+// would hide in Live, it hides here too. Live draws its own knobs, menus and
+// buttons, so those are approximations: right size, right place, right values,
+// but Live's look. Use it to check spacing, not to judge Live's styling.
 //
 //   npm install --no-save @napi-rs/canvas
 //   node tools/preview.js                         both devices -> preview-*.png
@@ -105,32 +108,39 @@ function render({ variant, lane = 0, page = 0, rec = false, empty = false, scale
   ctx.fillStyle = '#414141';
   ctx.fillRect(0, 0, W, H);
 
-  // the display, drawn by its own code
-  const jsuiBox = P.boxes.find((b) => b.box.maxclass === 'jsui').box;
-  ctx.save();
-  ctx.translate(jsuiBox.presentation_rect[0], jsuiBox.presentation_rect[1]);
-  const ui = loadUI({ variant, ctx, buffers: empty ? {} : { smp: demoSample() } });
-  ui.msg('setbuf', 'smp');
-  ui.msg('init');
-  ui.msg('loaded');
-  ui.msg('swingamt', 58);
-  ui.msg('len3', 12);
-  ui.msg('rol2', 1 << 15);
-  ui.msg('sel', lane);
-  ui.msg('steps', 65536 + 6 + 6 * 16 + 6 * 256 + 6 * 4096);
-  ui.msg('act', 12 + 3 * 16 + 9 * 256 + 14 * 4096);
-  if (variant === 'inst' && !empty) {
-    ui.msg('note', 60, 100);
-    ui.msg('note', 63, 100);
-    ui.msg('note', 67, 100);
-  }
-  if (variant === 'fx' && rec) ui.msg('stat', 2 + 16 * 60);
-  ui.paint();
-  ctx.restore();
+  // a display, drawn by its own code, clipped to its box
+  const display = (box) => {
+    const [x, y, w, h] = box.presentation_rect;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.translate(x, y);
+    const [, part] = box.jsarguments;
+    const ui = loadUI({ variant, part, rect: box.presentation_rect, ctx, buffers: empty ? {} : { smp: demoSample() } });
+    ui.msg('setbuf', 'smp');
+    ui.msg('init');
+    ui.msg('loaded');
+    ui.msg('swingamt', 58);
+    ui.msg('len3', 12);
+    ui.msg('rol2', 1 << 15);
+    ui.msg('sel', lane);
+    ui.msg('steps', 65536 + 6 + 6 * 16 + 6 * 256 + 6 * 4096);
+    ui.msg('act', 12 + 3 * 16 + 9 * 256 + 14 * 4096);
+    if (variant === 'inst' && !empty) {
+      ui.msg('note', 60, 100);
+      ui.msg('note', 63, 100);
+      ui.msg('note', 67, 100);
+    }
+    if (variant === 'fx' && rec) ui.msg('stat', 2 + 16 * 60);
+    ui.paint();
+    ctx.restore();
+  };
 
-  // Live's controls, approximately
-  for (const { box } of P.boxes) {
-    if (!box.presentation) continue;
+  // Max's order: background layer, then the list from last (back) to first (front)
+  const shown = P.boxes.map((b) => b.box).filter((b) => b.presentation);
+  const order = [...shown.filter((b) => b.background).reverse(), ...shown.filter((b) => !b.background).reverse()];
+  for (const box of order) {
     const m = /^gf_(?:lbl_)?([a-z]+)(\d)$/.exec(box.varname || '');
     let hidden = box.hidden;
     if (m && PAGE_OF[m[1]]) hidden = !(+m[2] === lane && PAGES[page] === PAGE_OF[m[1]]);
@@ -141,6 +151,14 @@ function render({ variant, lane = 0, page = 0, rec = false, empty = false, scale
     if (box.varname === 'gf_lanetab') v = lane;
     if (box.varname === 'gf_pagetab') v = page;
     switch (box.maxclass) {
+      case 'panel':
+        rrect(x, y, w, h, (box.rounded || 0) / 2);
+        ctx.fillStyle = rgba(box.bgcolor);
+        ctx.fill();
+        break;
+      case 'jsui':
+        display(box);
+        break;
       case 'live.dial': {
         const col = box.activedialcolor ? rgba(box.activedialcolor) : '#f0a030';
         const tiny = box.appearance === 1;

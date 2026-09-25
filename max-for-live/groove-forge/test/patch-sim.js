@@ -4,7 +4,7 @@
 // It runs the patch the way Max would pass messages through it: prepend,
 // route, trigger, pak, expr, select, gate, counter, message boxes, the live.*
 // parameter objects, the MIDI objects, thispatcher's show/hide scripting, and
-// the real jsui. Signals are not simulated; gen~ just records every message
+// the real display script, once per jsui box. Signals are not simulated; gen~ just records every message
 // it is sent. That is enough to prove the wiring: that a knob reaches the
 // Param it is named for, that a click on the grid lands in the stored pattern
 // and then in gen~, that the right knobs show for a lane and page.
@@ -24,6 +24,17 @@ function atomsToMsg(atoms) {
 function parseAtoms(text) {
   return text.trim().split(/\s+/).filter(Boolean).map((t) => (/^-?\d+(\.\d+)?$/.test(t) ? Number(t) : t));
 }
+// How Live keeps a parameter's value. An Int holds 0-255 and no more. A Float
+// is a 32-bit float, and a stored one (a set loading, a preset, an undo) comes
+// back through Live's 0-1 range, so a whole number can return a hair off.
+function liveKeeps(b, v) {
+  v = Math.min(b.max, Math.max(b.min, v));
+  if (b.isEnum) return Math.round(v);
+  if (b.isInt) return Math.min(255, Math.max(0, Math.round(v)));
+  const span = b.max - b.min;
+  return span > 0 ? b.min + Math.fround((v - b.min) / span) * span : v;
+}
+
 // The atoms of a message, typed selector dropped (what prepend and pack see).
 function msgAtoms(m) {
   if (['int', 'float', 'list', 'symbol'].includes(m.sel)) return m.args.slice();
@@ -42,6 +53,8 @@ class PatchSim {
     this.scripts = [];
     this.queue = [];
     this.params = new Map(); // longname -> box id
+    this.uis = new Map(); // jsui box id -> its running script
+    this.views = {}; // part -> { ui, box }
     this.uniq = uniq;
     for (const { box } of patcher.boxes) {
       const b = { ...box };
@@ -69,8 +82,10 @@ class PatchSim {
       b.max = lv.parameter_mmax ?? (lv.parameter_enum ? lv.parameter_enum.length - 1 : 1);
     }
     if (b.maxclass === 'jsui') {
-      this.ui = loadUI({ variant: b.jsarguments[0], buffers });
-      this.uiBox = b;
+      const [variant, part] = b.jsarguments;
+      const ui = loadUI({ variant, part, rect: b.presentation_rect, buffers });
+      this.uis.set(b.id, ui);
+      this.views[part] = { ui, box: b };
     }
     if (b.maxclass === 'newobj') {
       const words = parseAtoms(b.text);
@@ -92,6 +107,7 @@ class PatchSim {
   setParam(b, v, output = true) {
     if (b.isEnum || b.isInt || b.maxclass === 'live.tab' || b.maxclass === 'live.menu' || b.maxclass === 'live.text') v = Math.round(v);
     v = Math.min(b.max, Math.max(b.min, v));
+    if (b.isInt) v = Math.min(255, Math.max(0, v)); // what Live's Int can hold
     b.value = v;
     if (output) this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [v] } : numMsg(v));
   }
@@ -113,15 +129,17 @@ class PatchSim {
       case 'live.gain~':
       case 'live.drop':
       case 'live.comment':
+      case 'panel':
         return;
       case 'message': {
         for (const part of b.text.split(/\s*,\s*/)) this.emit(b, 0, atomsToMsg(parseAtoms(part)));
         return;
       }
       case 'jsui': {
-        const before = this.ui.outputs.length;
-        this.ui.msg(m.sel === 'int' || m.sel === 'float' ? 'msg_' + m.sel : m.sel, ...m.args);
-        return this.flushUI(before);
+        const ui = this.uis.get(b.id);
+        const before = ui.outputs.length;
+        ui.msg(m.sel === 'int' || m.sel === 'float' ? 'msg_' + m.sel : m.sel, ...m.args);
+        return this.flushUI(b, before);
       }
       case 'newobj':
         return this.obj(b, inlet, m, atoms);
@@ -130,9 +148,21 @@ class PatchSim {
     }
   }
 
-  flushUI(from = 0) {
-    const outs = this.ui.outputs.splice(from);
-    for (const o of outs) this.emit(this.uiBox, o[0], atomsToMsg(o.slice(1)));
+  flushUI(box, from = 0) {
+    const outs = this.uis.get(box.id).outputs.splice(from);
+    for (const o of outs) this.emit(box, o[0], atomsToMsg(o.slice(1)));
+  }
+
+  // the grid part, and the source part
+  get ui() {
+    return this.views.grid.ui;
+  }
+  get sourceUI() {
+    return this.views.source.ui;
+  }
+  // everything any display has sent and not yet passed on
+  pendingOutputs() {
+    return [...this.uis.values()].flatMap((ui) => ui.outputs);
   }
 
   obj(b, inlet, m, atoms) {
@@ -251,7 +281,7 @@ class PatchSim {
     for (const b of this.boxes.values()) {
       if (b.value === undefined) continue;
       const lv = b.saved_attribute_attributes.valueof;
-      if (lv.parameter_longname in stored) b.value = stored[lv.parameter_longname];
+      if (lv.parameter_longname in stored) b.value = liveKeeps(b, stored[lv.parameter_longname]);
       // buttons too: Live restores their stored 0 like any other parameter
       this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [b.value] } : numMsg(b.value));
     }
@@ -265,7 +295,7 @@ class PatchSim {
     for (const b of this.boxes.values()) {
       if (b.value === undefined) continue;
       const lv = b.saved_attribute_attributes.valueof;
-      if (lv.parameter_longname in stored) b.value = stored[lv.parameter_longname];
+      if (lv.parameter_longname in stored) b.value = liveKeeps(b, stored[lv.parameter_longname]);
       this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [b.value] } : numMsg(b.value));
     }
     this.flushQueue();
@@ -299,10 +329,12 @@ class PatchSim {
     this.emit(n, 1, { sel: 'int', args: [vel] });
     this.emit(n, 0, { sel: 'int', args: [pitch] });
   }
-  uiDo(fn) {
-    const before = this.ui.outputs.length;
-    fn(this.ui);
-    this.flushUI(before);
+  // Use a display with the mouse: the grid part unless told otherwise.
+  uiDo(fn, part = 'grid') {
+    const { ui, box } = this.views[part];
+    const before = ui.outputs.length;
+    fn(ui);
+    this.flushUI(box, before);
     this.flushQueue();
   }
   isShown(varname) {
@@ -310,4 +342,4 @@ class PatchSim {
   }
 }
 
-module.exports = { PatchSim };
+module.exports = { PatchSim, liveKeeps };

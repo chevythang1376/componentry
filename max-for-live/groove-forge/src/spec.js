@@ -87,10 +87,14 @@ const LANE_PARAMS = [
     desc: 'Lane on or muted.' },
 
   // Pattern data: hidden, stored with the set, written by the grid.
-  // A step is bit n of the mask (step 1 is bit 0).
-  { id: 'pat', label: 'Steps', kind: 'int', min: 0, max: 65535, def: [4369, 4112, 52300, 19660], page: 'store', jsui: true },
-  { id: 'acc', label: 'Accents', kind: 'int', min: 0, max: 65535, def: [4369, 4112, 17476, 17476], page: 'store', jsui: true },
-  { id: 'rol', label: 'Rolls', kind: 'int', min: 0, max: 65535, def: [0, 0, 0, 0], page: 'store', jsui: true },
+  // A step is bit n of the mask (step 1 is bit 0), so a mask runs 0 to 65535.
+  // That is a 'mask': a whole number kept in a Float parameter, because a Live
+  // Int parameter holds 0-255 only and cuts the rest of the bar away. Every
+  // reader rounds it: a float that has been through Live can come back a hair
+  // off, and 4368.9998 must still mean 4369.
+  { id: 'pat', label: 'Steps', kind: 'mask', min: 0, max: 65535, def: [4369, 4112, 52300, 19660], page: 'store', jsui: true },
+  { id: 'acc', label: 'Accents', kind: 'mask', min: 0, max: 65535, def: [4369, 4112, 17476, 17476], page: 'store', jsui: true },
+  { id: 'rol', label: 'Rolls', kind: 'mask', min: 0, max: 65535, def: [0, 0, 0, 0], page: 'store', jsui: true },
   { id: 'len', label: 'Steps Length', kind: 'int', min: 1, max: 16, def: [16, 16, 16, 16], page: 'store', jsui: true },
   { id: 'hit', label: 'Euclid Hits', kind: 'int', min: 0, max: 16, def: [4, 2, 7, 7], page: 'store', jsui: true, engine: false },
   { id: 'rot', label: 'Euclid Rotate', kind: 'int', min: 0, max: 15, def: [0, 4, 0, 0], page: 'store', jsui: true, engine: false },
