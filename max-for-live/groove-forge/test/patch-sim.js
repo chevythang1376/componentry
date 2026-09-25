@@ -24,6 +24,17 @@ function atomsToMsg(atoms) {
 function parseAtoms(text) {
   return text.trim().split(/\s+/).filter(Boolean).map((t) => (/^-?\d+(\.\d+)?$/.test(t) ? Number(t) : t));
 }
+// How Live keeps a parameter's value. An Int holds 0-255 and no more. A Float
+// is a 32-bit float, and a stored one (a set loading, a preset, an undo) comes
+// back through Live's 0-1 range, so a whole number can return a hair off.
+function liveKeeps(b, v) {
+  v = Math.min(b.max, Math.max(b.min, v));
+  if (b.isEnum) return Math.round(v);
+  if (b.isInt) return Math.min(255, Math.max(0, Math.round(v)));
+  const span = b.max - b.min;
+  return span > 0 ? b.min + Math.fround((v - b.min) / span) * span : v;
+}
+
 // The atoms of a message, typed selector dropped (what prepend and pack see).
 function msgAtoms(m) {
   if (['int', 'float', 'list', 'symbol'].includes(m.sel)) return m.args.slice();
@@ -96,6 +107,7 @@ class PatchSim {
   setParam(b, v, output = true) {
     if (b.isEnum || b.isInt || b.maxclass === 'live.tab' || b.maxclass === 'live.menu' || b.maxclass === 'live.text') v = Math.round(v);
     v = Math.min(b.max, Math.max(b.min, v));
+    if (b.isInt) v = Math.min(255, Math.max(0, v)); // what Live's Int can hold
     b.value = v;
     if (output) this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [v] } : numMsg(v));
   }
@@ -269,7 +281,7 @@ class PatchSim {
     for (const b of this.boxes.values()) {
       if (b.value === undefined) continue;
       const lv = b.saved_attribute_attributes.valueof;
-      if (lv.parameter_longname in stored) b.value = stored[lv.parameter_longname];
+      if (lv.parameter_longname in stored) b.value = liveKeeps(b, stored[lv.parameter_longname]);
       // buttons too: Live restores their stored 0 like any other parameter
       this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [b.value] } : numMsg(b.value));
     }
@@ -283,7 +295,7 @@ class PatchSim {
     for (const b of this.boxes.values()) {
       if (b.value === undefined) continue;
       const lv = b.saved_attribute_attributes.valueof;
-      if (lv.parameter_longname in stored) b.value = stored[lv.parameter_longname];
+      if (lv.parameter_longname in stored) b.value = liveKeeps(b, stored[lv.parameter_longname]);
       this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [b.value] } : numMsg(b.value));
     }
     this.flushQueue();
@@ -330,4 +342,4 @@ class PatchSim {
   }
 }
 
-module.exports = { PatchSim };
+module.exports = { PatchSim, liveKeeps };

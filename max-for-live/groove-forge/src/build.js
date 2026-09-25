@@ -125,7 +125,7 @@ class Patch {
 // ------------------------------------------------------------------ Live parameters
 function unitStyle(p) {
   if (p.kind === 'enum' || p.kind === 'toggle') return undefined;
-  if (p.kind === 'int') return UNIT_STYLE.int;
+  if (p.kind === 'int' || p.kind === 'mask') return UNIT_STYLE.int;
   if (p.id === 'djf') return UNIT_STYLE['%'];
   return UNIT_STYLE[p.unit] ?? UNIT_STYLE.float;
 }
@@ -143,6 +143,7 @@ function paramAttrs(p, longname, def, { hidden = false } = {}) {
     v.parameter_enum = items;
     v.parameter_mmax = items.length - 1;
   } else {
+    // a mask is a Float: Live's Int parameters hold 0-255 only
     v.parameter_type = p.kind === 'int' ? 1 : 0;
     v.parameter_mmin = p.min;
     v.parameter_mmax = p.max;
@@ -854,6 +855,13 @@ function validate({ patch }) {
   }
   // live.* names Live will show must be short enough to read
   for (const [name] of patch.paramNames) if (name.length > 31) throw new Error('parameter name too long: ' + name);
+  // A Live Int parameter holds 0-255 and nothing else ("Int (0-255)" in Max's
+  // parameter inspector). A wider range does not fail; Live just cuts it.
+  for (const { box } of patch.boxes) {
+    const v = box.saved_attribute_attributes && box.saved_attribute_attributes.valueof;
+    if (!v || v.parameter_type !== 1) continue;
+    if (v.parameter_mmin < 0 || v.parameter_mmax > 255) throw new Error(`${v.parameter_longname} is an Int parameter over ${v.parameter_mmin}..${v.parameter_mmax}; Live's Int holds 0-255`);
+  }
   return true;
 }
 

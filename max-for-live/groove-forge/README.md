@@ -197,6 +197,7 @@ It assumes 4/4.
 | What you see | Why, and what to do |
 |---|---|
 | A white box with a grey circle and a line where the display should be, and no lane buttons | That is Max's placeholder for a display whose script did not load: an earlier download, which kept the script in a separate file. Delete the device from the track and drag in the current `.amxd`, which carries its script inside. If it still shows, open the device in Max (the Edit button on its title bar), then the Max Console (*Window* menu), and look for a line naming `groove-forge-display.js` |
+| It plays a steady run of 16ths, and clicking the grid changes nothing | An earlier download kept each lane's steps in a kind of Live parameter that holds only 0-255, so Live cut every pattern down. Delete the device from the track and drag in the current `.amxd` |
 | No sound | The groove follows Live's transport: press play. In *Hold*, hold a key. Check the lane buttons are lit |
 | The TONE lane does not follow my keys | **Keys** (GROOVE page) is on for TONE only by default; turn it on for any lane |
 | Capture records silence | Capture records the track the FX device is on, at that point in the chain. Put the device after the sound |
@@ -248,9 +249,13 @@ Live yet. What is checked instead:
   calls Max documents, with the built-ins newer than ES5 taken out, and which fails on
   anything drawn outside the part's own box (Max would clip it away).
 - **The wiring** runs in a message-passing simulation of the whole patch with the real
-  display inside it: knobs reach the parameter they are named for, grid clicks reach the
-  stored pattern and then gen~, the right knobs show for each lane and page, a stored set
-  loads without the grid rewriting it.
+  display inside it: knobs reach the parameter they are named for, grid clicks on every
+  one of the 16 steps reach the stored pattern and then gen~, the right knobs show for
+  each lane and page, a stored set loads without the grid rewriting it.
+- **Live's parameter storage** is modelled in that simulation: an Int parameter holds
+  0-255 (the build refuses a wider one), and a stored Float comes back as a 32-bit
+  float, possibly a hair off. So each lane's steps, a 16-bit number, are kept in a Float
+  and rounded wherever they are read; all 65,536 patterns survive the round trip.
 - **The `.amxd` container** uses the layout Max 9 writes for a frozen device. The writer
   was checked by taking a frozen device exported by Max 9.1 apart and rebuilding it:
   the result was identical to the byte.

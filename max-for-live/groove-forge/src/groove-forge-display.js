@@ -173,6 +173,10 @@ function pushUndo() {
 
 // ------------------------------------------------------------------ messages in
 var LANE_FIELDS = { pat: 1, acc: 1, rol: 1, len: 1, hit: 1, rot: 1, on: 1, stt: 1, wlk: 1, swd: 1, ndg: 1 };
+// Whole numbers, and their range. The masks are kept in Float parameters (a
+// Live Int holds 0-255 only) and can come back a hair off, so every one is
+// rounded before a bit of it is read: 4368.9998 truncated would lose step 1.
+var WHOLE = { pat: [0, 65535], acc: [0, 65535], rol: [0, 65535], len: [1, 16], hit: [0, 16], rot: [0, 15], on: [0, 1] };
 
 function anything() {
   var args = arrayfromargs(arguments);
@@ -183,8 +187,8 @@ function handle(name, args) {
   var v = args.length ? args[0] : 0;
   var m = /^([a-z]+)(\d)$/.exec(name);
   if (m && LANE_FIELDS[m[1]] && +m[2] < LANES) {
-    st[m[1]][+m[2]] = Number(v);
-    if (m[1] === 'len') st.len[+m[2]] = clampInt(v, 1, 16);
+    var w = WHOLE[m[1]];
+    st[m[1]][+m[2]] = w ? clampInt(Number(v), w[0], w[1]) : Number(v);
     return redrawFor(m[1]);
   }
   switch (name) {

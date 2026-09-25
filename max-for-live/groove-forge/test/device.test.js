@@ -12,7 +12,7 @@ const { unpackAmxd, amxdType, FROZEN } = require('../src/amxd');
 const { loadUI, SCRIPT } = require('./jsui-host');
 const { buildEngine } = require('../src/genexpr');
 const { engineParams, LANE_PARAMS, GLOBAL_PARAMS, LANES } = require('../src/spec');
-const { PatchSim } = require('./patch-sim');
+const { PatchSim, liveKeeps } = require('./patch-sim');
 
 const devices = buildAll({ write: false });
 const byVariant = Object.fromEntries(devices.map((d) => [d.variant, d]));
@@ -150,6 +150,35 @@ test('the dark cards are background panels, at the back of the list, the colour 
   }
 });
 
+test('every Int parameter fits Live\'s Int, which holds 0-255; the step masks are Floats', () => {
+  for (const d of devices) {
+    for (const { box } of patcherOf(d).boxes) {
+      const v = box.saved_attribute_attributes && box.saved_attribute_attributes.valueof;
+      if (!v || v.parameter_type !== 1) continue;
+      assert.ok(v.parameter_mmin >= 0 && v.parameter_mmax <= 255, `${v.parameter_longname}: ${v.parameter_mmin}..${v.parameter_mmax}`);
+    }
+    for (const lane of LANES) {
+      for (const what of ['Steps', 'Accents', 'Rolls']) {
+        const box = patcherOf(d).boxes.find((b) => (b.box.saved_attribute_attributes || {}).valueof?.parameter_longname === `${lane.name} ${what}`).box;
+        const v = box.saved_attribute_attributes.valueof;
+        assert.deepEqual([v.parameter_type, v.parameter_mmin, v.parameter_mmax], [0, 0, 65535], `${lane.name} ${what}`);
+      }
+    }
+  }
+});
+
+test('a step mask survives Live\'s 32-bit float storage: all 65536 of them, once rounded', () => {
+  const box = { isEnum: false, isInt: false, min: 0, max: 65535 };
+  let drifted = 0;
+  for (let m = 0; m <= 65535; m++) {
+    const back = liveKeeps(box, m);
+    if (back !== m) drifted++;
+    assert.equal(Math.round(back), m); // the display
+    assert.equal(Math.floor(back + 0.5), m); // gen~
+  }
+  assert.ok(drifted > 1000, 'and the model really does hand most of them back a hair off');
+});
+
 test('pattern storage is hidden from the device and from automation, but stored', () => {
   for (const d of devices) {
     const stores = patcherOf(d).boxes.filter((b) => /^gf_(pat|acc|rol|len|hit|rot)\d$/.test(b.box.varname || ''));
@@ -208,7 +237,7 @@ for (const variant of ['inst', 'fx']) {
   test(`${variant}: a stored set loads without the grid rewriting anything`, () => {
     const s = sim(variant);
     s.load({ 'Kick Steps': 1 + 256, 'Tone Steps Length': 7, 'Hats Accents': 4, 'Edit Lane': 2, 'Edit Page': 1 });
-    assert.equal(s.gen.pat0, 257);
+    assert.equal(Math.round(s.gen.pat0), 257, 'gen~ rounds what Live hands back');
     assert.equal(s.gen.len3, 7);
     assert.equal(s.ui.state().pat[0], 257);
     assert.deepEqual(s.pendingOutputs(), []);
@@ -221,7 +250,7 @@ for (const variant of ['inst', 'fx']) {
     const stored = { 'Kick Steps': 1 + 16, 'Clap Steps': 4096, 'Hats Steps': 4, 'Tone Steps': 2, Generate: 0, Mutate: 0, Clear: 0, Undo: 0 };
     s.load(stored);
     s.recall(stored);
-    assert.deepEqual([s.gen.pat0, s.gen.pat1, s.gen.pat2, s.gen.pat3], [17, 4096, 4, 2], 'patterns as stored');
+    assert.deepEqual([s.gen.pat0, s.gen.pat1, s.gen.pat2, s.gen.pat3].map(Math.round), [17, 4096, 4, 2], 'patterns as stored');
     assert.equal(s.ui.state().pat[2], 4);
     if (variant === 'fx') {
       assert.equal(s.gen.srcsel, 0, 'Capture did not fire');
@@ -237,6 +266,31 @@ for (const variant of ['inst', 'fx']) {
     assert.ok(bits(s.gen.pat1).includes(2), 'engine');
     assert.equal(s.param('Edit Lane').value, 1, 'the clicked lane is now the one being edited');
     assert.ok(s.isShown('gf_tun1') && !s.isShown('gf_tun0'), 'and its knobs show');
+  });
+
+  test(`${variant}: every step of the bar, clicked on the grid, reaches gen~ and stays drawn`, () => {
+    const s = sim(variant);
+    s.load();
+    for (let lane = 0; lane < 4; lane++) {
+      for (let k = 0; k < 16; k++) {
+        const before = Math.round(s.gen['pat' + lane]);
+        const on = (before >> k) & 1;
+        const accented = (Math.round(s.gen['acc' + lane]) >> k) & 1;
+        s.uiDo((ui) => { ui.click(226 + k * 17 + 7, 16 + lane * 20 + 9); ui.release(0, 0); });
+        const after = Math.round(s.gen['pat' + lane]);
+        // a click cycles off, on, accent, off
+        assert.equal((after >> k) & 1, on && accented ? 0 : 1, `lane ${lane} step ${k + 1}`);
+        assert.ok([0, 1 << k].includes(after ^ before), 'no other step changes');
+        assert.equal(s.ui.state().pat[lane], after, 'the grid draws what gen~ plays');
+        assert.equal(s.sourceUI.state().pat[lane], after);
+      }
+    }
+    // turn every step on in lane 2, from an empty lane
+    s.turn('Edit Lane', 2);
+    s.press('Clear');
+    assert.equal(Math.round(s.gen.pat2), 0);
+    for (let k = 0; k < 16; k++) s.uiDo((ui) => { ui.click(226 + k * 17 + 7, 16 + 2 * 20 + 9); ui.release(0, 0); });
+    assert.equal(Math.round(s.gen.pat2), 65535, 'all sixteen');
   });
 
   test(`${variant}: choosing a lane and a page shows exactly those knobs`, () => {
