@@ -29,3 +29,7 @@
 *.zip  binary
 *.mp4  binary
 *.webm binary
+
+# Max for Live devices: a binary header wraps the patch, and its byte counts
+# must match exactly. Any line-ending conversion would corrupt the device.
+*.amxd binary
