@@ -1,0 +1,858 @@
+// Groove Forge engine: GenExpr for a single gen~ codebox.
+//
+// This is a template, and these notes about it stop at //@code. src/genexpr.js
+// expands the rest: //@lanes blocks repeat once per lane with $L set, //@voices
+// blocks once per voice with $V (voice), $L (its lane) and $J (which of the
+// lane's two voices). ${NAME} reads a per-lane constant table.
+//
+// The expanded code has no functions on purpose: gen~ can drop a function that
+// touches global state without reporting an error, and a function called from
+// several places has had instance bugs. Everything runs at the top level with
+// state in History, so there is nothing for it to drop.
+//@code
+// Groove Forge engine (generated from src/engine.genexpr; edit that, not this)
+//
+// Two rules keep this code unambiguous about when a History is read:
+//   - a History is read into a local before it is written, never after, and
+//   - every local that a block assigns is first assigned outside that block,
+//     because GenExpr scopes variables to the nearest braces.
+// test/genexpr-vm.js enforces both.
+//
+// in1   bar ramp from [phasor~ 1n @lock 1]: sample-accurate, follows Live's
+//       transport and holds still while it is stopped
+// in2   audio in L  (Audio Effect variant; silent in the Instrument)
+// in3   audio in R
+// out1  audio L
+// out2  audio R
+// out3  UI: each lane's current step, 4 bits a lane, +65536 while playing
+// out4  UI: each lane's activity 0-15, 4 bits a lane
+// out5  UI: capture state + 4*(sample loaded) + 8*(capture holds audio) + 16*(capture % done)
+//       + 2048*(captured length, in thousandths of the capture buffer)
+
+Buffer smp("gf_src_unbound");
+Buffer cap("gf_cap_unbound");
+
+Delay dlyl(384000);
+Delay dlyr(384000);
+Delay rva(16384);
+Delay rvb(16384);
+Delay rvc(16384);
+Delay rvd(16384);
+Delay apa(4096);
+Delay apb(4096);
+
+//@params
+
+History ph_prev(0);
+History idle_n(1000000);
+History play_prev(0);
+History bar_n(0);
+History spb_h(0);
+History rng_a(22222);
+History rng_b(777);
+History booted(0);
+
+//@lanes
+History lst_$L(-1000000);
+History hqn_$L(0);
+History hqt_$L(0);
+History hqi_$L(0);
+History hqv_$L(0);
+History hqo_$L(0);
+History hqs_$L(0);
+History vsel_$L(0);
+History hc_$L(0);
+History ic1_$L(0);
+History ic2_$L(0);
+History gsm_$L(0);
+History psm_$L(0);
+History ssm_$L(0);
+History csm_$L(1000);
+History lact_$L(0);
+History mp1_$L(0);
+History mp2_$L(0);
+History mp3_$L(0);
+History mp4_$L(0);
+History mp5_$L(0);
+History mp6_$L(0);
+//@end
+
+//@voices
+History va_$V(0);
+History vs_$V(0);
+History ve_$V(0);
+History vg_$V(0);
+History vp_$V(0);
+History vv_$V(0);
+History vq_$V(0);
+History vm_$V(0);
+History vo_$V(0);
+History vw_$V(0);
+History vt_$V(0);
+//@end
+
+History pump_e(0);
+History pump_a(0);
+History pump_s(0);
+History bd_s(0);
+History crc(0);
+History chl(0);
+History chr(0);
+History dts(0);
+History fl_l(0);
+History fl_r(0);
+History fh_l(0);
+History fh_r(0);
+History dm_s(0);
+History rm_s(0);
+History rf_a(0);
+History rf_b(0);
+History rf_c(0);
+History rf_d(0);
+History lfo_p(0);
+History dj_s(0);
+History dj1l(0);
+History dj2l(0);
+History dj1r(0);
+History dj2r(0);
+History th_s(0);
+History dcx_l(0);
+History dcy_l(0);
+History dcx_r(0);
+History dcy_r(0);
+History cap_s(0);
+History cap_w(0);
+History cap_len(0);
+History cap_tgt(0);
+History cap_last(0);
+
+// ---------------------------------------------------------------- transport
+srate = samplerate;
+// On the very first sample every smoothed control jumps straight to its value
+// instead of gliding up from zero, so a freshly loaded device does not fade in.
+boot = 1 - booted;
+booted = 1;
+ph = in1;
+dph = ph - ph_prev;
+ph_prev = ph;
+
+// Playing means the ramp is creeping forward. A relocate while stopped is a
+// jump, not a creep, so it never counts as playing and never fires a step.
+moving = (dph > 0) * (dph < 0.01);
+idl = moving ? 0 : min(idle_n + 1, 1000000);
+idle_n = idl;
+playing = idl < 2048;
+started = playing * (1 - play_prev);
+play_prev = playing;
+wrapped = playing * (dph < -0.5);
+brn = bar_n;
+brn = started ? 0 : brn + wrapped;
+bar_n = brn;
+
+// Samples per 16th, read off the ramp's slope, so delay times and rolls follow
+// tempo changes without asking Live. Holds its last value while stopped.
+sp = spb_h;
+sp = sp > 0 ? sp : srate * 0.12;
+est = moving ? 1 / max(dph * 16, 0.0000001) : sp;
+est = clamp(est, srate * 0.015, srate * 0.75);
+sp = sp + (est - sp) * 0.002;
+spb_h = sp;
+
+swg = clamp(swingamt, 50, 75) * 0.01;
+grid8 = swgrid > 0.5;
+pos16 = (brn + ph) * 16;
+hmz = clamp(humanize, 0, 100) * 0.01;
+acca = clamp(accamt, 0, 100) * 0.01;
+vara = clamp(varamt, 0, 100) * 0.01;
+fl_len = fillmode < 0.5 ? 0 : (fillmode < 1.5 ? 4 : (fillmode < 2.5 ? 8 : 16));
+flq = max(fl_len, 1);
+infill = (fl_len > 0) * ((brn - flq * floor(brn / flq)) > flq - 1.5);
+
+knote = clamp(kf_note, 0, 127);
+narp = clamp(floor(arp_n), 0, 8);
+gate_ok = (holdmode < 0.5) + (kf_gate > 0.5);
+
+// ---------------------------------------------------------------- source
+iscap = srcsel > 0.5;
+slen = iscap ? cap_len : dim(smp);
+sch2 = channels(smp) > 1.5;
+srat = iscap ? 1 : ((src_sr > 4000) * (src_sr < 400000) ? src_sr / srate : 1);
+hassrc = slen > 64;
+
+// ---------------------------------------------------------------- noise
+// A 32-bit LCG in doubles: every product stays below 2^53, so it is exact.
+ra = rng_a;
+ra = (ra * 1664525 + 1013904223) % 4294967296;
+nz1 = ra / 2147483648 - 1;
+ra = (ra * 1664525 + 1013904223) % 4294967296;
+nz2 = ra / 2147483648 - 1;
+rng_a = ra;
+rb = rng_b;
+
+cco = exp(-4.6 / (0.004 * srate));
+
+// ---------------------------------------------------------------- lanes: when
+//@lanes
+// lane $L: where are we, with swing and nudge applied
+sw_$L = 0.5 + (swg - 0.5) * clamp(swd$L, 0, 100) * 0.01;
+p_$L = pos16 - clamp(ndg$L, -50, 50) * 0.01;
+k_$L = floor(p_$L);
+md2_$L = k_$L - 2 * floor(k_$L * 0.5);
+md4_$L = k_$L - 4 * floor(k_$L * 0.25);
+o16_$L = md2_$L > 0.5 ? 2 * sw_$L - 1 : 0;
+o8_$L = md4_$L < 0.5 ? 0 : (md4_$L < 1.5 ? 2 * sw_$L - 1 : (md4_$L < 2.5 ? 4 * sw_$L - 2 : 2 * sw_$L - 1));
+off_$L = grid8 ? o8_$L : o16_$L;
+stp_$L = p_$L >= k_$L + off_$L ? k_$L : k_$L - 1;
+ln_$L = clamp(floor(len$L), 1, 16);
+ls_$L = stp_$L - ln_$L * floor(stp_$L / ln_$L);
+
+// A step fires when the position moves past it, or jumps (a loop brace).
+// Small wobbles backwards are ignored so a step can never fire twice.
+lsv_$L = lst_$L;
+trg_$L = playing * (started > 0.5 ? (stp_$L >= 0) : (((stp_$L > lsv_$L) + (stp_$L < lsv_$L - 2)) > 0));
+lst_$L = (trg_$L + started) > 0 ? stp_$L : lsv_$L;
+
+fire_$L = 0;
+fvel_$L = 0;
+fcnt_$L = 1;
+fint_$L = 1;
+fdel_$L = 0;
+fpo_$L = 0;
+fst_$L = 0;
+if (trg_$L > 0.5) {
+    bw_$L = pow(2, ls_$L);
+    bon_$L = floor(pat$L / bw_$L) % 2;
+    bac_$L = floor(acc$L / bw_$L) % 2;
+    bro_$L = floor(rol$L / bw_$L) % 2;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u1_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u2_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u3_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u4_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u5_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u6_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u7_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u8_$L = rb / 4294967296;
+    rb = (rb * 1664525 + 1013904223) % 4294967296;
+    u9_$L = rb / 4294967296;
+
+    hit_$L = bon_$L;
+    vel_$L = bac_$L > 0.5 ? 1 : 1 - 0.6 * acca;
+    nroll_$L = bro_$L > 0.5 ? clamp(floor(rln$L), 0, 2) + 2 : 1;
+    poff_$L = 0;
+
+    // Vary: ghost notes on empty steps, and a little accent drift on full ones
+    if (bon_$L < 0.5) {
+        if (u1_$L < vara * ${GHOST}) {
+            hit_$L = 1;
+            vel_$L = 0.28 + 0.2 * u2_$L;
+        }
+    } else {
+        if (u3_$L < vara * 0.3) {
+            vel_$L = vel_$L * (0.8 + 0.3 * u4_$L);
+        }
+    }
+
+    // Fill: the last beat of every 4, 8 or 16 bars
+    bst_$L = stp_$L - 16 * floor(stp_$L / 16);
+    if (infill * (bst_$L > 11.5)) {
+//@if L == 0
+        // kick drops out, leaving a gap before the downbeat
+        if (u8_$L < 0.45) {
+            hit_$L = 0;
+        }
+//@fi
+//@if L == 1
+        // clap builds: extra hits getting louder, some rolled
+        if (hit_$L < 0.5) {
+            if (u8_$L < 0.55) {
+                hit_$L = 1;
+                vel_$L = 0.4 + 0.2 * (bst_$L - 12);
+            }
+        } else {
+            if (u9_$L < 0.5) {
+                nroll_$L = 3;
+            }
+        }
+//@fi
+//@if L == 2
+        // hats roll
+        if (hit_$L < 0.5) {
+            if (u8_$L < 0.45) {
+                hit_$L = 1;
+                vel_$L = 0.55;
+            }
+        }
+        if (u9_$L < 0.6) {
+            nroll_$L = clamp(floor(rln$L), 0, 2) + 2;
+        }
+//@fi
+//@if L == 3
+        // tone jumps an octave
+        if (u8_$L < 0.4) {
+            poff_$L = 12;
+        }
+//@fi
+    }
+
+    if (u5_$L * 100 >= clamp(chc$L, 0, 100)) {
+        hit_$L = 0;
+    }
+    if (on$L < 0.5) {
+        hit_$L = 0;
+    }
+    if (gate_ok < 0.5) {
+        hit_$L = 0;
+    }
+    vel_$L = vel_$L * (1 - hmz * 0.25 * u6_$L);
+
+    // Keys: play at the held note, or step through a held chord
+    hcv_$L = hc_$L;
+    kn_$L = knote;
+    if (narp > 0.5) {
+        ai_$L = hcv_$L - narp * floor(hcv_$L / narp);
+        kn_$L = ai_$L < 0.5 ? arp0 : (ai_$L < 1.5 ? arp1 : (ai_$L < 2.5 ? arp2 : (ai_$L < 3.5 ? arp3 : (ai_$L < 4.5 ? arp4 : (ai_$L < 5.5 ? arp5 : (ai_$L < 6.5 ? arp6 : arp7))))));
+    }
+    koff_$L = kfl$L > 0.5 ? kn_$L - 60 : 0;
+    hc_$L = hcv_$L + hit_$L;
+
+    // Swung length of this step, so a roll divides the step it is actually in
+    a2_$L = stp_$L - 2 * floor(stp_$L * 0.5);
+    a4_$L = stp_$L - 4 * floor(stp_$L * 0.25);
+    b2_$L = a2_$L > 0.5 ? 0 : 1;
+    b4_$L = a4_$L > 2.5 ? 0 : a4_$L + 1;
+    oa_$L = grid8 ? (a4_$L < 0.5 ? 0 : (a4_$L < 1.5 ? 2 * sw_$L - 1 : (a4_$L < 2.5 ? 4 * sw_$L - 2 : 2 * sw_$L - 1))) : (a2_$L > 0.5 ? 2 * sw_$L - 1 : 0);
+    ob_$L = grid8 ? (b4_$L < 0.5 ? 0 : (b4_$L < 1.5 ? 2 * sw_$L - 1 : (b4_$L < 2.5 ? 4 * sw_$L - 2 : 2 * sw_$L - 1))) : (b2_$L > 0.5 ? 2 * sw_$L - 1 : 0);
+    dur_$L = 1 + ob_$L - oa_$L;
+
+    fire_$L = hit_$L;
+    fvel_$L = vel_$L;
+    fcnt_$L = nroll_$L;
+    fint_$L = max(1, dur_$L * sp / nroll_$L);
+    fdel_$L = hmz * ${HUMW} * u7_$L * srate * 0.012;
+    fpo_$L = clamp(poff_$L + koff_$L, -60, 60);
+    fst_$L = ls_$L;
+}
+
+// Hits waiting to sound: humanize delays them, and a roll is several of them
+qn_$L = hqn_$L;
+qt_$L = hqt_$L;
+qi_$L = hqi_$L;
+qv_$L = hqv_$L;
+qo_$L = hqo_$L;
+qs_$L = hqs_$L;
+if (fire_$L > 0.5) {
+    qn_$L = fcnt_$L;
+    qt_$L = fdel_$L;
+    qi_$L = fint_$L;
+    qv_$L = fvel_$L;
+    qo_$L = fpo_$L;
+    qs_$L = fst_$L;
+}
+go_$L = 0;
+gov_$L = 0;
+goo_$L = qo_$L;
+gos_$L = qs_$L;
+if (qn_$L > 0.5) {
+    if (qt_$L < 1) {
+        go_$L = 1;
+        gov_$L = qv_$L;
+        qn_$L = qn_$L - 1;
+        qt_$L = qt_$L + qi_$L;
+        qv_$L = qv_$L * 0.8;
+    }
+    qt_$L = qt_$L - 1;
+}
+hqn_$L = qn_$L;
+hqt_$L = qt_$L;
+hqi_$L = qi_$L;
+hqv_$L = qv_$L;
+hqo_$L = qo_$L;
+hqs_$L = qs_$L;
+
+// Two voices a lane, used in turn, so a new hit never cuts the last one dead
+nsel_$L = vsel_$L;
+nsel_$L = go_$L > 0.5 ? 1 - nsel_$L : nsel_$L;
+vsel_$L = nsel_$L;
+
+ainc_$L = 1 / max(1, clamp(atk$L, 0.1, 5000) * 0.001 * srate);
+dco_$L = exp(-4.6 / max(1, clamp(dec$L, 1, 20000) * 0.001 * srate));
+rco_$L = exp(-4.6 / max(1, clamp(rel$L, 1, 20000) * 0.001 * srate));
+pco_$L = exp(-4.6 / max(1, clamp(pdc$L, 1, 5000) * 0.001 * srate));
+susl_$L = clamp(sus$L, 0, 100) * 0.01;
+gsamp_$L = max(1, clamp(gat$L, 1, 1600) * 0.01 * sp);
+bl_$L = hassrc ? clamp(bld$L, 0, 100) * 0.01 : 0;
+stf_$L = clamp(stt$L, 0, 100) * 0.01;
+wkf_$L = clamp(wlk$L, 0, 100) * 0.01;
+pchs_$L = clamp(pch$L, 0, 48);
+
+// Metallic bank for the Hat voice: six square waves at 808 cymbal ratios
+met_$L = 0;
+if ((syn$L > 1.5) * (syn$L < 2.5)) {
+    mr_$L = exp(clamp(tun$L, -48, 48) * 0.057762265) / srate;
+    q1_$L = mp1_$L + 205.3 * mr_$L;
+    q1_$L = q1_$L - floor(q1_$L);
+    q2_$L = mp2_$L + 304.4 * mr_$L;
+    q2_$L = q2_$L - floor(q2_$L);
+    q3_$L = mp3_$L + 369.6 * mr_$L;
+    q3_$L = q3_$L - floor(q3_$L);
+    q4_$L = mp4_$L + 522.7 * mr_$L;
+    q4_$L = q4_$L - floor(q4_$L);
+    q5_$L = mp5_$L + 540.0 * mr_$L;
+    q5_$L = q5_$L - floor(q5_$L);
+    q6_$L = mp6_$L + 800.0 * mr_$L;
+    q6_$L = q6_$L - floor(q6_$L);
+    met_$L = ((q1_$L < 0.5) + (q2_$L < 0.5) + (q3_$L < 0.5) + (q4_$L < 0.5) + (q5_$L < 0.5) + (q6_$L < 0.5)) / 3 - 1;
+    mp1_$L = q1_$L;
+    mp2_$L = q2_$L;
+    mp3_$L = q3_$L;
+    mp4_$L = q4_$L;
+    mp5_$L = q5_$L;
+    mp6_$L = q6_$L;
+}
+
+ax_$L = 0;
+le_$L = 0;
+//@end
+rng_b = rb;
+
+// ---------------------------------------------------------------- voices
+//@voices
+// voice $V: lane $L, slot $J
+vac_$V = va_$V;
+stg_$V = vs_$V;
+env_$V = ve_$V;
+gc_$V = vg_$V;
+pos_$V = vp_$V;
+vl_$V = vv_$V;
+pe_$V = vq_$V;
+sm_$V = vm_$V;
+o1_$V = vo_$V;
+o2_$V = vw_$V;
+ag_$V = vt_$V;
+
+st_$V = go_$L * (abs(nsel_$L - $J) < 0.5);
+ck_$V = go_$L * (abs(nsel_$L - $J) > 0.5) * vac_$V;
+if (st_$V > 0.5) {
+    vac_$V = 1;
+    stg_$V = 1;
+    env_$V = 0;
+    gc_$V = gsamp_$L;
+    sf_$V = clamp(stf_$L + wkf_$L * gos_$L / ln_$L, 0, 0.999);
+    pos_$V = sf_$V * slen;
+    vl_$V = gov_$L;
+    pe_$V = 1;
+    sm_$V = clamp(tun$L, -48, 48) + goo_$L;
+    o1_$V = 0;
+    o2_$V = 0.5;
+    ag_$V = 0;
+}
+if (ck_$V > 0.5) {
+    stg_$V = 5;
+}
+
+vout_$V = 0;
+if (vac_$V > 0.5) {
+    // the note ends after Length; then release
+    if (stg_$V < 3.5) {
+        gc_$V = gc_$V - 1;
+        if (gc_$V <= 0) {
+            stg_$V = 4;
+        }
+    }
+    // ADSR. Stage 5 is a 4 ms choke when the lane's other voice takes over.
+    if (stg_$V < 1.5) {
+        env_$V = env_$V + ainc_$L;
+        if (env_$V >= 1) {
+            env_$V = 1;
+            stg_$V = 2;
+        }
+    } else if (stg_$V < 2.5) {
+        env_$V = susl_$L + (env_$V - susl_$L) * dco_$L;
+        if (env_$V - susl_$L < 0.0003) {
+            stg_$V = 3;
+        }
+    } else if (stg_$V < 3.5) {
+        env_$V = susl_$L;
+    } else if (stg_$V < 4.5) {
+        env_$V = env_$V * rco_$L;
+    } else {
+        env_$V = env_$V * cco;
+    }
+
+    pe_$V = pe_$V * pco_$L;
+    semi_$V = clamp(sm_$V + pchs_$L * pe_$V, -72, 72);
+    rt_$V = exp(semi_$V * 0.057762265);
+
+    // your sound
+    smpv_$V = 0;
+    if ((bl_$L > 0.0001) * (pos_$V < slen - 2)) {
+        i0_$V = floor(pos_$V);
+        fr_$V = pos_$V - i0_$V;
+        xa_$V = 0;
+        xb_$V = 0;
+        if (iscap) {
+            xa_$V = (peek(cap, i0_$V, 0) + peek(cap, i0_$V, 1)) * 0.5;
+            xb_$V = (peek(cap, i0_$V + 1, 0) + peek(cap, i0_$V + 1, 1)) * 0.5;
+        } else {
+            xa_$V = peek(smp, i0_$V, 0);
+            xb_$V = peek(smp, i0_$V + 1, 0);
+            if (sch2) {
+                xa_$V = (xa_$V + peek(smp, i0_$V, 1)) * 0.5;
+                xb_$V = (xb_$V + peek(smp, i0_$V + 1, 1)) * 0.5;
+            }
+        }
+        smpv_$V = xa_$V + (xb_$V - xa_$V) * fr_$V;
+    }
+    pos_$V = pos_$V + rt_$V * srat;
+
+    // the synth voice underneath it
+    sy_$V = 0;
+    ms_$V = syn$L;
+    if (ms_$V < 0.5) {
+        // Kick: a sine that Punch sweeps down, with a 2 ms click on top
+        o1_$V = o1_$V + 100 * rt_$V / srate;
+        o1_$V = o1_$V - floor(o1_$V);
+        clk_$V = ag_$V < 0.002 * srate ? nz1 * (1 - ag_$V / (0.002 * srate)) * 0.5 : 0;
+        sy_$V = sin(o1_$V * 6.283185307) * 0.95 + clk_$V;
+    } else if (ms_$V < 1.5) {
+        // Clap: three 10 ms bursts of noise, then the tail
+        ta_$V = ag_$V / srate;
+        bz_$V = 1;
+        if (ta_$V < 0.03) {
+            sg_$V = ta_$V - 0.01 * floor(ta_$V * 100);
+            bz_$V = exp(-sg_$V * 300);
+        }
+        sy_$V = nz1 * bz_$V * 0.9;
+    } else if (ms_$V < 2.5) {
+        // Hat: the metallic bank and noise
+        sy_$V = met_$L * 0.55 + nz2 * 0.45;
+    } else if (ms_$V < 3.5) {
+        // Tone: two detuned band-limited saws, C3 at Tune 0
+        f_$V = 130.8128 * rt_$V;
+        d1_$V = min(f_$V * 1.0035 / srate, 0.45);
+        d2_$V = min(f_$V * 0.9965 / srate, 0.45);
+        o1_$V = o1_$V + d1_$V;
+        o1_$V = o1_$V - floor(o1_$V);
+        o2_$V = o2_$V + d2_$V;
+        o2_$V = o2_$V - floor(o2_$V);
+        pb1_$V = 0;
+        if (o1_$V < d1_$V) {
+            x1_$V = o1_$V / d1_$V;
+            pb1_$V = x1_$V + x1_$V - x1_$V * x1_$V - 1;
+        } else if (o1_$V > 1 - d1_$V) {
+            x1_$V = (o1_$V - 1) / d1_$V;
+            pb1_$V = x1_$V * x1_$V + x1_$V + x1_$V + 1;
+        }
+        pb2_$V = 0;
+        if (o2_$V < d2_$V) {
+            x2_$V = o2_$V / d2_$V;
+            pb2_$V = x2_$V + x2_$V - x2_$V * x2_$V - 1;
+        } else if (o2_$V > 1 - d2_$V) {
+            x2_$V = (o2_$V - 1) / d2_$V;
+            pb2_$V = x2_$V * x2_$V + x2_$V + x2_$V + 1;
+        }
+        sy_$V = (2 * o1_$V - 1 - pb1_$V + 2 * o2_$V - 1 - pb2_$V) * 0.5;
+    } else {
+        // Sub: a sine, C2 at Tune 0
+        o1_$V = o1_$V + 65.40639 * rt_$V / srate;
+        o1_$V = o1_$V - floor(o1_$V);
+        sy_$V = sin(o1_$V * 6.283185307);
+    }
+
+    vout_$V = (sy_$V * (1 - bl_$L) + smpv_$V * bl_$L) * env_$V * vl_$V;
+    ag_$V = ag_$V + 1;
+    le_$L = max(le_$L, env_$V);
+    if ((stg_$V > 2.5) * (env_$V < 0.00003)) {
+        vac_$V = 0;
+        stg_$V = 0;
+        env_$V = 0;
+    }
+}
+ax_$L = ax_$L + vout_$V;
+
+va_$V = vac_$V;
+vs_$V = stg_$V;
+ve_$V = env_$V;
+vg_$V = gc_$V;
+vp_$V = pos_$V;
+vv_$V = vl_$V;
+vq_$V = pe_$V;
+vm_$V = sm_$V;
+vo_$V = o1_$V;
+vw_$V = o2_$V;
+vt_$V = ag_$V;
+//@end
+
+// ---------------------------------------------------------------- pump
+// The kick ducks everything else, then lets it swell back over three 16ths.
+pmp = pump_e;
+pma = pump_a;
+if (go_0 > 0.5) {
+    pma = 1;
+}
+if (pma > 0.5) {
+    pmp = pmp + (1 - pmp) * 0.03;
+    if (pmp > 0.985) {
+        pma = 0;
+    }
+} else {
+    pmp = pmp * exp(-4.6 / max(64, sp * 3));
+}
+pump_e = pmp;
+pump_a = pma;
+pmd = pump_s + (clamp(pumpamt, 0, 100) * 0.01 - pump_s) * (boot ? 1 : 0.002);
+pump_s = pmd;
+pmg = 1 - 0.9 * pmd * pmp;
+
+// ---------------------------------------------------------------- lanes: sound
+mxl = 0;
+mxr = 0;
+fxin = 0;
+//@lanes
+x_$L = ax_$L;
+dv_$L = clamp(drv$L, 0, 100) * 0.01;
+if (dv_$L > 0.001) {
+    dg_$L = 1 + dv_$L * 10;
+    x_$L = tanh(x_$L * dg_$L) / (1 + dv_$L * 2.5);
+}
+
+// State-variable filter (topology-preserving), swept by the lane's envelope
+cs_$L = csm_$L + (clamp(cut$L, 20, 20000) - csm_$L) * (boot ? 1 : 0.003);
+csm_$L = cs_$L;
+fc_$L = clamp(cs_$L * exp(clamp(fev$L, -100, 100) * 0.01 * le_$L * 3.4657359), 20, srate * 0.45);
+fg_$L = tan(3.14159265 * fc_$L / srate);
+fk_$L = 2 - 1.96 * clamp(res$L, 0, 100) * 0.01;
+fa1_$L = 1 / (1 + fg_$L * (fg_$L + fk_$L));
+fa2_$L = fg_$L * fa1_$L;
+fa3_$L = fg_$L * fa2_$L;
+z1_$L = ic1_$L;
+z2_$L = ic2_$L;
+v3_$L = x_$L - z2_$L;
+v1_$L = fa1_$L * z1_$L + fa2_$L * v3_$L;
+v2_$L = z2_$L + fa2_$L * z1_$L + fa3_$L * v3_$L;
+ic1_$L = 2 * v1_$L - z1_$L;
+ic2_$L = 2 * v2_$L - z2_$L;
+y_$L = fty$L < 0.5 ? v2_$L : (fty$L < 1.5 ? v1_$L * fk_$L : x_$L - fk_$L * v1_$L - v2_$L);
+
+// Level, mute, pan and send, all smoothed so nothing clicks
+tgl_$L = (on$L > 0.5) * (lvl$L > -69.5) * dbtoa(clamp(lvl$L, -70, 12));
+gl_$L = gsm_$L + (tgl_$L - gsm_$L) * (boot ? 1 : 0.002);
+gsm_$L = gl_$L;
+pn_$L = psm_$L + (clamp(pan$L, -100, 100) * 0.01 - psm_$L) * (boot ? 1 : 0.002);
+psm_$L = pn_$L;
+sd_$L = ssm_$L + (clamp(snd$L, 0, 100) * 0.01 - ssm_$L) * (boot ? 1 : 0.002);
+ssm_$L = sd_$L;
+yo_$L = y_$L * gl_$L * ${PUMPED};
+pl_$L = cos((pn_$L + 1) * 0.785398163) * 1.41421356;
+pr_$L = sin((pn_$L + 1) * 0.785398163) * 1.41421356;
+mxl = mxl + yo_$L * pl_$L;
+mxr = mxr + yo_$L * pr_$L;
+fxin = fxin + yo_$L * sd_$L;
+av_$L = max(abs(yo_$L), lact_$L * 0.9996);
+lact_$L = av_$L;
+//@end
+
+// ---------------------------------------------------------------- bus: drive, crush
+bdv = bd_s + (clamp(busdrive, 0, 100) * 0.01 - bd_s) * (boot ? 1 : 0.002);
+bd_s = bdv;
+if (bdv > 0.001) {
+    bgn = 1 + bdv * 6;
+    mxl = tanh(mxl * bgn) / (1 + bdv * 2);
+    mxr = tanh(mxr * bgn) / (1 + bdv * 2);
+}
+crv = clamp(buscrush, 0, 100) * 0.01;
+ccn = crc;
+hol = chl;
+hor = chr;
+if (crv > 0.001) {
+    cq = pow(2, 15 - crv * 12);
+    chold = 1 + floor(crv * crv * 15);
+    ccn = ccn + 1;
+    if (ccn >= chold) {
+        ccn = 0;
+        hol = floor(mxl * cq + 0.5) / cq;
+        hor = floor(mxr * cq + 0.5) / cq;
+    }
+    mxl = hol;
+    mxr = hor;
+}
+crc = ccn;
+chl = hol;
+chr = hor;
+
+// ---------------------------------------------------------------- delay (ping-pong, tempo-locked)
+dtm = dtime;
+dfac = dtm < 0.5 ? 1 : (dtm < 1.5 ? 2 : (dtm < 2.5 ? 3 : (dtm < 3.5 ? 4 : (dtm < 4.5 ? 6 : (dtm < 5.5 ? 8 : (dtm < 6.5 ? 1.3333333 : 2.6666667))))));
+dtg = clamp(dfac * sp, 16, 383000);
+dtv = dts;
+dtv = dtv < 1 ? dtg : dtv + (dtg - dtv) * 0.0004;
+dts = dtv;
+drl = dlyl.read(dtv, interp="linear");
+drr = dlyr.read(dtv, interp="linear");
+fll = fl_l + (drl - fl_l) * 0.42;
+fl_l = fll;
+flr = fl_r + (drr - fl_r) * 0.42;
+fl_r = flr;
+fhl = fh_l + (fll - fh_l) * 0.012;
+fh_l = fhl;
+fhr = fh_r + (flr - fh_r) * 0.012;
+fh_r = fhr;
+fbk = clamp(dfb, 0, 95) * 0.01;
+dlyl.write(fxin + fbk * (flr - fhr));
+dlyr.write(fbk * (fll - fhl));
+
+// ---------------------------------------------------------------- space (4-line FDN reverb)
+srs = srate / 48000;
+rin = fxin * 0.6 + (drl + drr) * 0.12;
+tpa = apa.read(142 * srs);
+wpa = rin + 0.6 * tpa;
+ypa = tpa - 0.6 * wpa;
+apa.write(wpa);
+tpb = apb.read(379 * srs);
+wpb = ypa + 0.6 * tpb;
+ypb = tpb - 0.6 * wpb;
+apb.write(wpb);
+
+rsz = clamp(rsize, 0, 100) * 0.01;
+scl = (0.45 + rsz * 1.25) * srs;
+lfv = lfo_p + 0.31 / srate;
+lfv = lfv - floor(lfv);
+lfo_p = lfv;
+mdp = 5 * srs;
+rla = 1423 * scl + mdp * sin(lfv * 6.2831853);
+rlb = 1627 * scl + mdp * sin((lfv + 0.25) * 6.2831853);
+rlc = 1871 * scl + mdp * sin((lfv + 0.5) * 6.2831853);
+rld = 2053 * scl + mdp * sin((lfv + 0.75) * 6.2831853);
+rra = rva.read(rla, interp="linear");
+rrb = rvb.read(rlb, interp="linear");
+rrc = rvc.read(rlc, interp="linear");
+rrd = rvd.read(rld, interp="linear");
+rgn = 0.62 + rsz * 0.34;
+dmp = 0.55 - rsz * 0.2;
+qda = rf_a + (rra - rf_a) * dmp;
+rf_a = qda;
+qdb = rf_b + (rrb - rf_b) * dmp;
+rf_b = qdb;
+qdc = rf_c + (rrc - rf_c) * dmp;
+rf_c = qdc;
+qdd = rf_d + (rrd - rf_d) * dmp;
+rf_d = qdd;
+hma = (qda + qdb + qdc + qdd) * 0.5;
+hmb = (qda - qdb + qdc - qdd) * 0.5;
+hmc = (qda + qdb - qdc - qdd) * 0.5;
+hmd = (qda - qdb - qdc + qdd) * 0.5;
+rva.write(ypb + rgn * hma);
+rvb.write(ypb * 0.9 + rgn * hmb);
+rvc.write(rgn * hmc - ypb * 0.8);
+rvd.write(ypb * 0.7 + rgn * hmd);
+wrl = (rra + rrc * 0.7) * 0.7;
+wrr = (rrb + rrd * 0.7) * 0.7;
+
+// ---------------------------------------------------------------- returns
+dmv = dm_s + (clamp(dmix, 0, 100) * 0.01 - dm_s) * (boot ? 1 : 0.002);
+dm_s = dmv;
+rmv = rm_s + (clamp(rmix, 0, 100) * 0.01 - rm_s) * (boot ? 1 : 0.002);
+rm_s = rmv;
+rpg = 1 - 0.6 * pmd * pmp;
+outl = mxl + (drl * dmv + wrl * rmv) * rpg;
+outr = mxr + (drr * dmv + wrr * rmv) * rpg;
+
+// ---------------------------------------------------------------- DJ filter
+djv = dj_s + (clamp(djf, -100, 100) * 0.01 - dj_s) * (boot ? 1 : 0.003);
+dj_s = djv;
+dja = clamp((abs(djv) - 0.02) * 12, 0, 1);
+djfc = djv < 0 ? 20000 * pow(0.005, -djv) : 20 * pow(300, djv);
+djg = tan(3.14159265 * clamp(djfc, 20, srate * 0.45) / srate);
+djk = 1.2;
+dq1 = 1 / (1 + djg * (djg + djk));
+dq2 = djg * dq1;
+dq3 = djg * dq2;
+zl1 = dj1l;
+zl2 = dj2l;
+w3l = outl - zl2;
+w1l = dq1 * zl1 + dq2 * w3l;
+w2l = zl2 + dq2 * zl1 + dq3 * w3l;
+dj1l = 2 * w1l - zl1;
+dj2l = 2 * w2l - zl2;
+fyl = djv < 0 ? w2l : outl - djk * w1l - w2l;
+outl = outl + (fyl - outl) * dja;
+zr1 = dj1r;
+zr2 = dj2r;
+w3r = outr - zr2;
+w1r = dq1 * zr1 + dq2 * w3r;
+w2r = zr2 + dq2 * zr1 + dq3 * w3r;
+dj1r = 2 * w1r - zr1;
+dj2r = 2 * w2r - zr2;
+fyr = djv < 0 ? w2r : outr - djk * w1r - w2r;
+outr = outr + (fyr - outr) * dja;
+
+// ---------------------------------------------------------------- thru, DC, limiter
+thv = th_s + (clamp(thruamt, 0, 100) * 0.01 - th_s) * (boot ? 1 : 0.002);
+th_s = thv;
+outl = outl + in2 * thv;
+outr = outr + in3 * thv;
+dcl = outl - dcx_l + 0.9995 * dcy_l;
+dcx_l = outl;
+dcy_l = dcl;
+dcr = outr - dcx_r + 0.9995 * dcy_r;
+dcx_r = outr;
+dcy_r = dcr;
+lml = dcl > 0.85 ? 0.85 + 0.15 * tanh((dcl - 0.85) / 0.15) : (dcl < -0.85 ? -0.85 - 0.15 * tanh((-dcl - 0.85) / 0.15) : dcl);
+lmr = dcr > 0.85 ? 0.85 + 0.15 * tanh((dcr - 0.85) / 0.15) : (dcr < -0.85 ? -0.85 - 0.15 * tanh((-dcr - 0.85) / 0.15) : dcr);
+
+// ---------------------------------------------------------------- capture (Audio Effect variant)
+// Capture arms on a press and starts on the next downbeat, or at once while
+// the transport is stopped. Auto Capture re-arms itself every 4, 8 or 16 bars.
+cst = cap_s;
+cwp = cap_w;
+cln = cap_len;
+ctg = cap_tgt;
+clg = cap_last;
+carm = abs(capgo - clg) > 0.5;
+clg = capgo;
+caun = capauto < 0.5 ? 0 : (capauto < 1.5 ? 4 : (capauto < 2.5 ? 8 : 16));
+cauq = max(caun, 1);
+cauto = (caun > 0) * wrapped * ((brn - cauq * floor(brn / cauq)) < 0.5);
+if ((carm + cauto > 0.5) * (cst < 0.5)) {
+    cst = 1;
+}
+if ((cst > 0.5) * (cst < 1.5) * ((wrapped + started + (1 - playing)) > 0.5)) {
+    cst = 2;
+    cwp = 0;
+    cbar = capbars < 0.5 ? 16 : (capbars < 1.5 ? 32 : 8);
+    ctg = clamp(cbar * sp, 64, dim(cap) - 2);
+}
+if (cst > 1.5) {
+    poke(cap, in2, cwp, 0);
+    poke(cap, in3, cwp, 1);
+    cwp = cwp + 1;
+    if (cwp >= ctg) {
+        cst = 0;
+        cln = ctg;
+    }
+}
+cap_s = cst;
+cap_w = cwp;
+cap_len = cln;
+cap_tgt = ctg;
+cap_last = clg;
+cprog = cst > 1.5 ? cwp / max(ctg, 1) : 0;
+
+// ---------------------------------------------------------------- outputs
+//@lanes
+aq_$L = clamp(floor((atodb(max(av_$L, 0.00001)) + 48) * 0.3), 0, 15);
+//@end
+out1 = lml;
+out2 = lmr;
+out3 = ls_0 + ls_1 * 16 + ls_2 * 256 + ls_3 * 4096 + playing * 65536;
+out4 = aq_0 + aq_1 * 16 + aq_2 * 256 + aq_3 * 4096;
+cfrac = clamp(floor(cln / max(dim(cap), 1) * 1000), 0, 1000);
+out5 = cst + 4 * (dim(smp) > 64) + 8 * (cln > 64) + 16 * floor(cprog * 100) + 2048 * cfrac;

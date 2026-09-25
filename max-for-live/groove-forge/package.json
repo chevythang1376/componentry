@@ -1,0 +1,14 @@
+{
+  "name": "groove-forge",
+  "private": true,
+  "description": "Groove Forge: a Max for Live device that turns your sound into a techno groove",
+  "scripts": {
+    "build": "node src/build.js",
+    "check": "node src/build.js --check",
+    "engine": "node src/genexpr.js",
+    "test": "node --max-optimized-bytecode-size=2000000 --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
