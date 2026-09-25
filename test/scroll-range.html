@@ -240,24 +240,75 @@ window.addEventListener('load', function () {
      Driven here by calling into a same-origin copy of the bridge rather than
      through postMessage, so the assertions do not depend on message timing.
 
-     Wrapped, because it is the one section here that depends on another
-     document having run its scripts. That is normally synchronous after
-     document.write + close, and once in a while it is not — and an exception
-     thrown here used to take every assertion after it down with it, silently,
-     leaving a harness that simply never reported. A section that cannot run
-     should fail loudly and let the rest of the file finish. */
-  try {
-  (function () {
-    var doc = CB.Export.previewDoc(
-      [{ uid: 'a', cls: 'cb-kt-p', type: 'kinetic-text', props: CB.defaults(CB.get('kinetic-text')) },
-       { uid: 'b', cls: 'cb-spl-p', type: 'split-reveal', props: CB.defaults(CB.get('split-reveal')) }],
-      CB.DEFAULT_TOKENS, { canvas: 'light', outline: true, selected: 'a', names: {} });
+     This is the one section that depends on another document having run its
+     scripts, and document.write + close does not promise that. The preview
+     imports its webfont with @import, and a stylesheet still loading holds
+     back every script after it — so the bridge exists as soon as close()
+     returns only when the font CSS is already cached. A fresh browser (every
+     headless run) has to fetch it first, and reading the bridge straight away
+     found nothing there. The section therefore waits for the preview to
+     finish parsing: the bridge is the last thing in its body, so once parsing
+     is done it has either been defined or it never will be. That keeps the
+     failure loud and immediate for a bridge that is genuinely missing, rather
+     than waiting out a timer. The timeout is only for a font request that
+     never answers.
 
-    var d = f.contentDocument;
-    d.open(); d.write(doc); d.close();
-    var pw = f.contentWindow;
+     Still wrapped, because an exception thrown here used to take every
+     assertion after it down with it, leaving a harness that never reported. */
+  var BRIDGE_WAIT_MS = 10000;
 
-    check('the preview carries the motion bridge', typeof pw.cbHold, 'function');
+  function afterParsing(d, ms, done) {
+    var settled = false, t0 = Date.now(), timer = null;
+    function settle(how) {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      d.removeEventListener('readystatechange', onState);
+      done(how, Date.now() - t0);
+    }
+    function onState() { if (d.readyState !== 'loading') settle('parsed'); }
+    /* Event-driven rather than polled: a tab that throttles timers still
+       delivers readystatechange the moment parsing ends. */
+    if (d.readyState !== 'loading') { settle('parsed'); return; }
+    d.addEventListener('readystatechange', onState);
+    timer = setTimeout(function () { settle('timed out'); }, ms);
+  }
+
+  function motionBridge(finish) {
+    var d, pw;
+    try {
+      var doc = CB.Export.previewDoc(
+        [{ uid: 'a', cls: 'cb-kt-p', type: 'kinetic-text', props: CB.defaults(CB.get('kinetic-text')) },
+         { uid: 'b', cls: 'cb-spl-p', type: 'split-reveal', props: CB.defaults(CB.get('split-reveal')) }],
+        CB.DEFAULT_TOKENS, { canvas: 'light', outline: true, selected: 'a', names: {} });
+
+      d = f.contentDocument;
+      d.open(); d.write(doc); d.close();
+      pw = f.contentWindow;
+    } catch (e) {
+      check('the motion bridge ran at all', 'threw: ' + e.message, 'no exception');
+      finish();
+      return;
+    }
+
+    afterParsing(d, BRIDGE_WAIT_MS, function (how, waited) {
+      try {
+        bridgeChecks(d, pw, how, waited);
+      } catch (e) {
+        check('the motion bridge ran at all', 'threw: ' + e.message, 'no exception');
+      }
+      finish();
+    });
+  }
+
+  function bridgeChecks(d, pw, how, waited) {
+    var has = typeof pw.cbHold;
+    check('the preview carries the motion bridge',
+          has === 'function' ? has
+            : has + (how === 'timed out' ? ' — the preview was still loading after ' + waited + ' ms'
+                                         : ' — the preview finished parsing without it'),
+          'function');
+    if (has !== 'function') return;
 
     var found = pw.cbScrollDriven();
     check('and finds the scroll-driven animations on the canvas', found.length > 0, true,
@@ -285,16 +336,19 @@ window.addEventListener('load', function () {
           found.every(function (a) { return a.timeline !== d.timeline; }), true);
     check('and a second hold works after a release', pw.cbHold().length > 0, true);
     pw.cbRelease();
-  })();
-  } catch (e) {
-    check('the motion bridge ran at all', 'threw: ' + e.message, 'no exception');
   }
 
-  document.getElementById('out').textContent = log.join('\n');
-  var bar = document.getElementById('bar');
-  bar.className = 'bar ' + (fail ? 'bad' : 'ok');
-  bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
-                         : (pass + '/' + pass + ' passed — every reveal finishes where it is put');
-  document.title = fail ? 'RANGE FAIL ' + fail : 'RANGE OK ' + pass;
+  /* Reported only once the bridge section has settled, since it can finish
+     after this handler returns. The title is what automated runs wait on. */
+  function report() {
+    document.getElementById('out').textContent = log.join('\n');
+    var bar = document.getElementById('bar');
+    bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+    bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed')
+                           : (pass + '/' + pass + ' passed — every reveal finishes where it is put');
+    document.title = fail ? 'RANGE FAIL ' + fail : 'RANGE OK ' + pass;
+  }
+
+  motionBridge(report);
 });
 </script>
