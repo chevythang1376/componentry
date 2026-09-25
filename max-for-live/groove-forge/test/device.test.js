@@ -147,6 +147,19 @@ for (const variant of ['inst', 'fx']) {
     assert.ok(!s.isShown('gf_tun0'));
   });
 
+  test(`${variant}: loading a set or recalling a preset never presses a button`, () => {
+    const s = sim(variant);
+    const stored = { 'Kick Steps': 1 + 16, 'Clap Steps': 4096, 'Hats Steps': 4, 'Tone Steps': 2, Generate: 0, Mutate: 0, Clear: 0, Undo: 0 };
+    s.load(stored);
+    s.recall(stored);
+    assert.deepEqual([s.gen.pat0, s.gen.pat1, s.gen.pat2, s.gen.pat3], [17, 4096, 4, 2], 'patterns as stored');
+    assert.equal(s.ui.state().pat[2], 4);
+    if (variant === 'fx') {
+      assert.equal(s.gen.srcsel, 0, 'Capture did not fire');
+      assert.equal(s.gen.capgo, undefined);
+    }
+  });
+
   test(`${variant}: clicking the grid lands in the stored pattern, then in gen~`, () => {
     const s = sim(variant);
     s.load();

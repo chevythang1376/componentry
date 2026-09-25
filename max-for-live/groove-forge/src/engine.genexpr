@@ -751,7 +751,7 @@ hmc = (qda + qdb - qdc - qdd) * 0.5;
 hmd = (qda - qdb - qdc + qdd) * 0.5;
 rva.write(ypb + rgn * hma);
 rvb.write(ypb * 0.9 + rgn * hmb);
-rvc.write(ypb * -0.8 + rgn * hmc);
+rvc.write(rgn * hmc - ypb * 0.8);
 rvd.write(ypb * 0.7 + rgn * hmd);
 wrl = (rra + rrc * 0.7) * 0.7;
 wrr = (rrb + rrd * 0.7) * 0.7;

@@ -252,11 +252,22 @@ class PatchSim {
       if (b.value === undefined) continue;
       const lv = b.saved_attribute_attributes.valueof;
       if (lv.parameter_longname in stored) b.value = stored[lv.parameter_longname];
-      if (b.maxclass === 'live.text' && b.mode === 0) continue;
+      // buttons too: Live restores their stored 0 like any other parameter
       this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [b.value] } : numMsg(b.value));
     }
     const dev = [...this.boxes.values()].find((b) => b.cls === 'live.thisdevice');
     this.emit(dev, 0, { sel: 'bang', args: [] });
+    this.flushQueue();
+  }
+
+  // A preset recall or Live's undo: stored values come back, nothing else runs.
+  recall(stored = {}) {
+    for (const b of this.boxes.values()) {
+      if (b.value === undefined) continue;
+      const lv = b.saved_attribute_attributes.valueof;
+      if (lv.parameter_longname in stored) b.value = stored[lv.parameter_longname];
+      this.emit(b, 0, b.isEnum || b.isInt ? { sel: 'int', args: [b.value] } : numMsg(b.value));
+    }
     this.flushQueue();
   }
 

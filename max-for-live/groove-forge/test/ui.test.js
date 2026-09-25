@@ -151,7 +151,7 @@ test('the die rewrites its own lane and no other', () => {
 test('Generate writes a valid, style-true groove in every style', () => {
   for (let style = 0; style < 6; style++) {
     for (let run = 0; run < 150; run++) {
-      const ui = loadUI();
+      const ui = loadUI({ random: seeded(style * 1000 + run + 1) });
       ui.msg('init');
       ui.msg('style', style);
       ui.msg('generate');
@@ -179,21 +179,30 @@ test('Generate writes a valid, style-true groove in every style', () => {
   }
 });
 
+// A seeded generator, so the randomised tests are the same every run.
+function seeded(seed) {
+  let x = seed >>> 0 || 1;
+  return () => {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    return (x >>> 0) / 4294967296;
+  };
+}
+
 test('Mutate changes a little and never moves the kick off the floor', () => {
-  for (let run = 0; run < 200; run++) {
-    const ui = loadUI();
+  const before = [4369, 4112, 52300, 19660];
+  for (let run = 0; run < 300; run++) {
+    const ui = loadUI({ random: seeded(run + 1) });
     ui.msg('init');
     ui.msg('mutate');
     const o = ui.take();
     const kick = last(o, 'pat0');
     for (const k of [0, 4, 8, 12]) assert.ok(bits(kick).includes(k));
-    let changed = 0;
-    const before = [4369, 4112, 52300, 19660];
-    for (let l = 0; l < 4; l++) {
-      const diff = last(o, 'pat' + l) ^ before[l];
-      changed += bits(diff).length;
-    }
-    assert.ok(changed <= 9, `changed ${changed} steps`);
+    // the kick changes at most one step; other lanes make one or two changes,
+    // and a change that moves a hit touches two steps
+    assert.ok(bits(kick ^ before[0]).length <= 1, 'kick');
+    for (let l = 1; l < 4; l++) assert.ok(bits(last(o, 'pat' + l) ^ before[l]).length <= 4, `lane ${l}, run ${run}`);
   }
 });
 

@@ -361,6 +361,15 @@ const L = {
 };
 const PAGES = ['sound', 'shape', 'groove'];
 
+// A gate that opens once the device has settled after loading.
+function pressesOnly(patch, settle, section) {
+  const gate = patch.obj('gate 1 0', section);
+  const open = patch.msg('1', section);
+  patch.connect(settle, 0, open, 0);
+  patch.connect(open, 0, gate, 0);
+  return gate;
+}
+
 // ------------------------------------------------------------------ build one device
 function buildDevice(variant) {
   const P = new Patch(variant);
@@ -619,9 +628,19 @@ function buildDevice(variant) {
   liveComment(P, 'Style', [G0, 106, 34, 15], { section: 'groove' });
   const style = liveMenu(P, byId.style, { longname: 'Style', def: 0, rect: [G0 + 34, 106, 120, 15], varname: 'gf_style', section: 'groove' });
   toUI(style, 0, 'style');
+  // Live restores every parameter when a set loads, buttons included, and
+  // again on a preset recall. A restored value is a number, a press is a bang:
+  // [route bang] keeps only presses, and the gate stays shut until the set has
+  // loaded. Without both, loading a set would press GENERATE on it.
+  const actions = pressesOnly(P, settle, 'groove');
+  P.connect(actions, 0, ui, 0);
   const button = (label, message, rect, desc) => {
     const b = liveText(P, { longname: label, label, text: label.toUpperCase(), mode: 0, rect, varname: 'gf_btn_' + message, section: 'groove', desc });
-    P.connect(b, 0, uiMsg(message), 0);
+    const press = P.obj('route bang', 'groove');
+    P.connect(b, 0, press, 0);
+    const m = P.msg(message, 'groove');
+    P.connect(press, 0, m, 0);
+    P.connect(m, 0, actions, 1);
     return b;
   };
   button('Generate', 'generate', [G0, 125, 76, 18], 'Write a new groove on every lane, in the chosen Style.');
@@ -677,8 +696,12 @@ function buildDevice(variant) {
     const srcsel = liveTab(P, byId.srcsel, { longname: 'Source', def: 0, rect: [6, 106, 166, 16], varname: 'gf_srcsel', section: 'source' });
     P.connect(toGen(srcsel, 0, 'srcsel', 'Source'), 0, ui, 0);
     const capture = liveText(P, { longname: 'Capture', label: 'Capture', text: 'CAPTURE', mode: 0, rect: [6, 126, 80, 18], varname: 'gf_capture', section: 'source', color: [0.95, 0.3, 0.3], desc: 'Record this track into the groove: starts on the next downbeat (at once while stopped) and switches the Source to Live.' });
+    const capPress = P.obj('route bang', 'source');
+    P.connect(capture, 0, capPress, 0);
+    const capGate = pressesOnly(P, settle, 'source');
+    P.connect(capPress, 0, capGate, 1);
     const capOrder = P.obj('t b b', 'source');
-    P.connect(capture, 0, capOrder, 0);
+    P.connect(capGate, 0, capOrder, 0);
     const toLive = P.msg('1', 'source');
     P.connect(capOrder, 1, toLive, 0);
     P.connect(toLive, 0, srcsel, 0);
