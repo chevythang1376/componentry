@@ -81,6 +81,22 @@ test('every Live parameter is well formed: in range, named once, enums complete'
   }
 });
 
+test('the display is the same size in patching and presentation (a jsui maps itself to its patching size)', () => {
+  for (const d of devices) {
+    const boxes = patcherOf(d).boxes;
+    const j = boxes.find((b) => b.box.maxclass === 'jsui').box;
+    assert.deepEqual(j.patching_rect.slice(2), j.presentation_rect.slice(2));
+    assert.deepEqual(j.presentation_rect, L.jsui);
+    // and nothing else in the patching view sits on top of it
+    for (const { box } of boxes) {
+      if (box === j) continue;
+      const [x, y, w, h] = box.patching_rect;
+      const [jx, jy, jw, jh] = j.patching_rect;
+      assert.ok(!(x < jx + jw && jx < x + w && y < jy + jh && jy < y + h), `${box.text || box.maxclass} overlaps the display in the patching view`);
+    }
+  }
+});
+
 test('pattern storage is hidden from the device and from automation, but stored', () => {
   for (const d of devices) {
     const stores = patcherOf(d).boxes.filter((b) => /^gf_(pat|acc|rol|len|hit|rot)\d$/.test(b.box.varname || ''));

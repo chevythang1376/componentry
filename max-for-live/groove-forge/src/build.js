@@ -439,8 +439,11 @@ function buildDevice(variant) {
     varname: 'gf_display',
     annotation: 'Click a step: on, accent, off. Shift-click: accent. Alt-click: roll. Cmd/Ctrl-click: the lane ends here. Drag LEN, HIT and ROT up or down; HIT and ROT write a Euclidean rhythm. The die rewrites one lane. Click the waveform to choose where the selected lane starts.',
     annotation_name: 'Groove Forge',
-    _pw: 310,
-    _ph: 50,
+    // The same size in patching as in presentation. A jsui whose two sizes
+    // differ keeps mapping its drawing and its mouse to the patching one, so
+    // in Live the grid would be drawn at the wrong scale under the controls
+    // that sit on it. It gets its own spot, clear of the patching columns.
+    patching_rect: [1960, 20, L.jsui[2], L.jsui[3]],
   }, 'ui');
   const toUI = (source, outlet, name) => {
     const pre = P.obj('prepend ' + name, 'ui');
