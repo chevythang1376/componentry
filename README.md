@@ -70,7 +70,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Table | Ships empty and offers **Import cells** first — paste a block from a spreadsheet and it builds the table. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
 | | Article | Long-form copy typed as plain text: a line is a paragraph, and `##`, `-`, `1.`, `>`, `![alt](url)`, `[text](url)` and `**bold**` become headings, lists, a pull quote, a captioned figure, links and emphasis. Converted when the code is generated, so there is no parser in the page and the result is ordinary HTML. Zero JS |
 | | Step-by-Step | Numbered steps in a real `<ol>`, with photos and tip or caution callouts. A caution is labelled in words, not only by colour. Optional `HowTo` JSON-LD with a total time. Zero JS |
-| | Data Bars | Figures as bars or rings, each against its own maximum and held at full past it. Ships empty — every number in it is a claim — and pastes from a spreadsheet. The figure is always written as text as well as drawn. Zero JS |
+| | Data Bars | Figures as bars or rings, each against its own maximum and held at full past it. Ships empty — every number in it is a claim — and pastes from a spreadsheet, reading figures the way a sheet writes them: `1,200`, `78%`, `$1.2M`. The figure is always written as text as well as drawn. Zero JS |
 | | People | Reps and specialists: photo or initials, role, territory, and email and phone as real `mailto:` / `tel:` links, with the address shown so it can be copied. Pastes from a spreadsheet. Zero JS |
 | **Interactive** | Accordion / FAQ | APG accordion pattern, optional `FAQPage` JSON-LD |
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
@@ -222,7 +222,7 @@ the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-41 components, 328 round-trips, 211 assertions.
+41 components, 328 round-trips, 214 assertions.
 
 Run it in a **desktop-width window**. Several blocks deliberately drop a behaviour below a
 breakpoint — sticky pinning, multi-column spans — and the probes assert whichever branch
@@ -331,13 +331,18 @@ Complete exports of those starters, HTML + CSS + JS together:
 | Capability page | 52.5 kB | **41.6 kB** |
 | Landing page | 64.0 kB | **50.5 kB** |
 
-Three of the four fit in one Webflow embed minified. **The Landing page no longer does:** it
-has grown to 50,464 characters, and Webflow stops at 50,000. For a while that went unseen,
-because preflight had the cap as 50 × 1024 — 51,200 — and so passed it. Webflow's own
-advice is the way round it, and what the Webflow export already does: HTML in the Embed
-element, CSS in the page's head code, script before `</body>`. Split that way the largest
-piece is under 20,000 characters. Any single block fits on its own; the largest,
-Interactive Diagram, is about 28,600 characters minified.
+Three of the four fit in one embed minified. **The Landing page no longer does:** it has
+grown to 50,464 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
+going on Webflow, because the Webflow export is split files: HTML in the Embed element, CSS
+in the page's head code, script before `</body>`, and Webflow allows 50,000 characters in
+each. Split that way the largest piece is under 20,000.
+
+Preflight measures it the same way. For a split export it judges each piece against the
+limit of the place it goes, and names the piece that is over; for a single-embed export it
+judges the whole thing. It used to measure every export as one embed against 50 × 1024 —
+51,200, where Webflow counts 50,000 characters — which let a real overflow through and
+would have flagged a split export that was fine. Any single block fits on its own; the
+largest, Interactive Diagram, is about 28,600 characters minified.
 
 The markup is **byte-identical either way** — switching modes never means re-pasting your
 HTML — and a single block is unchanged, since it has nothing to share with. Rendering is
@@ -1148,7 +1153,7 @@ test/
                         328 round-trips, then functionally probes what survives.
                         Structured data (JSON-LD) is left in the markup rather
                         than run as script, so a stripped editor that keeps it
-                        is credited for it; 211 assertions
+                        is credited for it; 214 assertions
   degrade.html          Removes one CSS capability at a time (background-clip,
                         gradients, clip-path, backdrop-filter, images, scroll
                         timelines) and reports text that becomes unreadable.
@@ -1169,8 +1174,9 @@ test/
                         correct 2x image is left alone, an untouched table
                         is caught before it ships, a calculator asks for an
                         engineering check, a jump link to a section the
-                        project lacks is named, and Webflow's cap is held in
-                        the characters Webflow counts; 42 assertions
+                        project lacks is named, and a Webflow export is sized
+                        piece by piece, in the characters Webflow counts; 42
+                        assertions
   scroll-range.html     The case the degradation harness cannot reach: scroll
                         timelines exist but never advance — a block nobody
                         scrolls to, a preview frame that does not scroll. Asserts
@@ -1241,7 +1247,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 721 assertions**, plus two that report coverage rather than a count:
+**Thirteen harnesses, 724 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 41 through the real export path, and `degrade.html` judges all 41
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

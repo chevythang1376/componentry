@@ -117,7 +117,10 @@ window.CB = (function () {
     ink: '#f3efeb',
     muted: '#9c9289',
     surface: '#1a1714',
-    subtle: '#121010',
+    /* A panel's tint has to differ from the page it sits on, as #f7f4f1 does
+       from white. This was the dark page colour itself, so every panel on a
+       plain dark ground — a bento tile, a callout, a tinted card — vanished. */
+    subtle: '#221e1a',
     border: '#2f2a25'
   };
   var NEUTRAL_KEYS = ['ink', 'muted', 'surface', 'subtle', 'border'];
@@ -247,6 +250,14 @@ window.CB = (function () {
     return up ? '#ffffff' : '#000000';
   }
 
+  /* Of the surfaces a block might put accent text on, the one the brand has
+     the least contrast against. Satisfy that one and the rest come free. */
+  function hardestFor(brand, cands) {
+    return cands.reduce(function (worst, cand) {
+      return contrast(brand, cand) < contrast(brand, worst) ? cand : worst;
+    });
+  }
+
   function readableInk(bg, light, dark) {
     light = light || '#ffffff';
     dark = dark || '#141210';
@@ -282,6 +293,27 @@ window.CB = (function () {
         esc(label) + '</text>' : '') +
       '</svg>';
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
+  /* Text for places that take no markup: structured data, calendar files,
+     link parameters. Drops the bold and italic marks rich() understands. */
+  function plainMarks(v) {
+    return String(v == null ? '' : v).replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').trim();
+  }
+
+  /* A date field's YYYY-MM-DD, read from the string rather than through
+     new Date(), which takes it as UTC midnight and shows the day before for
+     anyone west of Greenwich. Null for anything else. */
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function isoDate(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim());
+    return m ? { y: +m[1], m: +m[2], d: +m[3], iso: m[0] } : null;
+  }
+  /* "Aug 25, 2026" for a date, and anything that is not one ("Coming soon")
+     passed through as written. */
+  function niceDate(v) {
+    var d = isoDate(v);
+    return d ? MONTHS[d.m - 1] + ' ' + d.d + ', ' + d.y : String(v || '').trim();
   }
 
   /* Recognises anything ph() produced, whatever size or colours it was given.
@@ -517,7 +549,8 @@ window.CB = (function () {
            because a block sitting on the scheme's own ground and one painting
            its own dark surface are different problems — the same split the ink
            tokens already make. */
-        --cb-brand-ink: ${toContrast(t.brand, GROUNDS[baseScheme(t.scheme)].band, 4.5)};
+        --cb-brand-ink: ${toContrast(t.brand, hardestFor(t.brand, [GROUNDS[baseScheme(t.scheme)].band,
+          neutrals(t, baseScheme(t.scheme)).surface, neutrals(t, baseScheme(t.scheme)).subtle]), 4.5)};
         --cb-brand-on-dark: ${toContrast(t.brand, t.deep || '#141210', 4.5)};
         /* Emitted only once this is moved off white, so that until it is, every
            block keeps the exact literal it was designed with. Those literals are
@@ -916,7 +949,8 @@ window.CB = (function () {
         '--cb-band: ' + g.band + ';',
         /* Derived from this scheme's own ground, so a block that swaps carries
            a conforming accent into the scheme it lands in. */
-        '--cb-brand-ink: ' + toContrast((t || {}).brand || '#96694c', g.band, 4.5) + ';'
+        '--cb-brand-ink: ' + toContrast((t || {}).brand || '#96694c',
+          hardestFor((t || {}).brand || '#96694c', [g.band, n.surface, n.subtle]), 4.5) + ';'
       ]).join(' ');
     }
 
@@ -1210,10 +1244,7 @@ window.CB = (function () {
            it at 4.33:1. Whichever candidate gives the brand the least contrast
            is the one to satisfy — clear it and the rest come free. */
         ' --cb-brand-ink: ' + toContrast(tokens.brand || '#96694c',
-          [ground, nn.surface, nn.subtle].reduce(function (worst, cand) {
-            return contrast(tokens.brand || '#96694c', cand) < contrast(tokens.brand || '#96694c', worst)
-              ? cand : worst;
-          }, ground), 4.5) + '; }');
+          hardestFor(tokens.brand || '#96694c', [ground, nn.surface, nn.subtle]), 4.5) + '; }');
     }
 
     var reveal = revealCss(sel, s.replace(/^\./, ''), p);
@@ -1374,7 +1405,7 @@ window.CB = (function () {
     register: register, get: get, all: all, defaults: defaults, hydrate: hydrate, build: build,
     fields: fields,
     esc: esc, attr: attr, rich: rich, url: url, uid: uid, num: num, clamp: clamp,
-    isPlaceholder: isPlaceholder,
+    isPlaceholder: isPlaceholder, plainMarks: plainMarks, isoDate: isoDate, niceDate: niceDate, MONTHS: MONTHS,
     rgba: rgba, ph: ph, wrap: wrap, indent: indent, dedent: dedent,
     readableInk: readableInk, contrast: contrast, toContrast: toContrast, relLum: relLum,
     actions: actions, ctaFields: ctaFields,

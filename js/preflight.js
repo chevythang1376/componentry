@@ -290,16 +290,32 @@ CB.Preflight = (function () {
     var parts = CB.Export.parts(instances, tokens, { shared: opts.shared !== false });
     var code = CB.Export.embed(parts, { minify: true });
 
-    /* ---- size against the target's cap ---- */
+    /* ---- size against the target's cap ----
+       Measured the way the code will be pasted. A split export goes into
+       three places — the HTML into the embed, the CSS into the page's head
+       code, the script before </body> — and Webflow allows 50,000 characters
+       in each, so each piece is judged on its own. Judging them as one embed
+       told people to split an export that was already split. */
     var plat = (CB.Export.PLATFORMS[opts.platform] || {});
-    if (plat.cap && code.length > plat.cap) {
-      out.push({
-        level: 'error',
-        block: null,
-        title: 'Over ' + plat.name + '’s embed limit',
-        detail: 'This export is ' + code.length.toLocaleString('en-US') + ' characters minified, and ' +
-                plat.name + ' caps a single embed at ' + plat.cap.toLocaleString('en-US') + '.',
-        fix: 'Use Split files and put the CSS in your site’s head, or move some blocks to a second embed.'
+    if (plat.cap) {
+      var pieces = plat.format === 'separate'
+        ? [['HTML', parts.html, 'embed'], ['CSS', CB.Export.minifyCss(parts.css), 'head code'],
+           ['script', CB.Export.minifyJs(parts.js), 'code before </body>']]
+        : [['export', code, 'embed']];
+      pieces.forEach(function (x) {
+        if (x[1].length <= plat.cap) return;
+        out.push({
+          level: 'error',
+          block: null,
+          title: 'Over ' + plat.name + '’s ' + x[2] + ' limit',
+          detail: 'The ' + x[0] + ' is ' + x[1].length.toLocaleString('en-US') + ' characters' +
+                  (x[0] === 'HTML' ? '' : ' minified') + ', and ' + plat.name + ' allows ' +
+                  plat.cap.toLocaleString('en-US') + ' in its ' + x[2] + '.',
+          fix: x[0] === 'HTML' || x[0] === 'export'
+            ? 'Move some blocks into a second embed further down the page.'
+            : 'Move part of it into the site-wide ' + x[2] + ' in Site settings, which has its own ' +
+              plat.cap.toLocaleString('en-US') + '.'
+        });
       });
     }
 

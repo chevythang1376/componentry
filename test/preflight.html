@@ -208,14 +208,19 @@ window.addEventListener('load', function () {
   function capFindings(ids) {
     var list = ids.map(function (id, i) { var x = inst(id); x.uid = 'c' + i; x.cls = 'cb-' + id + '-k3f9' + i; return x; });
     return (CB.Preflight.run(list, Object.assign({}, CB.DEFAULT_TOKENS), { platform: 'webflow' }) || [])
-      .filter(function (f) { return /embed limit/.test(f.title); });
+      .filter(function (f) { return /’s .* limit$/.test(f.title); });
   }
   check('the Webflow cap is counted in characters', CB.Export.PLATFORMS.webflow.cap, 50000);
-  var landing = capFindings(['hero-slider', 'stats-counter', 'feature-grid', 'testimonials', 'accordion', 'cta-banner']);
-  check('a page over it is stopped', landing.length ? landing[0].level : 'nothing said', 'error');
-  check('and told in characters, the unit Webflow counts',
-        landing.length ? /[\d,]+ characters minified, and Webflow caps a single embed at 50,000\./.test(landing[0].detail) : false, true);
-  check('a page under it is left alone', capFindings(['split-hero', 'accordion', 'video-embed', 'cta-banner']).length, 0);
+  /* The Webflow export is split — HTML in the embed, CSS in the head code,
+     script before </body> — and each has its own 50,000. The Landing page is
+     50,464 characters as one embed, but no single piece comes near. */
+  check('a split export is judged piece by piece, not as one embed',
+        capFindings(['hero-slider', 'stats-counter', 'feature-grid', 'testimonials', 'accordion', 'cta-banner']).length, 0);
+  var huge = capFindings(CB.all().map(function (d) { return d.id; }));
+  check('a page whose HTML alone is over it is stopped',
+        huge.filter(function (f) { return f.level === 'error' && /embed limit/.test(f.title); }).length, 1);
+  check('and told in characters, naming the piece that is over',
+        huge.some(function (f) { return /^The HTML is [\d,]+ characters, and Webflow allows 50,000 in its embed\.$/.test(f.detail); }), true);
 
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');

@@ -205,7 +205,9 @@
           display: block;
           width: ${c.num(p.swatchSize, 40)}px; height: ${c.num(p.swatchSize, 40)}px;
           border-radius: 50%; background: var(--cb-sw);
-          box-shadow: inset 0 0 0 1px rgba(0,0,0,.14);
+          /* A mid-grey ring reads on a light and a dark ground alike, so a black
+             finish on a dark page still has an edge. */
+          box-shadow: inset 0 0 0 1px rgba(0,0,0,.14), 0 0 0 1px rgba(128,128,128,.45);
           outline: 2px solid transparent; outline-offset: 4px;
           transition: outline-color .2s ease, transform .2s ease;
         }
@@ -613,11 +615,7 @@
   function rlSlug(s) {
     return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'other';
   }
-  var RL_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  function rlDate(v) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim());
-    return m ? RL_MONTHS[+m[2] - 1] + ' ' + (+m[3]) + ', ' + m[1] : String(v || '').trim();
-  }
+  var rlDate = CB.niceDate;
 
   CB.register({
     id: 'resource-library',
@@ -755,9 +753,10 @@
         ${s} .cb-rl__chip:has(.cb-rl__f:focus-visible) { outline: 2px solid var(--cb-brand); outline-offset: 2px; }
         ${s} .cb-rl__n { font-weight: 400; opacity: .8; font-variant-numeric: tabular-nums; }
 
-        ${s} .cb-rl__list--rows { display: grid; }
+        /* The closing rule belongs to the list, not its last row: the filter hides
+           rows, and :last-child would still pick a hidden one. */
+        ${s} .cb-rl__list--rows { display: grid; border-bottom: 1px solid var(--cb-border); }
         ${s} .cb-rl__list--rows .cb-rl__item { border-top: 1px solid var(--cb-border); }
-        ${s} .cb-rl__list--rows .cb-rl__item:last-child { border-bottom: 1px solid var(--cb-border); }
         ${s} .cb-rl__list--cards {
           display: grid; gap: 18px; grid-template-columns: repeat(${c.clamp(c.num(p.cols, 3), 2, 4)}, minmax(0, 1fr));
         }

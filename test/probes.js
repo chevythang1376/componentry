@@ -818,16 +818,25 @@ window.CBProbe = (function () {
     items: [
       { label: 'Test figure one', value: 78, max: 100, display: '', note: '' },
       { label: 'Test figure two', value: 12, max: 40, display: '12 of 40', note: '' },
-      { label: 'Test figure three', value: 140, max: 100, display: '', note: '' }
+      { label: 'Test figure three', value: 140, max: 100, display: '', note: '' },
+      /* As a spreadsheet pastes them: text, with separators and signs. */
+      { label: 'Test figure four', value: '1,200', max: '5,000', display: '', note: '' },
+      { label: 'Test figure five', value: '64%', max: '', display: '', note: '' },
+      { label: 'Test figure six', value: '$1.2M', max: '$2M', display: '', note: '' }
     ]
   });
   register('data-bars', function (root, t) {
     var fills = qa(root, '.cb-db__fill');
-    t.ok('a bar for every figure', fills.length === 3, fills.length + ' bars');
-    t.ok('a bar is as long as its figure', !!fills[0] && fills[0].style.width === '78%', fills[0] && fills[0].style.width);
-    t.ok('against its own maximum, not 100', !!fills[1] && fills[1].style.width === '30%', fills[1] && fills[1].style.width);
-    t.ok('a figure over the maximum is held at full', !!fills[2] && fills[2].style.width === '100%', fills[2] && fills[2].style.width);
-    t.ok('the figure is written as text, not only drawn', qa(root, '.cb-db__val').length === fills.length);
+    var vals = qa(root, '.cb-db__val').map(function (v) { return v.textContent.trim(); });
+    function w(i) { return fills[i] ? fills[i].style.width : 'missing'; }
+    t.ok('a bar for every figure', fills.length === 6, fills.length + ' bars');
+    t.ok('a bar is as long as its figure', w(0) === '78%', w(0));
+    t.ok('against its own maximum, not 100', w(1) === '30%', w(1));
+    t.ok('a figure over the maximum is held at full', w(2) === '100%', w(2));
+    t.ok('thousands separators are read, not stopped at', w(3) === '24%', w(3));
+    t.ok('a figure written with its own % sign is not given a second', w(4) === '64%' && vals[4] === '64%', w(4) + ' / ' + vals[4]);
+    t.ok('currency and M are read, and the figure kept as written', w(5) === '60%' && vals[5] === '$1.2M', w(5) + ' / ' + vals[5]);
+    t.ok('the figure is written as text, not only drawn', vals.length === fills.length);
   });
 
   register('people', function (root, t) {
