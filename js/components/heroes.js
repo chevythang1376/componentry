@@ -1110,4 +1110,280 @@ ${c.indent(slides, 12)}
       return { html: html, css: css, js: js };
     }
   });
+
+  /* --------------------------------------------------------------------- */
+  /* Footage in Type                                                        */
+  /*                                                                        */
+  /* A headline set huge, with video or a photograph showing through the    */
+  /* letters. The footage sits in a layer behind an SVG that paints the     */
+  /* block's own ground everywhere except the letters, which are cut out of */
+  /* it by a mask — so the letters are windows onto the footage. Masking    */
+  /* rather than a blend mode is what lets the ground be any colour,        */
+  /* including one that follows the light or dark scheme: a blend mode only */
+  /* knocks out cleanly against pure white or pure black.                  */
+  /*                                                                        */
+  /* The words a reader and a search engine get are a real heading; the     */
+  /* drawn letters are hidden from assistive technology. If the footage     */
+  /* fails, the letters show a solid brand tone. If the styles are stripped */
+  /* altogether, the mask still draws the words, and the heading is there   */
+  /* as text.                                                               */
+  /* --------------------------------------------------------------------- */
+
+  /* Advance widths of Inter ExtraBold, in thousandths of an em, measured
+     from the font. They set the drawing's proportions so each line fills the
+     width; the line is then held to that width with textLength, so another
+     font or a missing glyph changes its shape slightly, never its fit. */
+  var FT_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz .,'’&!?-–—:/+%$#()\"“”@";
+  var FT_ADV = [692, 441, 638, 657, 688, 634, 662, 588, 664, 662, 770, 665, 744, 723, 610, 585, 752, 749, 286,
+    590, 738, 565, 943, 766, 773, 652, 782, 662, 660, 677, 727, 770, 1059, 761, 752, 679, 588, 638, 595, 638,
+    601, 410, 639, 635, 283, 283, 593, 283, 927, 635, 619, 638, 638, 420, 573, 382, 635, 615, 863, 594, 618,
+    581, 219, 353, 353, 354, 331, 683, 358, 579, 471, 500, 1000, 353, 400, 686, 1029, 660, 655, 382, 382, 586,
+    581, 569, 1036];
+  function ftEm(text) {
+    var em = 0;
+    for (var i = 0; i < text.length; i++) {
+      var k = FT_CHARS.indexOf(text.charAt(i));
+      em += (k < 0 ? 640 : FT_ADV[k]) / 1000;
+    }
+    return em;
+  }
+
+  /* Lays the lines out in a frame 1000 wide. Capitals need only their cap
+     height; a line with lowercase or descenders needs room for them. */
+  function ftLayout(lines, fill, align) {
+    var W = 1000, MAXFS = 520;
+    var rows = lines.map(function (t) {
+      var low = /[a-z]/.test(t), desc = /[gjpqy,;Q()]/.test(t);
+      return { t: t, em: Math.max(0.5, ftEm(t)), up: low ? 0.78 : 0.76, down: desc ? 0.23 : 0.02 };
+    });
+    var widest = Math.max.apply(null, rows.map(function (r) { return r.em; }));
+    var y = 0;
+    rows.forEach(function (r, i) {
+      r.fs = Math.min(MAXFS, W / (fill ? r.em : widest));
+      r.len = Math.min(W, r.em * r.fs);
+      r.y = y + r.up * r.fs;
+      var next = rows[i + 1];
+      y = r.y + r.down * r.fs + (next ? 0.07 * Math.min(r.fs, Math.min(MAXFS, W / (fill ? next.em : widest))) : 0);
+    });
+    var anchor = align === 'left' ? 'start' : 'middle';
+    rows.forEach(function (r) { r.x = anchor === 'start' ? 0 : W / 2; r.anchor = anchor; });
+    return { W: W, H: Math.ceil(y), rows: rows };
+  }
+
+  CB.register({
+    id: 'footage-type',
+    name: 'Footage in Type',
+    category: CAT,
+    icon: 'Ⓐ',
+    blurb: 'A headline set huge, with video or a photograph playing inside the letters. The real heading stays text for screen readers and search.',
+    props: [
+      { t: 'section', label: 'Words' },
+      {
+        k: 'words', t: 'textarea', label: 'Headline', value: 'POWER\nIN MOTION',
+        help: 'One line per row. Short words read best — each row is drawn as large as the width allows.'
+      },
+      { k: 'caps', t: 'toggle', label: 'Set in capitals', value: true },
+      {
+        k: 'fit', t: 'select', label: 'Row size', value: 'fill',
+        options: [['fill', 'Each row fills the width'], ['even', 'All rows the same size']]
+      },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'New for 2026' },
+      { k: 'sub', t: 'textarea', label: 'Line underneath', value: 'Conductors engineered for the loads that are coming, not the ones we had.' },
+      { k: 'btnText', t: 'text', label: 'Button label', value: 'Explore the range' },
+      { k: 'btnUrl', t: 'text', label: 'Button link', value: '#' },
+
+      { t: 'section', label: 'Inside the letters' },
+      {
+        k: 'media', t: 'select', label: 'Fill', value: 'sheen',
+        options: [['sheen', 'Copper sheen that moves as you scroll'], ['image', 'A photograph'], ['video', 'Video']]
+      },
+      { k: 'image', t: 'image', label: 'Photograph', value: CB.ph(1600, 900, '', '#96694c', '#2b241f'), when: { media: ['image'] } },
+      { k: 'src', t: 'url', label: 'Video (MP4 or WebM)', value: '', when: { media: ['video'] }, help: 'Self-hosted, muted and looping. The poster shows until it plays, and instead of it for visitors who ask for less motion.' },
+      { k: 'poster', t: 'image', label: 'Poster image', value: CB.ph(1600, 900, '', '#6f4c37', '#141210'), when: { media: ['video'] } },
+      { k: 'control', t: 'toggle', label: 'Show pause control', value: true, when: { media: ['video'] }, help: 'WCAG 2.2.2 — video that keeps moving needs a way to pause it.' },
+      {
+        k: 'tone', t: 'range', label: 'Footage brightness', min: 50, max: 150, step: 5, unit: '%', value: 100,
+        when: { media: ['image', 'video'] },
+        help: 'Letters need to stand apart from the background: darken bright footage on a light page, brighten dark footage on a dark one.'
+      },
+
+      { t: 'section', label: 'Style' },
+      { k: 'align', t: 'select', label: 'Alignment', value: 'center', options: [['center', 'Center'], ['left', 'Left']] },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'page',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#ffffff', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var raw = String(p.words || '').split(/\r?\n/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); })
+        .filter(Boolean).slice(0, 4);
+      var lines = raw.map(function (l) { return p.caps ? l.toUpperCase() : l; });
+      var spoken = raw.join(' ');
+      var left = p.align === 'left';
+      var media = ['sheen', 'image', 'video'].indexOf(p.media) >= 0 ? p.media : 'sheen';
+      var hasVideo = media === 'video' && !!String(p.src || '').trim();
+      if (media === 'video' && !hasVideo) media = 'image';
+      var still = media === 'image' ? (p.media === 'video' ? p.poster : p.image) : '';
+      var tone = c.clamp(c.num(p.tone, 100), 50, 150);
+      var mid = c.cls + '-cut';
+
+      var art = '';
+      if (lines.length) {
+        var L = ftLayout(lines, p.fit !== 'even', left ? 'left' : 'center');
+        var box = 'x="-4" y="-4" width="' + (L.W + 8) + '" height="' + (L.H + 8) + '"';
+        var words = L.rows.map(function (r) {
+          return '<text class="cb-ft__word" x="' + r.x + '" y="' + r.y.toFixed(1) + '" font-size="' + r.fs.toFixed(1) +
+            '" textLength="' + r.len.toFixed(1) + '" lengthAdjust="spacingAndGlyphs" text-anchor="' + r.anchor + '">' +
+            c.esc(r.t) + '</text>';
+        }).join('');
+        var fillLayer = media === 'sheen' ? '<span class="cb-ft__sheen"></span>'
+          : hasVideo ? '<img class="cb-ft__poster" src="' + c.url(p.poster) + '" alt="" decoding="async">' +
+            '<video class="cb-ft__video" autoplay muted loop playsinline preload="metadata" poster="' + c.url(p.poster) + '">' +
+            '<source src="' + c.url(p.src) + '"></video>'
+          : '<img class="cb-ft__poster" src="' + c.url(still) + '" alt="" decoding="async">';
+        art = c.dedent(`
+          <div class="cb-ft__art" aria-hidden="true">
+            <div class="cb-ft__fill">${fillLayer}</div>
+            <svg class="cb-ft__cut" viewBox="0 0 ${L.W} ${L.H}" focusable="false">
+              <defs><mask id="${mid}" maskUnits="userSpaceOnUse" ${box}><rect ${box} fill="#fff"/>${words}</mask></defs>
+              <rect class="cb-ft__ground" ${box} mask="url(#${mid})"/>
+            </svg>
+          </div>`);
+      }
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-ft">
+          <div class="cb-wrap cb-ft__inner">
+            ${p.eyebrow ? '<p class="cb-ft__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+            ${spoken ? '<h2 class="cb-ft__title"><span class="cb-sr">' + c.esc(spoken) + '</span></h2>' : ''}
+        ${c.indent(art, 4)}
+            ${p.sub ? '<p class="cb-ft__sub">' + c.rich(p.sub) + '</p>' : ''}
+            ${c.actions([{ text: p.btnText, url: p.btnUrl }], { align: left ? '' : 'center', cls: 'cb-ft__cta' })}
+            ${(hasVideo && p.control) ? '<button type="button" class="cb-ft__toggle" aria-label="Pause the video in the headline"><span class="cb-ft__icon" aria-hidden="true"></span></button>' : ''}
+          </div>
+        </section>`);
+
+      /* The letters' own colour, for when the footage is missing: the brand,
+         pulled toward the ink so it reads on whatever ground this is. The
+         ink follows the scheme and the block's own ground, so this does too. */
+      var solid = 'color-mix(in srgb, var(--cb-brand) 72%, var(--cb-ink))';
+      var css = `
+        ${s}.cb-ft { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; position: relative; isolation: isolate; contain: paint; }
+        ${s} .cb-ft__inner {
+          display: flex; flex-direction: column; gap: clamp(14px, 2vw, 22px);
+          align-items: ${left ? 'flex-start' : 'center'}; text-align: ${left ? 'left' : 'center'};
+        }
+        ${s} .cb-ft__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand));
+        }
+        ${s} .cb-ft__title { margin: 0; }
+        /* Heading size here scales the whole drawing down, centred or left as
+           the block is; at its default, and above it, the words fill the
+           column. */
+        ${s} .cb-ft__art {
+          position: relative; display: block; line-height: 0;
+          width: min(100%, calc(100% * var(--cb-h-scale, 1)));
+        }
+        ${s} .cb-ft__fill {
+          position: absolute; inset: 1px; overflow: hidden;
+          background-color: ${solid};
+        }
+        ${s} .cb-ft__fill img, ${s} .cb-ft__fill video {
+          position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+          ${tone !== 100 ? 'filter: brightness(' + (tone / 100).toFixed(2) + ');' : ''}
+        }
+        ${s} .cb-ft__cut { position: relative; display: block; width: 100%; height: auto; overflow: visible; }
+        ${s} .cb-ft__ground { fill: ${c.bg(p)}; }
+        ${s} .cb-ft__word {
+          font-family: inherit; font-weight: var(--cb-h-weight, 800);
+          letter-spacing: normal; text-transform: none; font-style: normal;
+        }
+        /* The sheen: bands of the brand pulled toward the ink and back. The
+           ink is the colour that contrasts with this ground — dark on a light
+           page, light on a dark one — so every band of the sheen stands
+           further from the ground than the brand alone does, in either
+           scheme. Pulling toward the page instead would sink the letters into
+           a dark ground. Its position follows the scroll, which makes it
+           motion the reader drives rather than motion needing a pause. */
+        ${s} .cb-ft__sheen {
+          position: absolute; inset: 0;
+          background-color: ${solid};
+          background-image: linear-gradient(105deg,
+            color-mix(in srgb, var(--cb-brand) 55%, var(--cb-ink)) 0%,
+            var(--cb-brand) 30%,
+            color-mix(in srgb, var(--cb-brand) 35%, var(--cb-ink)) 50%,
+            var(--cb-brand) 70%,
+            color-mix(in srgb, var(--cb-brand) 55%, var(--cb-ink)) 100%);
+          background-size: 280% 100%; background-position: 50% 0;
+        }
+        @supports (animation-timeline: view()) {
+          @media (prefers-reduced-motion: no-preference) {
+            ${s} .cb-ft__sheen {
+              animation: cb-ft-sheen-${c.cls} linear both;
+              animation-timeline: view();
+              animation-range: cover 0% cover 100%;
+            }
+          }
+        }
+        @keyframes cb-ft-sheen-${c.cls} { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+        @media (prefers-reduced-motion: reduce) { ${s} .cb-ft__video { display: none; } }
+
+        ${s} .cb-ft__sub {
+          font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); color: var(--cb-muted);
+          max-width: 56ch; text-wrap: balance;
+        }
+        ${s} .cb-ft__cta { margin-top: 4px; }
+        ${s} .cb-ft__toggle {
+          position: absolute; z-index: 2; right: 20px; bottom: 20px;
+          width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+          background: var(--cb-surface); color: var(--cb-ink); border: 1px solid var(--cb-border); cursor: pointer;
+        }
+        ${s} .cb-ft__toggle:focus-visible { outline: 2px solid var(--cb-brand); outline-offset: 2px; }
+        ${s} .cb-ft__icon {
+          width: 12px; height: 14px; background: currentColor;
+          clip-path: polygon(0 0, 35% 0, 35% 100%, 0 100%, 0 0, 65% 0, 100% 0, 100% 100%, 65% 100%, 65% 0);
+        }
+        ${s} .cb-ft__toggle[data-paused="1"] .cb-ft__icon { clip-path: polygon(0 0, 100% 50%, 0 100%); width: 13px; }`;
+
+      var js = !hasVideo ? '' : c.wrap(c.cls, `
+        var video = root.querySelector(".cb-ft__video");
+        var toggle = root.querySelector(".cb-ft__toggle");
+        if (!video) return;
+        var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (reduced) { video.removeAttribute("autoplay"); video.pause(); }
+        var manual = false;
+        function sync() {
+          if (!toggle) return;
+          toggle.setAttribute("data-paused", video.paused ? "1" : "0");
+          toggle.setAttribute("aria-label", (video.paused ? "Play" : "Pause") + " the video in the headline");
+        }
+        if (toggle) {
+          toggle.addEventListener("click", function () {
+            manual = true;
+            if (video.paused) { video.play(); } else { video.pause(); }
+          });
+          video.addEventListener("play", sync);
+          video.addEventListener("pause", sync);
+          sync();
+        }
+        /* Nothing plays while the headline is off screen. */
+        if ("IntersectionObserver" in window) {
+          new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+              if (manual || reduced) return;
+              if (e.isIntersecting) { video.play().catch(function () {}); } else { video.pause(); }
+            });
+          }, { threshold: 0.1 }).observe(root);
+        }`);
+
+      return { html: html, css: css, js: js };
+    }
+  });
 })();

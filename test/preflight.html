@@ -21,7 +21,7 @@ project is noise, and noise is what makes the real findings get ignored.</p>
      misleading one — which is exactly how an intermittent carousel
      failure survived two rounds of "fixes". -->
 <script>
-  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'export.js', 'preflight.js'
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'components/territory.js', 'export.js', 'preflight.js'
   ].forEach(function (f) {
     document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
   });
@@ -201,6 +201,23 @@ window.addEventListener('load', function () {
   check('one still missing is reported alone',
         half.length ? half[0].title + ' / ' + half[0].detail.split(' ')[0] : '',
         'A jump link goes to a section this project does not have / #faq');
+
+  // --- a territory map fed from a spreadsheet -------------------------------
+  var tmGood = titled([inst('territory-map')], /map knows|two territories/);
+  check('the sample territories cover the country cleanly', tmGood.length, 0);
+  var tmBad = inst('territory-map');
+  tmBad.props.items = [
+    { name: 'East', states: 'GA, Florida, Calif., NY' },
+    { name: 'South', states: 'Texas; Georgia' }
+  ];
+  var tmFound = titled([tmBad], /map knows|two territories/);
+  check('a state the map cannot read is named, with its territory',
+        tmFound.some(function (f) { return /“Calif\.” in East/.test(f.detail); }), true);
+  check('a state in two territories is named, with both',
+        tmFound.some(function (f) { return /GA \(East and South\)/.test(f.detail); }), true);
+  check('codes, full names and either separator all count as known',
+        tmFound.filter(function (f) { return /map knows/.test(f.title); }).length === 1 &&
+        !/Florida|Texas|NY/.test(tmFound.map(function (f) { return f.detail; }).join(' ')), true);
 
   // --- Webflow's cap is 50,000 characters, not 50 KiB ----------------------
   /* It was 50 * 1024, and the Landing page starter grew into the 1,200

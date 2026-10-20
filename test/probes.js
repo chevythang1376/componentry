@@ -939,6 +939,64 @@ window.CBProbe = (function () {
          tiles.every(function (a) { return a.target !== '_blank' || /new tab/.test(a.textContent); }));
   });
 
+  /* ------------------------------------------------------ showcase, type, map */
+
+  register('side-scroll', function (root, t) {
+    var cards = qa(root, '.cb-ss__card');
+    t.ok('products rendered, in a real list', cards.length >= 3 && !!q(root, 'ul.cb-ss__track'), cards.length + ' cards');
+    var stage = q(root, '.cb-ss__stage'), track = q(root, '.cb-ss__track'), viewport = q(root, '.cb-ss__viewport');
+    var glides = window.CSS && CSS.supports && CSS.supports('animation-timeline: view()') &&
+                 !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (glides) {
+      t.ok('the frame pins while the row glides', getComputedStyle(stage).position === 'sticky', getComputedStyle(stage).position);
+      t.ok('the row is driven by the scroll', /cb-ss-glide/.test(getComputedStyle(track).animationName), getComputedStyle(track).animationName);
+      t.ok('the section is tall enough to glide through', root.offsetHeight > stage.offsetHeight,
+           root.offsetHeight + ' over a ' + stage.offsetHeight + ' frame');
+    } else {
+      t.ok('without the glide it is a row that scrolls sideways', /auto|scroll/.test(getComputedStyle(viewport).overflowX),
+           getComputedStyle(viewport).overflowX);
+    }
+    t.ok('the root contains its paint, since the row is wider than the block',
+         /paint/.test(getComputedStyle(root).contain), getComputedStyle(root).contain);
+  });
+
+  register('footage-type', function (root, t) {
+    var heading = q(root, 'h2, h3, h4');
+    t.ok('the headline is real text in a heading', !!heading && /POWER|Power/i.test(heading.textContent), heading && heading.textContent);
+    var art = q(root, '.cb-ft__art');
+    t.ok('the drawn letters are hidden from assistive technology', !!art && art.getAttribute('aria-hidden') === 'true');
+    var ground = q(root, '.cb-ft__ground');
+    var ref = ground ? (ground.getAttribute('mask') || '').replace(/^url\(#|\)$/g, '') : '';
+    var mask = ref ? root.querySelector('mask[id="' + ref + '"]') : null;
+    t.ok('the letters are cut out of the ground by a mask in the block', !!mask, ref || 'no mask reference');
+    var rows = mask ? qa(mask, 'text') : [];
+    t.ok('each row is held to its width', rows.length >= 1 && rows.every(function (r) { return +r.getAttribute('textLength') > 0; }),
+         rows.length + ' rows');
+    var fill = q(root, '.cb-ft__fill');
+    t.ok('the letters have something behind them even with no footage',
+         !!fill && getComputedStyle(fill).backgroundColor !== 'rgba(0, 0, 0, 0)', fill && getComputedStyle(fill).backgroundColor);
+  });
+
+  register('territory-map', function (root, t) {
+    var radios = qa(root, '.cb-tm__r'), panels = qa(root, '.cb-tm__panel');
+    t.ok('a territory for each entry, each a choice', radios.length >= 3 && radios.length === panels.length,
+         radios.length + ' choices, ' + panels.length + ' panels');
+    t.ok('every territory has states drawn', qa(root, '.cb-tm__lab path').every(function (p) { return (p.getAttribute('d') || '').length > 20; }));
+    t.ok('the choices are a named radio group', !!q(root, '[role="radiogroup"][aria-label]'));
+    function open() { return panels.filter(function (p) { return getComputedStyle(p).display !== 'none'; }); }
+    var hasHas = window.CSS && CSS.supports && CSS.supports('selector(:has(*))');
+    if (!hasHas) { t.ok('without :has() every territory is listed', open().length === panels.length); return; }
+    t.ok('nothing is chosen to begin with, and the prompt says what to do',
+         open().length === 0 && getComputedStyle(q(root, '.cb-tm__prompt')).display !== 'none');
+    radios[2].checked = true;
+    var shown = open();
+    t.ok('choosing a territory shows its details and only those, with no script',
+         shown.length === 1 && shown[0].getAttribute('data-t') === radios[2].value, shown.map(function (p) { return p.getAttribute('data-t'); }).join(','));
+    t.ok('and the prompt steps aside', getComputedStyle(q(root, '.cb-tm__prompt')).display === 'none');
+    t.ok('the rep can be emailed and called', !!q(shown[0], 'a[href^="mailto:"]') && !!q(shown[0], 'a[href^="tel:"]'));
+    radios[2].checked = false;
+  });
+
   /* -------------------------------------------------------------- run */
 
   function run(id, root) {

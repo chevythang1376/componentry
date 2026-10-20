@@ -90,7 +90,7 @@ video { width: 100% !important; }
      misleading one — which is exactly how an intermittent carousel
      failure survived two rounds of "fixes". -->
 <script>
-  ['core.js', 'components/heroes.js', 'components/content.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'export.js'
+  ['core.js', 'components/heroes.js', 'components/content.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'components/territory.js', 'export.js'
   ].forEach(function (f) {
     document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
   });
@@ -791,17 +791,21 @@ video { width: 100% !important; }
     check('no block forces a 3D layer (translate3d / translateZ)',
           forced3d.length === 0, forced3d.join(', ') || 'none');
 
-    /* The two blocks that move a layer larger than themselves: the parallax
-       image over-scans the banner vertically, and the marquee track is
-       max-content wide. Both have to say so. */
+    /* The three blocks that move a layer larger than themselves: the
+       parallax image over-scans the banner vertically, and the marquee track
+       and the showcase row are max-content wide. All three have to say so. */
     var px = CB.build({ type: 'parallax-banner', cls: 'layer-px', props: CB.defaults(CB.get('parallax-banner')) },
                       CB.DEFAULT_TOKENS, { omitBase: true });
     var mq = CB.build({ type: 'logo-marquee', cls: 'layer-mq', props: CB.defaults(CB.get('logo-marquee')) },
+                      CB.DEFAULT_TOKENS, { omitBase: true });
+    var ss = CB.build({ type: 'side-scroll', cls: 'layer-ss', props: CB.defaults(CB.get('side-scroll')) },
                       CB.DEFAULT_TOKENS, { omitBase: true });
     check('the parallax contains its paint, since its moving layer is taller than it is',
           /\.layer-px\.cb-px\s*\{[^}]*contain:\s*paint/.test(code(px.css)), 'contain: paint on the banner root');
     check('and so does the marquee, whose track is many times wider than it is',
           /\.layer-mq\.cb-mq\s*\{[^}]*contain:\s*paint/.test(code(mq.css)), 'contain: paint on the marquee root');
+    check('and so does the sideways showcase, whose row runs far past its frame',
+          /\.layer-ss\.cb-ss\s*\{[^}]*contain:\s*paint/.test(code(ss.css)), 'contain: paint on the showcase root');
     check('and raises its layer only while it is on screen',
           /willChange\s*=\s*"transform"/.test(code(px.js)) && /willChange\s*=\s*""/.test(code(px.js)),
           'toggled by the scroll handler');

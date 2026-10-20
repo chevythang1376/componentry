@@ -50,7 +50,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 ---
 
-## The 41 components
+## The 44 components
 
 | Category | Component | Notes |
 |---|---|---|
@@ -60,6 +60,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Split Hero | Copy + image, reversible, optional tick list |
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
 | | Announcement Bar | A thin strip for a launch, a recall or a notice. Closing it is a checkbox and `:has()`, so it works where scripts are stripped; where they run, it stays closed for the rest of the visit, and a new message shows again |
+| | Footage in Type | A headline so large it becomes the picture, with a drifting sheen, a photograph or a muted video showing through the letters. The letters are cut out of a mask, so nothing depends on `background-clip: text`; if the photo or video fails, the letters fall back to a solid brand fill and still read. The words are on the heading as real text, and the cut-out is hidden from screen readers. Each line is sized to fill the width or set to one even size. Video ships with a pause control. Zero JS except that control |
 | **Content** | Card Grid | "Whole card clickable" via a pseudo-element, so text stays selectable |
 | | Feature Grid | Icon + title + blurb, four icon treatments |
 | | Stats Counter | Counts up on scroll via `IntersectionObserver` |
@@ -80,6 +81,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Jump Links | “On this page” links to sections further down. Can stay fixed at the top while you scroll and mark where you are with `aria-current`. Plain anchor links without the script; preflight warns about any link whose section is not on the page |
 | | Video Library | One player and a list of videos beside it. Every video is a real link to its watch page, so it still works with scripts stripped, and nothing loads from YouTube or Vimeo until someone presses play |
 | | Voltage Drop Calculator | Copper or aluminum, single- or three-phase, 14 AWG to 750 kcmil, from NEC Chapter 9, Table 8 circular mils. The starting result is written into the markup, so it reads correctly before any script runs. Voltage drop only, with the formula and its limits printed under it — it never suggests a conductor size, and preflight asks for an engineering check before it ships |
+| | Territory Map | Tap a region of the US to see its rep — name, role, `mailto:` and `tel:` links, as on People — and the distributors who stock you there, as on Where to Buy. Territories are lists of states, typed as codes or names, and pasted from a spreadsheet. Each region is a real radio button, so arrow keys move between them, and a panel shows through `:has()` with no script at all. Where `:has()` is missing, every territory is listed. The state outlines come from the US Census boundaries in [us-atlas](https://github.com/topojson/us-atlas), simplified by `tools/us-map/build.js` to about 7,600 characters, and preflight names any state the map does not know or that two territories both claim. Zero JS |
 | **Media & Utility** | Before / After Slider | Built on a real `<input type="range">` |
 | | Gallery + Lightbox | Masonry or uniform; lightbox is a native `<dialog>` |
 | | Logo Marquee | Seamless loop, duplicate track hidden from screen readers. Can also sit still as a wrapping row, for a page where motion is not wanted |
@@ -95,6 +97,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Spec Strip | Row of headline specs with hairline dividers |
 | | Resource Library | Spec sheets, guides and safety data sheets, filtered by category with radio inputs and `:has()`. The filter needs no JavaScript, so it survives any editor that keeps styles. Pastes from a spreadsheet |
 | | Where to Buy | Retailers, distributors and online sellers as logo tiles, grouped by the kind of seller. A seller with no logo gets a wordmark; new-tab links say so to a screen reader. Pastes from a spreadsheet. Zero JS |
+| | Sideways Showcase | As you scroll down, a row of products glides sideways past a pinned frame, then the page carries on. The glide is a CSS scroll timeline, 1:1 with the wheel by default, and the frame sizes the cards to fit whatever height the window has. Without scroll timelines, or with reduced motion, it is an ordinary row you swipe. A small script brings a card reached with the Tab key into the frame |
 
 ---
 
@@ -160,7 +163,8 @@ Three rules now, all pinned by `test/hostile-host.html`:
   demanding a GPU layer. A 2D transform moves just as smoothly.
 - **A block that moves something larger than itself declares `contain: paint`.** That
   tells the compositor nothing it paints escapes its box. It is visually identical to the
-  `overflow: hidden` both blocks already had, which clipped the same pixels.
+  `overflow: hidden` both blocks already had, which clipped the same pixels. Sideways
+  Showcase, whose row is several screens wide, is the third block held to it.
 
 The first theory put forward for this was `-webkit-font-smoothing: antialiased` on the
 block root, and it is worth recording why it was not that: the property is set on the
@@ -222,7 +226,7 @@ the wrong link colour, add one rule to your theme:
 
 Every component is exported, pushed through a **real editor engine**, read back, re-mounted
 and functionally probed. Run `test/wysiwyg.html` to reproduce this — 8 insertion paths ×
-41 components, 328 round-trips, 214 assertions.
+44 components, 352 round-trips, 231 assertions.
 
 Run it in a **desktop-width window**. Several blocks deliberately drop a behaviour below a
 breakpoint — sticky pinning, multi-column spans — and the probes assert whichever branch
@@ -232,31 +236,33 @@ are measured at 1280px.
 
 | Insertion path | Fully working | Keeps CSS | Keeps JS |
 |---|---|---|---|
-| **Code / embed block** (verbatim) | **41/41** | yes | yes |
-| **TinyMCE**, permissive config | **41/41** | yes | yes |
-| **DOMPurify**, style+script allowed | **41/41** | yes | yes |
-| DOMPurify, defaults | 28/41 | yes | no |
-| GrapesJS (page builder) | 25/41 | yes | no |
-| `wp_kses_post` (approximated) | 12/41 | no | no |
-| TinyMCE, stock config | 12/41 | no | no |
-| Quill | 0/41 | no | no |
+| **Code / embed block** (verbatim) | **44/44** | yes | yes |
+| **TinyMCE**, permissive config | **44/44** | yes | yes |
+| **DOMPurify**, style+script allowed | **44/44** | yes | yes |
+| DOMPurify, defaults | 31/44 | yes | no |
+| GrapesJS (page builder) | 28/44 | yes | no |
+| `wp_kses_post` (approximated) | 12/44 | no | no |
+| TinyMCE, stock config | 12/44 | no | no |
+| Quill | 0/44 | no | no |
 
 The pattern is consistent and worth internalising:
 
 - **Paste into a code/embed block, never a rich-text area.** Rich-text editors are *supposed*
   to strip `<script>` and `<style>` — that is their job, not a bug. Every platform that
   matters offers a raw-HTML block; use it.
-- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 21 components
+- **When only the script is stripped** (GrapesJS, DOMPurify at defaults), the 23 components
   that need no JavaScript still work perfectly and the rest render correctly but sit inert.
   Nothing looks broken, it just doesn't move. This is why the newest blocks — Bento Grid,
   Sticky Stacking Cards, Mosaic Grid, Split Reveal, Kinetic Text Reveal, the scroll reveal
   and the Interactive Diagram — are built in pure CSS: they are the ones that survive here.
   Half the library now needs no JavaScript at all, which is a deliberate direction rather
   than a coincidence: blocks are built CSS-first wherever the behaviour allows it. Of the
-  eleven added most recently, six need no script, and the other five degrade to something
+  fourteen added most recently, eight need no script, and the other six degrade to something
   that still does its job — Jump Links to plain anchor links, Video Library to links to
   each watch page, Announcement Bar to a close button that forgets on the next page, the
-  calculator to its starting result, and Events to a list that no longer hides past dates.
+  calculator to its starting result, Events to a list that no longer hides past dates, and
+  Sideways Showcase to a glide that no longer brings a card reached by keyboard into the
+  frame. Footage in Type needs its script only for the pause button on a video.
 - **Structure and ARIA are resilient.** Even where all styling is stripped, sanitisers keep
   the semantics — so a stripped component stays readable and screen-reader navigable.
 
@@ -316,7 +322,7 @@ pages the library actually ships, rather than on an abstract five:
 | Product page | 5 | 73.6 kB CSS | **29.3 kB** | −60% |
 | Capability page | 5 | 75.7 kB CSS | **32.1 kB** | −58% |
 | Landing page | 6 | 83.2 kB CSS | **28.8 kB** | −65% |
-| All 41 | 41 | 573.3 kB CSS | **154.2 kB** | −73% |
+| All 44 | 44 | 608.0 kB CSS | **168.5 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -342,7 +348,9 @@ limit of the place it goes, and names the piece that is over; for a single-embed
 judges the whole thing. It used to measure every export as one embed against 50 × 1024 —
 51,200, where Webflow counts 50,000 characters — which let a real overflow through and
 would have flagged a split export that was fine. Any single block fits on its own; the
-largest, Interactive Diagram, is about 28,600 characters minified.
+largest, Territory Map, is about 29,700 characters minified, and 7,600 of those are the
+outline of every state. That outline was 9,500 until the generator stopped repeating the
+`l` before every pair and the space before every minus sign; the shapes are pixel-identical.
 
 The markup is **byte-identical either way** — switching modes never means re-pasting your
 HTML — and a single block is unchanged, since it has nothing to share with. Rendering is
@@ -570,7 +578,7 @@ Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
 
 ### Advanced controls (every component)
 
-Applied centrally, so they behave identically on all 41 blocks:
+Applied centrally, so they behave identically on all 44 blocks:
 
 | Control | Why it's there |
 |---|---|
@@ -592,7 +600,7 @@ The three type controls only appear where they can do something. Logo Marquee,
 Announcement Bar and Jump Links have no heading, and Table has none until it is
 given cells, so none of them is offered heading size or heading letter spacing;
 every other block is. A control that cannot change anything is just noise, and
-Advanced repeats on all 41 blocks.
+Advanced repeats on all 44 blocks.
 
 
 ### Typography (Design tokens → Typography)
@@ -637,9 +645,9 @@ counted per component:
 
 | Control group | Reaches |
 |---|---|
-| Body size · letter spacing · line height | **41 of 41** |
-| Heading size · letter spacing · line height · weight | **37 of 41** |
-| Eyebrow size · letter spacing · weight | **26 of 41** |
+| Body size · letter spacing · line height | **44 of 44** |
+| Heading size · letter spacing · line height · weight | **40 of 44** |
+| Eyebrow size · letter spacing · weight | **29 of 44** |
 
 All four heading misses are correct rather than gaps. Logo Marquee, Announcement
 Bar and Jump Links have no heading — which is why they are not offered the
@@ -1076,7 +1084,7 @@ thing anyone did was delete somebody else's page.
 
 Four starters sit above the component list instead, each dropping a ready arrangement you
 can edit down: **Landing page**, **Product page**, **Capability page**, **Support page**.
-Search finds them by name too. Quicker than deciding which of 41 blocks belong together
+Search finds them by name too. Quicker than deciding which of 44 blocks belong together
 before you've seen any of them.
 
 ### Contrast, while you choose
@@ -1128,7 +1136,7 @@ js/freshness.js         Notices when the browser is holding a stale index.html
 version.txt             Build id, written by bump.sh; what freshness.js compares against
 js/components/
   heroes.js             parallax-banner, video-hero, split-hero, cta-banner, hero-slider,
-                        announcement
+                        announcement, footage-type
   content.js            card-grid, feature-grid, stats-counter, timeline, pricing,
                         webinar-grid, kinetic-text, table, article, steps,
                         data-bars, people
@@ -1138,22 +1146,23 @@ js/components/
                         events
   modern.js             bento-grid, sticky-stack, mosaic-grid, split-reveal (all zero-JS)
   product.js            finish-switcher, pinned-product, spec-strip, resource-library,
-                        where-to-buy
+                        where-to-buy, side-scroll
   diagram.js            hotspot-diagram
+  territory.js          territory-map, with the state outlines tools/us-map writes into it
 test/
-  gallery.html          Renders all 41 through the real export path; reports failures,
+  gallery.html          Renders all 44 through the real export path; reports failures,
                         and fails if any laid-out image reserves no space for
                         itself — the omission half of Cumulative Layout Shift
   hostile-host.html     Pastes exports into a deliberately awful theme, and asserts
                         no block leaves a permanent GPU layer, forces a 3D one, or
                         moves something larger than itself without containing its
                         paint — the checks that would have caught the page below a
-                        Parallax Banner turning bold; 173 assertions
+                        Parallax Banner turning bold; 174 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
-                        328 round-trips, then functionally probes what survives.
+                        352 round-trips, then functionally probes what survives.
                         Structured data (JSON-LD) is left in the markup rather
                         than run as script, so a stripped editor that keeps it
-                        is credited for it; 214 assertions
+                        is credited for it; 231 assertions
   degrade.html          Removes one CSS capability at a time (background-clip,
                         gradients, clip-path, backdrop-filter, images, scroll
                         timelines) and reports text that becomes unreadable.
@@ -1174,8 +1183,10 @@ test/
                         correct 2x image is left alone, an untouched table
                         is caught before it ships, a calculator asks for an
                         engineering check, a jump link to a section the
-                        project lacks is named, and a Webflow export is sized
-                        piece by piece, in the characters Webflow counts; 42
+                        project lacks is named, a Webflow export is sized
+                        piece by piece, in the characters Webflow counts, and a
+                        territory naming a state the map does not know, or a
+                        state two territories both claim, is caught; 46
                         assertions
   scroll-range.html     The case the degradation harness cannot reach: scroll
                         timelines exist but never advance — a block nobody
@@ -1240,6 +1251,11 @@ test/
                         and that a list entry carries every field its schema
                         declares; 40 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
+tools/
+  us-map/build.js       Regenerates the Territory Map's state outlines from us-atlas's
+                        states-albers-10m.json: shared borders simplified once, so
+                        neighbouring states still meet, then written as compact
+                        relative paths between the @generated markers
 
 Every test page loads the source with a timestamp. None of them carried a version
 query and bump.sh only versions index.html, so a browser would happily report on the
@@ -1247,8 +1263,8 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 724 assertions**, plus two that report coverage rather than a count:
-`gallery.html` builds all 41 through the real export path, and `degrade.html` judges all 41
+**Thirteen harnesses, 746 assertions**, plus two that report coverage rather than a count:
+`gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
 Open the files in `test/` in a browser — each prints a pass/fail banner at the top.
