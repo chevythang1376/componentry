@@ -20,7 +20,7 @@ read, because that count is what somebody checks before pressing Replace.</p>
 <div id="out"></div>
 <script>
   ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js',
-   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js',
+   'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'components/territory.js',
    'inspector.js'].forEach(function (f) {
     document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
   });
@@ -262,7 +262,7 @@ window.addEventListener('load', function () {
   check('and the ones that do are the ones that run long or arrive written down',
         opted.sort().join(' | '),
         'Accordion / FAQ / Questions | Data Bars / Figures | Events / Events | Logo Marquee / Logos | ' +
-        'People / People | Resource Library / Documents | Spec Strip / Specs | Timeline / Milestones | ' +
+        'People / People | Resource Library / Documents | Spec Strip / Specs | Territory Map / Territories | Timeline / Milestones | ' +
         'Webinar Library / Webinars | Where to Buy / Sellers');
 
   /* The blocks whose entries are pictures and choices, not rows. Offering a

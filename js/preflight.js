@@ -358,6 +358,38 @@ CB.Preflight = (function () {
       /* Jump links that go nowhere. They can only be checked against this
          project, so a section that lives elsewhere on the page is reported
          too — which is why this is a warning and says so. */
+      /* A territory map fed from a spreadsheet: a state it cannot read is a
+         blank region nobody notices until a customer there asks, and a state
+         in two territories silently goes to the first one listed. */
+      if (def.id === 'territory-map' && CB.territoryStates) (function () {
+        var tp = Object.assign(CB.defaults(def), inst.props || {});
+        var unknown = [], seen = {}, twice = [];
+        (tp.items || []).forEach(function (it) {
+          if (!it || !it.name) return;
+          var r = CB.territoryStates.parse(it.states);
+          r.unknown.forEach(function (u) { unknown.push('“' + u + '” in ' + it.name); });
+          r.codes.forEach(function (k) {
+            if (seen[k] && seen[k] !== it.name) twice.push(k + ' (' + seen[k] + ' and ' + it.name + ')');
+            else seen[k] = it.name;
+          });
+        });
+        if (unknown.length) out.push({
+          level: 'warn',
+          block: name,
+          title: unknown.length === 1 ? 'A state in a territory is not one the map knows'
+                                      : unknown.length + ' states in territories are not ones the map knows',
+          detail: unknown.join(', ') + ' — left off the map.',
+          fix: 'Use two-letter codes or full state names, separated by commas.'
+        });
+        if (twice.length) out.push({
+          level: 'warn',
+          block: name,
+          title: twice.length === 1 ? 'A state is in two territories' : twice.length + ' states are in two territories',
+          detail: twice.join(', ') + ' — each goes to the first territory listed.',
+          fix: 'Remove it from the territory that should not cover it.'
+        });
+      })();
+
       if (def.id === 'jump-links') (function () {
         var have = {};
         instances.forEach(function (i) {

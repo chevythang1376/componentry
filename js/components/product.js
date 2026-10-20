@@ -936,4 +936,267 @@
       return { html: html, css: css, js: '' };
     }
   });
+  /* --------------------------------------------------------------------- */
+  /* Sideways Showcase                                                      */
+  /*                                                                        */
+  /* Scroll down and a row of products glides sideways past a pinned       */
+  /* frame, then the page carries on. The pin is position: sticky and the   */
+  /* glide is a view timeline on the section, so the effect itself needs no */
+  /* script. Where scroll timelines are missing, or the visitor has asked   */
+  /* for less motion, it is an ordinary row you swipe or scroll sideways —  */
+  /* every card is still there and still reachable.                         */
+  /*                                                                        */
+  /* The section is made as tall as the glide needs, worked out in CSS from */
+  /* the card count and the card width: the pinned frame plus the distance  */
+  /* the row has to travel, so a screen of scrolling moves the row about a  */
+  /* screen. The frame clips the row rather than scrolling it, and the root */
+  /* contains its paint, because the row is far wider than the block — the  */
+  /* same rule as the parallax and the marquee, and for the same reason.    */
+  /* --------------------------------------------------------------------- */
+
+  /* Each width is also held to what fits under the heading in the pinned
+     frame, so a short laptop screen gets a smaller card rather than one cut
+     off at the bottom. The 440px is the heading, the copy under the image,
+     the progress line and the frame's own breathing room; the 160px floor
+     keeps a very short screen from asking for a card of no width at all. */
+  var SS_WIDTH = {
+    compact: 'clamp(220px, 26vw, 300px)',
+    regular: 'clamp(250px, 30vw, 380px)',
+    large: 'clamp(280px, 38vw, 480px)'
+  };
+  var SS_SAMPLE = [
+    ['Building wire', 'THHN / THWN-2', '#96694c', '#2b241f'],
+    ['Armored cable', 'MC and MC-PCS', '#6f4c37', '#141210'],
+    ['Service entrance', 'SE and USE-2', '#3a332d', '#12100e'],
+    ['Data center', 'High-density power', '#4a443e', '#96694c'],
+    ['Utility', 'Overhead and underground', '#2b241f', '#6f4c37'],
+    ['Portable cord', 'SOOW and SJOOW', '#96694c', '#4a443e']
+  ];
+
+  CB.register({
+    id: 'side-scroll',
+    name: 'Sideways Showcase',
+    category: CAT,
+    icon: '⇢',
+    blurb: 'Scroll down and a row of products glides sideways past a pinned frame, then the page carries on. Pure CSS — without scroll timelines it is a row you swipe.',
+    props: [
+      { t: 'section', label: 'Heading' },
+      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'The range' },
+      { k: 'title', t: 'text', label: 'Section title', value: 'A cable for every run' },
+      { k: 'sub', t: 'textarea', label: 'Section intro', value: 'From the panel to the pole, built to the same standard.' },
+
+      { t: 'section', label: 'Products' },
+      {
+        k: 'items', t: 'list', label: 'Products', itemLabel: 'title',
+        fields: [
+          { k: 'image', t: 'image', label: 'Image', value: CB.ph(800, 1000, '', '#96694c', '#2b241f') },
+          { k: 'alt', t: 'text', label: 'Alt text', value: '' },
+          { k: 'label', t: 'text', label: 'Label', value: '', help: 'Small line above the name — a family, a rating.' },
+          { k: 'title', t: 'text', label: 'Name', value: 'Product name' },
+          { k: 'text', t: 'textarea', label: 'Description', value: '' },
+          { k: 'btnText', t: 'text', label: 'Link text', value: 'View product', help: 'Leave empty for no link.' },
+          { k: 'btnUrl', t: 'text', label: 'Link', value: '#' }
+        ],
+        value: SS_SAMPLE.map(function (r) {
+          return { image: CB.ph(800, 1000, '', r[2], r[3]), alt: '', label: r[1], title: r[0],
+                   text: '', btnText: 'View product', btnUrl: '#' };
+        })
+      },
+
+      { t: 'section', label: 'Motion' },
+      {
+        k: 'pace', t: 'range', label: 'Scroll for a screen of travel', min: 60, max: 160, step: 10, unit: '%', value: 100,
+        help: 'How far you scroll down to move the row one screen sideways. Lower is quicker.'
+      },
+      {
+        k: 'topOffset', t: 'range', label: 'Pin offset from top', min: 0, max: 200, step: 4, unit: 'px', value: 0,
+        help: 'Set this to the height of a fixed site header, or the frame will pin underneath it.'
+      },
+      { k: 'progress', t: 'toggle', label: 'Show a progress line', value: true },
+
+      { t: 'section', label: 'Layout' },
+      { k: 'size', t: 'select', label: 'Card size', value: 'regular', options: [['compact', 'Compact'], ['regular', 'Regular'], ['large', 'Large']] },
+      { k: 'ratio', t: 'select', label: 'Image shape', value: '4/5', options: [['4/5', 'Portrait 4 : 5'], ['1/1', 'Square'], ['4/3', '4 : 3'], ['16/9', '16 : 9']] },
+      { k: 'variant', t: 'select', label: 'Card style', value: 'plain', options: [['plain', 'Image and text'], ['card', 'Cards']] },
+
+      { t: 'section', label: 'Style' },
+      {
+        k: 'bgMode', t: 'select', label: 'Background', value: 'deep',
+        options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
+        help: 'Following the scheme is what lets one Light/Dark setting reach this block.'
+      },
+      { k: 'bg', t: 'color', label: 'Background colour', value: '#141210', when: { bgMode: ['custom'] } },
+      { k: 'pad', t: 'range', label: 'Vertical padding', min: 0, max: 140, step: 8, unit: 'px', value: 80 }
+    ],
+
+    render: function (p, c) {
+      var s = c.s;
+      var items = (p.items || []).filter(function (it) { return it && (it.title || it.image); });
+      var n = Math.max(1, items.length);
+      var ratio = ['4/5', '1/1', '4/3', '16/9'].indexOf(p.ratio) >= 0 ? p.ratio : '4/5';
+      var parts = ratio.split('/');
+      var aspect = (+parts[0] / +parts[1]).toFixed(4);
+      var top = Math.round(c.clamp(c.num(p.topOffset, 0), 0, 400));
+      var pace = (c.clamp(c.num(p.pace, 100), 40, 200) / 100).toFixed(2);
+      var pad = c.num(p.pad, 80);
+      var asCards = p.variant === 'card';
+      var tl = '--cb-ss-' + c.cls;
+
+      var cw = 'min(' + (SS_WIDTH[p.size] || SS_WIDTH.regular) + ', max(160px, (100svh - ' + top + 'px - 440px) * ' + aspect + '))';
+      var gap = 'clamp(16px, 2.4vw, 28px)';
+      /* The row starts in line with the heading above it, then runs off the
+         right-hand edge of the page — so the gutter tracks the content
+         column, not the screen edge. */
+      var gutter = 'max(clamp(16px, 5vw, 32px), (100vw - var(--cb-max, 1140px)) / 2 + clamp(16px, 5vw, 32px))';
+      var travel = 'max(0px, (' + n + ' * ' + cw + ' + ' + (n - 1) + ' * ' + gap + ' + 2 * ' + gutter + ' - 100vw) * ' + pace + ')';
+
+      var cards = items.map(function (it, i) {
+        return c.dedent(`
+          <li class="cb-ss__card">
+            ${it.image ? '<div class="cb-ss__media"><img src="' + c.url(it.image) + '" alt="' + c.attr(it.alt) +
+              '" loading="' + (i < 3 ? 'eager' : 'lazy') + '" decoding="async"></div>' : ''}
+            <div class="cb-ss__body">
+              ${it.label ? '<p class="cb-ss__label">' + c.esc(it.label) + '</p>' : ''}
+              ${it.title ? '<h3 class="cb-ss__name">' + c.rich(it.title) + '</h3>' : ''}
+              ${it.text ? '<p class="cb-ss__x">' + c.rich(it.text) + '</p>' : ''}
+              ${c.actions([{ text: it.btnText, url: it.btnUrl, variant: 'ghost' }], { tight: true, cls: 'cb-ss__cta' })}
+            </div>
+          </li>`);
+      }).join('\n');
+
+      var html = c.dedent(`
+        <section class="${c.cls} cb-ss">
+          <div class="cb-ss__stage">
+            ${(p.eyebrow || p.title || p.sub) ? `<div class="cb-wrap">
+              <header class="cb-ss__head">
+                ${p.eyebrow ? '<p class="cb-ss__eyebrow">' + c.esc(p.eyebrow) + '</p>' : ''}
+                ${p.title ? '<h2 class="cb-ss__title">' + c.rich(p.title) + '</h2>' : ''}
+                ${p.sub ? '<p class="cb-ss__sub">' + c.rich(p.sub) + '</p>' : ''}
+              </header>
+            </div>` : ''}
+            <div class="cb-ss__viewport">
+              <ul class="cb-ss__track">
+        ${c.indent(cards, 8)}
+              </ul>
+            </div>
+            ${p.progress ? '<div class="cb-ss__progress" aria-hidden="true"><span class="cb-ss__bar"></span></div>' : ''}
+          </div>
+        </section>`);
+
+      var css = `
+        ${s}.cb-ss { background: ${c.bg(p)}; padding-block: ${pad}px; contain: paint; }
+        ${s} .cb-ss__head { max-width: 660px; margin-bottom: clamp(24px, 4vw, 40px); }
+        ${s} .cb-ss__eyebrow {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
+          color: var(--cb-brand-ink, var(--cb-brand)); margin-bottom: 12px;
+        }
+        ${s} .cb-ss__title {
+          font-size: calc(clamp(26px, 3.6vw, 38px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 800);
+          line-height: calc(1.15 + var(--cb-h-leading, 0)); letter-spacing: calc(-.02em + var(--cb-h-track, 0em)); text-wrap: balance;
+        }
+        ${s} .cb-ss__sub { margin-top: 10px; color: var(--cb-muted); }
+
+        /* The resting state, and the one every browser gets first: a row that
+           scrolls sideways, snapping card by card. */
+        ${s} .cb-ss__viewport {
+          container-type: inline-size;
+          overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
+          scroll-padding-inline: ${gutter}; scrollbar-width: thin;
+        }
+        ${s} .cb-ss__track {
+          display: flex; gap: ${gap}; width: max-content;
+          padding-inline: ${gutter}; padding-bottom: 6px;
+        }
+        ${s} .cb-ss__card {
+          flex: none; width: ${cw}; scroll-snap-align: start;
+          display: flex; flex-direction: column; gap: 14px;
+          ${asCards ? 'background: var(--cb-surface); border: 1px solid var(--cb-border); border-radius: var(--cb-radius); overflow: hidden; gap: 0;' : ''}
+        }
+        ${s} .cb-ss__media { overflow: hidden; background: var(--cb-subtle); ${asCards ? '' : 'border-radius: var(--cb-radius);'} }
+        ${s} .cb-ss__media img { display: block; width: 100%; aspect-ratio: ${ratio}; object-fit: cover; }
+        ${s} .cb-ss__body { display: flex; flex-direction: column; gap: 6px; ${asCards ? 'padding: 18px 20px 20px;' : ''} }
+        ${s} .cb-ss__label {
+          font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
+          letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-muted);
+        }
+        ${s} .cb-ss__name {
+          font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
+          line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
+        }
+        ${s} .cb-ss__x { font-size: .92em; color: var(--cb-muted); }
+        ${s} .cb-ss__cta { margin-top: 6px; }
+        ${s} .cb-ss__progress { display: none; }
+
+        /* The glide. Only where scroll timelines exist and motion is welcome;
+           everywhere else the row above is the whole block. */
+        @supports (animation-timeline: view()) {
+          @media (prefers-reduced-motion: no-preference) {
+            ${s}.cb-ss {
+              padding-block: 0;
+              view-timeline: ${tl} block;
+              view-timeline-inset: ${top}px 0px;
+              height: calc(100vh - ${top}px + ${travel});
+              height: calc(100svh - ${top}px + ${travel});
+            }
+            ${s} .cb-ss__stage {
+              position: sticky; top: ${top}px;
+              height: calc(100vh - ${top}px); height: calc(100svh - ${top}px);
+              display: flex; flex-direction: column; justify-content: center;
+              padding-block: clamp(20px, 5vh, ${pad}px);
+              overflow: hidden; overflow: clip;
+            }
+            ${s} .cb-ss__viewport { overflow: visible; scroll-snap-type: none; }
+            ${s} .cb-ss__track {
+              animation: cb-ss-glide-${c.cls} linear both;
+              animation-timeline: ${tl};
+              animation-range: contain 0% contain 100%;
+            }
+            ${s} .cb-ss__progress {
+              display: block; height: 2px; margin: clamp(18px, 3vh, 32px) ${gutter} 0;
+              background: var(--cb-border); overflow: hidden;
+            }
+            ${s} .cb-ss__bar {
+              display: block; height: 100%; background: var(--cb-brand); transform-origin: 0 50%;
+              animation: cb-ss-fill-${c.cls} linear both;
+              animation-timeline: ${tl};
+              animation-range: contain 0% contain 100%;
+            }
+          }
+        }
+        /* Ends with the last card's right edge on the frame's right edge: 100%
+           is the row's own width, 100cqw the frame's. A row narrower than the
+           frame does not move at all. */
+        @keyframes cb-ss-glide-${c.cls} {
+          from { transform: translateX(0); }
+          to { transform: translateX(min(0px, calc(100cqw - 100%))); }
+        }
+        @keyframes cb-ss-fill-${c.cls} { from { transform: scaleX(0); } to { transform: scaleX(1); } }`;
+
+      /* The one job for script: keyboard focus. Tabbing to a card that is
+         still off to the side would put focus somewhere nobody can see, and a
+         row moved by a transform is not one the browser can scroll into view
+         itself. So the page is scrolled to the point in the glide where that
+         card is in the frame. Without script, the glide works as before. */
+      var js = c.wrap(c.cls, `
+        var stage = root.querySelector(".cb-ss__stage");
+        var track = root.querySelector(".cb-ss__track");
+        var viewport = root.querySelector(".cb-ss__viewport");
+        if (!stage || !track || !viewport) return;
+        track.addEventListener("focusin", function (e) {
+          if (getComputedStyle(stage).position !== "sticky") return;
+          var card = e.target.closest ? e.target.closest(".cb-ss__card") : null;
+          if (!card) return;
+          var across = track.scrollWidth - viewport.clientWidth;
+          var down = root.offsetHeight - stage.offsetHeight;
+          if (across <= 0 || down <= 0) return;
+          var lead = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+          var f = Math.max(0, Math.min(1, (card.offsetLeft - lead) / across));
+          var y = root.getBoundingClientRect().top + window.pageYOffset - ${top} + f * down;
+          window.scrollTo(0, Math.round(y));
+        });`);
+
+      return { html: html, css: css, js: js };
+    }
+  });
 })();
