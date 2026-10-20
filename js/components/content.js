@@ -900,7 +900,7 @@
       { t: 'section', label: 'Layout' },
       { k: 'cols', t: 'range', label: 'Columns (desktop)', min: 2, max: 4, step: 1, value: 3 },
       { k: 'gap', t: 'range', label: 'Gap', min: 8, max: 48, step: 4, unit: 'px', value: 28 },
-      { k: 'ratio', t: 'select', label: 'Thumbnail ratio', value: '16/9', options: [['16/9', '16 : 9'], ['4/3', '4 : 3'], ['3/2', '3 : 2'], ['none', 'No thumbnails']] },
+      { k: 'ratio', t: 'select', label: 'Thumbnail ratio', value: '16/9', options: [['16/9', '16 : 9'], ['4/3', '4 : 3'], ['3/2', '3 : 2'], ['1/1', 'Square'], ['none', 'No thumbnails']] },
 
       { t: 'section', label: 'Style' },
       { k: 'variant', t: 'select', label: 'Card style', value: 'outline', options: [['elevated', 'Elevated'], ['outline', 'Outlined'], ['flat', 'Flat / borderless']] },
@@ -916,6 +916,11 @@
     render: function (p, c) {
       var s = c.s;
       var showImg = p.ratio !== 'none';
+      /* A square thumbnail is as tall as it is wide, so the featured one gets a
+         narrower column — at the usual half width it would stand taller than
+         the copy beside it by a long way — and stays beside its copy on a
+         tablet instead of stacking into a full-width square. */
+      var square = p.ratio === '1/1';
       var items = byDate((p.items || []).filter(Boolean), p.sort);
       var lead = p.feature && items.length ? items[0] : null;
       var rest = lead ? items.slice(1) : items;
@@ -994,7 +999,7 @@
         /* The featured row is two columns rather than a full-bleed banner, so
            the newest session leads without swallowing the fold. */
         ${s} .cb-wb__feature {
-          display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+          display: grid; grid-template-columns: ${square ? 'minmax(0, .7fr) minmax(0, 1.3fr)' : 'minmax(0, 1.05fr) minmax(0, 1fr)'};
           gap: ${c.num(p.gap, 28)}px; align-items: center; overflow: hidden;
           border-radius: var(--cb-radius); margin-bottom: ${c.num(p.gap, 28)}px;
         }
@@ -1039,11 +1044,15 @@
         ${s} .cb-wb__body .cb-actions { margin-top: auto; padding-top: 6px; }
 
         @media (max-width: 900px) {
-          ${s} .cb-wb__feature { grid-template-columns: 1fr; }
-          ${s} .cb-wb__featureBody { padding: 0 22px 24px; }
+          ${square ? '' : `${s} .cb-wb__feature { grid-template-columns: 1fr; }
+          ${s} .cb-wb__featureBody { padding: 0 22px 24px; }`}
           ${s} .cb-wb__grid { grid-template-columns: repeat(${Math.min(2, c.clamp(c.num(p.cols, 3), 2, 4))}, minmax(0, 1fr)); }
         }
-        @media (max-width: 560px) { ${s} .cb-wb__grid { grid-template-columns: 1fr; } }`;
+        @media (max-width: 560px) {
+          ${s} .cb-wb__grid { grid-template-columns: 1fr; }
+          ${square ? `${s} .cb-wb__feature { grid-template-columns: 1fr; }
+          ${s} .cb-wb__featureBody { padding: 0 22px 24px; }` : ''}
+        }`;
 
       return { html: html, css: css, js: '' };
     }
