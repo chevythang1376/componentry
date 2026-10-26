@@ -56,6 +56,13 @@
       },
       { k: 'ctaAlign', t: 'select', label: 'Link label position', value: 'right', options: [['right', 'Bottom right'], ['left', 'Bottom left']] },
       {
+        k: 'tint', t: 'select', label: 'Image tint', value: 'dark', when: { variant: ['overlay'] },
+        options: [['none', 'None'], ['dark', 'Dark'], ['brand', 'Copper']],
+        help: 'A wash over the whole photo. The words do not depend on it: they carry their own dark backdrop, ' +
+              'sized to the text, so they stay readable on a bright photo whatever the tint is.'
+      },
+      { k: 'tintStrength', t: 'range', label: 'Tint strength', min: 5, max: 80, step: 5, unit: '%', value: 20, when: { variant: ['overlay'], tint: ['dark', 'brand'] } },
+      {
         k: 'mediaBg', t: 'select', label: 'Image backdrop', value: 'tint',
         options: [['tint', 'Tinted'], ['none', 'None — for transparent PNGs']],
         help: 'The colour behind the image, which shows through any transparency in it.'
@@ -83,6 +90,31 @@
          link to the same place is one more tab stop saying nothing new. */
       var asButton = p.ctaStyle === 'button' || p.ctaStyle === 'outline';
       var ctaClass = 'cb-cg__cta' + (asButton ? ' cb-btn ' + (p.ctaStyle === 'button' ? 'cb-btn--primary' : 'cb-btn--ghost') : '');
+
+      /* Text over image. It used to be one gradient over the whole photo,
+         darkest at the foot of the card — but the words sat at the top, over
+         the lightest part of it, and on a bright photo the title measured
+         1.5:1. Now the tint is only a look, and the words carry their own
+         backdrop: solid behind them, fading out above, sized to however much
+         text there is. Solid enough that white text clears 4.5:1 on a white
+         photo; light enough that the photo still shows through it. */
+      var tint = p.tint === 'none' || p.tint === 'brand' ? p.tint : 'dark';
+      var tintPct = c.clamp(c.num(p.tintStrength, 20), 0, 80);
+      var tintCss = tint === 'none' || !tintPct ? '' : `${s} .cb-cg__media::after {
+            content: ""; position: absolute; inset: 0;
+            background: ${tint === 'brand' ? 'rgba(150, 105, 76, ' : 'rgba(20, 18, 16, '}${tintPct / 100});
+            background: color-mix(in srgb, var(${tint === 'brand' ? '--cb-brand' : '--cb-deep'}) ${tintPct}%, transparent);
+          }`;
+      var SCRIM = 78, FADE = 72;
+      var overlayCss = !overlay ? '' : `
+        ${s} .cb-cg__body {
+          --cb-cg-scrim: color-mix(in srgb, var(--cb-deep, #141210) ${SCRIM}%, transparent);
+          position: relative; z-index: 1; flex: 0 0 auto; padding-top: ${FADE + 22}px;
+          color: var(--cb-on-dark, #fff);
+          background: linear-gradient(to top, rgba(20, 18, 16, .${SCRIM}) 0, rgba(20, 18, 16, .${SCRIM}) calc(100% - ${FADE}px), rgba(20, 18, 16, 0) 100%);
+          background: linear-gradient(to top, var(--cb-cg-scrim) 0, var(--cb-cg-scrim) calc(100% - ${FADE}px), transparent 100%);
+        }
+        ${s} .cb-cg__foot { margin-top: 0; }`;
 
       var cards = items.map(function (it) {
         var linked = !!(it.linkUrl && it.linkText);
@@ -134,11 +166,10 @@
         flat: `${s} .cb-cg__inner { background: transparent; border: 1px solid transparent; }
                ${s} .cb-cg__body { padding-inline: 0; }`,
         overlay: `
-          ${s} .cb-cg__inner { background: #12100e; border: 1px solid transparent; }
-          ${s} .cb-cg__media { position: absolute; inset: 0; }
-          ${s} .cb-cg__media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(12,10,8,.9) 10%, rgba(12,10,8,.15) 65%); }
+          ${s} .cb-cg__inner { background: var(--cb-deep, #141210); border: 1px solid transparent; min-height: 400px; justify-content: flex-end; }
+          ${s} .cb-cg__media { position: absolute; inset: 0; background: var(--cb-deep, #141210); }
           ${s} .cb-cg__media img { height: 100%; }
-          ${s} .cb-cg__body { position: relative; z-index: 1; min-height: 320px; justify-content: flex-end; color: var(--cb-on-dark, #fff); }
+          ${tintCss}
           ${s} .cb-cg__x { color: var(--cb-on-dark-muted, rgba(255,255,255,.82)); }
           ${s} .cb-cg__meta { color: var(--cb-on-dark-muted, rgba(255,255,255,.7)); }
           ${c.pin([s + ' .cb-cg__t', s + ' .cb-cg__link', s + ' .cb-cg__tag', s + ' .cb-cg__cta'], 'var(--cb-on-dark, #fff)')}
@@ -193,6 +224,7 @@
         ${s} .cb-cg__card:hover .cb-cg__cta.cb-btn { transform: translateY(var(--cb-btn-lift)); filter: var(--cb-btn-filter); }` : ''}
         ${p.ctaAlign === 'left' ? `${s} .cb-cg__cta { order: -1; margin-left: 0; }
         ${s} .cb-cg__meta { margin-left: auto; }` : ''}
+        ${overlayCss}
         @media (max-width: 900px) { ${s} .cb-cg__grid { grid-template-columns: repeat(${Math.min(2, c.clamp(c.num(p.cols, 3), 1, 4))}, minmax(0, 1fr)); } }
         @media (max-width: 560px) { ${s} .cb-cg__grid { grid-template-columns: 1fr; } }`;
 

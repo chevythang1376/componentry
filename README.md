@@ -61,7 +61,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
 | | Announcement Bar | A thin strip for a launch, a recall or a notice. Closing it is a checkbox and `:has()`, so it works where scripts are stripped; where they run, it stays closed for the rest of the visit, and a new message shows again |
 | | Footage in Type | A headline so large it becomes the picture, with a drifting sheen, a photograph or a muted video showing through the letters. The letters are cut out of a mask, so nothing depends on `background-clip: text`; if the photo or video fails, the letters fall back to a solid brand fill and still read. The words are on the heading as real text, and the cut-out is hidden from screen readers. Each line is sized to fill the width or set to one even size. Video ships with a pause control. Zero JS except that control |
-| **Content** | Card Grid | "Whole card clickable" via a pseudo-element, so text stays selectable. The link label can be a text link, a button or an outlined button, in the bottom left or right corner — drawn as a button but still the one link per card, so a keyboard user does not tab through two stops that go to the same place. *Image backdrop: None* and *Image fit: Show the whole image* put a transparent PNG straight onto the card, or onto nothing at all with the flat style |
+| **Content** | Card Grid | "Whole card clickable" via a pseudo-element, so text stays selectable. The link label can be a text link, a button or an outlined button, in the bottom left or right corner — drawn as a button but still the one link per card, so a keyboard user does not tab through two stops that go to the same place. *Image backdrop: None* and *Image fit: Show the whole image* put a transparent PNG straight onto the card, or onto nothing at all with the flat style. *Text over image* sets the words at the foot of the card on their own dark backdrop, sized to the text and fading out above it, so white text clears 4.5:1 even over a white photo; *Image tint* (dark or copper, at a strength you set) is a wash over the photo on top of that, and only a look |
 | | Feature Grid | Icon + title + blurb, four icon treatments |
 | | Stats Counter | Counts up on scroll via `IntersectionObserver` |
 | | Timeline | Alternating or single-column, staggered reveal |
@@ -97,7 +97,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Spec Strip | Row of headline specs with hairline dividers |
 | | Resource Library | Spec sheets, guides and safety data sheets, filtered by category with radio inputs and `:has()`. The filter needs no JavaScript, so it survives any editor that keeps styles. Pastes from a spreadsheet |
 | | Where to Buy | Retailers, distributors and online sellers as logo tiles, grouped by the kind of seller. A seller with no logo gets a wordmark; new-tab links say so to a screen reader. Pastes from a spreadsheet. Zero JS |
-| | Sideways Showcase | As you scroll down, a row of products glides sideways past a pinned frame, then the page carries on. The glide is a CSS scroll timeline, 1:1 with the wheel by default, and the frame sizes the cards to fit whatever height the window has. Without scroll timelines, or with reduced motion, it is an ordinary row you swipe. A small script brings a card reached with the Tab key into the frame. *Image backdrop: None* and *Image fit: Show the whole image* show product cut-outs on transparent PNGs as they are |
+| | Sideways Showcase | As you scroll down, a row of products glides sideways past a pinned frame, then the page carries on. The glide is a CSS scroll timeline, 1:1 with the wheel by default, and the frame sizes the cards to fit whatever height the window has. Without scroll timelines, or with reduced motion, it is an ordinary row you swipe. A small script brings a card reached with the Tab key into the frame. *Image backdrop: None* and *Image fit: Show the whole image* show product cut-outs on transparent PNGs as they are. With three products or fewer it sits still by default — an ordinary row in line with the heading, wrapping on smaller screens, with no pin, no glide and no script — since a short row has nowhere to glide to |
 
 ---
 
@@ -1229,7 +1229,10 @@ test/
                         to the same rule — whole when it never runs, and only
                         ever on the way out — and the bridge has to leave its
                         photo on the scroll, since held anywhere else it shows
-                        its own edge; 36 assertions
+                        its own edge. A Sideways Showcase of three products or
+                        fewer sits still — nothing pinned, nothing gliding, no
+                        script, and no row running off the page — while four
+                        glide, as do three with the option off; 42 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
@@ -1282,7 +1285,11 @@ test/
                         colour setting can black out text on a dark band, and
                         that a mosaic tile can override the block it sits in,
                         and that a list entry carries every field its schema
-                        declares; 40 assertions
+                        declares. Then puts Card Grid's text-over-image cards
+                        on the worst photo there is for white text — pure
+                        white, tint off — and asserts the words sit at the foot
+                        of the card, wholly on the solid part of their own
+                        backdrop, at 4.5:1 or better; 43 assertions
   article.html          Asserts the Article's text and its editor agree: every
                         kind of block renders the same after a trip through the
                         editor, bold and italic nest whichever way round they
@@ -1309,7 +1316,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 862 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 871 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
