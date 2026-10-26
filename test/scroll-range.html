@@ -143,6 +143,26 @@ window.addEventListener('load', function () {
   check('and the cover is never shown without a timeline to move it',
         /\.cb-spl__cover \{[^}]*display: none;/.test(css2), true);
 
+  // --- parallax banner -----------------------------------------------------
+  /* Its headline can fade, but only on the way out. Nothing about reading it
+     waits on the scroll, so a timeline that never moves leaves it whole. */
+  /* Read off the wrapper the effect is applied to: the headline inside it
+     keeps an opacity of 1 of its own however faded the wrapper is. */
+  var d6 = place('parallax-banner', { contentFx: 'sink' }, { above: 900, below: 900 });
+  check('a parallax headline whose effect never runs is fully there', textVisible(d6, '.cb-px__content'), 1);
+  check('and where it was put', w.getComputedStyle(d6.querySelector('.cb-px__content')).transform, 'none');
+  var d7 = place('parallax-banner', { contentFx: 'fade' }, { above: 900, below: 0 });
+  toBottom(d7);
+  check('as the last thing on a page too', textVisible(d7, '.cb-px__content'), 1);
+
+  var css3 = CB.build({ type: 'parallax-banner', cls: 'z', props: Object.assign(CB.defaults(CB.get('parallax-banner')), { contentFx: 'fade', zoom: 'in' }) },
+                      CB.DEFAULT_TOKENS).css;
+  check('the headline only fades while the banner leaves',
+        /\.cb-px__content \{[^}]*animation-range: exit 0% exit 100%;/.test(css3), true);
+  check('and the photo moves across the banner\'s whole pass, so where it is always matches the scroll',
+        /\.cb-px__shift \{[^}]*animation-range: cover 0% cover 100%;/.test(css3) &&
+        /\.cb-px__bg \{[^}]*animation-range: cover 0% cover 100%;/.test(css3), true);
+
   /* --- a stagger slider that is live everywhere, and safe everywhere -------
 
      Both staggered reveals used to state the gap between neighbours, and both
@@ -279,7 +299,9 @@ window.addEventListener('load', function () {
     try {
       var doc = CB.Export.previewDoc(
         [{ uid: 'a', cls: 'cb-kt-p', type: 'kinetic-text', props: CB.defaults(CB.get('kinetic-text')) },
-         { uid: 'b', cls: 'cb-spl-p', type: 'split-reveal', props: CB.defaults(CB.get('split-reveal')) }],
+         { uid: 'b', cls: 'cb-spl-p', type: 'split-reveal', props: CB.defaults(CB.get('split-reveal')) },
+         { uid: 'c', cls: 'cb-px-p', type: 'parallax-banner',
+           props: Object.assign(CB.defaults(CB.get('parallax-banner')), { contentFx: 'fade' }) }],
         CB.DEFAULT_TOKENS, { canvas: 'light', outline: true, selected: 'a', names: {} });
 
       d = f.contentDocument;
@@ -310,9 +332,23 @@ window.addEventListener('load', function () {
           'function');
     if (has !== 'function') return;
 
+    /* The parallax detaches itself while it is off screen, and this frame is
+       always off screen. Attached here so the next checks have it to judge. */
+    Array.prototype.forEach.call(d.querySelectorAll('[data-cb-idle]'), function (n) { n.removeAttribute('data-cb-idle'); });
+
     var found = pw.cbScrollDriven();
     check('and finds the scroll-driven animations on the canvas', found.length > 0, true,
           found.length + ' found');
+
+    /* A parallax photo means something only at the scroll position driving
+       it: held anywhere else it shows its own edge. The bridge leaves it on
+       the scroll, but still takes the headline fade that sits beside it. */
+    function inTied(a) { var el = a.effect && a.effect.target; return !!(el && el.closest('[data-cb-scroll-tied]')); }
+    var tied = d.getAnimations().filter(inTied);
+    check('the canvas has a parallax photo moved by the scroll', tied.length > 0, true, tied.length + ' animations');
+    check('and the bridge leaves it on the scroll', found.filter(inTied).length, 0);
+    check('while still taking the headline fade beside it',
+          found.some(function (a) { return a.effect.target.classList.contains('cb-px__content'); }), true);
 
     var held = pw.cbHold();
     check('holding them moves every one onto the document clock',
