@@ -1017,7 +1017,17 @@
       { t: 'section', label: 'Layout' },
       { k: 'size', t: 'select', label: 'Card size', value: 'regular', options: [['compact', 'Compact'], ['regular', 'Regular'], ['large', 'Large']] },
       { k: 'ratio', t: 'select', label: 'Image shape', value: '4/5', options: [['4/5', 'Portrait 4 : 5'], ['1/1', 'Square'], ['4/3', '4 : 3'], ['16/9', '16 : 9']] },
-      { k: 'variant', t: 'select', label: 'Card style', value: 'plain', options: [['plain', 'Image and text'], ['card', 'Cards']] },
+      { k: 'variant', t: 'select', label: 'Card style', value: 'plain', options: [['plain', 'Image and text'], ['card', 'Cards']],
+        help: 'Image and text has no card background, for products on transparent PNGs. Pair it with Image backdrop: None.' },
+      {
+        k: 'mediaBg', t: 'select', label: 'Image backdrop', value: 'tint',
+        options: [['tint', 'Tinted'], ['none', 'None — for transparent PNGs']],
+        help: 'The colour behind each image, which shows through any transparency in it.'
+      },
+      {
+        k: 'fit', t: 'select', label: 'Image fit', value: 'cover',
+        options: [['cover', 'Fill the frame (crops)'], ['contain', 'Show the whole image']]
+      },
 
       { t: 'section', label: 'Style' },
       {
@@ -1113,8 +1123,8 @@
           display: flex; flex-direction: column; gap: 14px;
           ${asCards ? 'background: var(--cb-surface); border: 1px solid var(--cb-border); border-radius: var(--cb-radius); overflow: hidden; gap: 0;' : ''}
         }
-        ${s} .cb-ss__media { overflow: hidden; background: var(--cb-subtle); ${asCards ? '' : 'border-radius: var(--cb-radius);'} }
-        ${s} .cb-ss__media img { display: block; width: 100%; aspect-ratio: ${ratio}; object-fit: cover; }
+        ${s} .cb-ss__media { overflow: hidden; ${p.mediaBg === 'none' ? '' : 'background: var(--cb-subtle);'} ${asCards ? '' : 'border-radius: var(--cb-radius);'} }
+        ${s} .cb-ss__media img { display: block; width: 100%; aspect-ratio: ${ratio}; object-fit: ${p.fit === 'contain' ? 'contain' : 'cover'}; }
         ${s} .cb-ss__body { display: flex; flex-direction: column; gap: 6px; ${asCards ? 'padding: 18px 20px 20px;' : ''} }
         ${s} .cb-ss__label {
           font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);

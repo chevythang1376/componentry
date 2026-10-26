@@ -41,6 +41,19 @@ CB.Inspector = (function () {
     switch (field.t) {
 
       case 'textarea':
+        /* The Article's text gets a formatting toolbar that writes the same
+           marks a person would type, so nothing downstream changes. */
+        if (field.editor === 'article' && CB.RichText && CB.article) {
+          lab.removeAttribute('for');
+          lab.id = id + '-label';
+          var rte = CB.RichText.article({
+            id: id, labelId: lab.id, value: v,
+            onChange: function (val) { set(val); onInput(); }
+          });
+          lab.addEventListener('click', rte.focus);
+          wrap.appendChild(rte.node);
+          break;
+        }
         input = el('textarea', 'ctl ctl--area');
         input.id = id;
         input.rows = 3;
@@ -56,20 +69,82 @@ CB.Inspector = (function () {
         input.id = id;
         input.min = field.min; input.max = field.max; input.step = field.step || 1;
         input.value = v;
-        var out = el('output', 'ctl-out');
-        // Sliders with an `auto` sentinel read as "auto" at that value, so a
-        // -4px top padding never shows up as a number the user has to decode.
-        function label(val) {
-          return (field.auto != null && parseFloat(val) === field.auto)
-            ? 'auto' : val + (field.unit || '');
+
+        /* The readout is also a box an exact value can be typed into: dragging
+           a pin to 37.5% is a job for a keyboard, not a steady hand. Held to the
+           slider's range but not to its step, since an exact value is the
+           point. Text rather than type=number, so a slider with an `auto`
+           sentinel still reads "auto" at that value rather than a -4px top
+           padding the user has to decode. */
+        var box = el('span', 'ctl-num');
+        var num = el('input', 'ctl-num__in');
+        num.type = 'text';
+        num.inputMode = 'decimal';
+        num.spellcheck = false;
+        num.setAttribute('aria-label', (field.label || field.k) + (field.unit ? ', ' + field.unit : ''));
+        var unit = el('span', 'ctl-num__unit');
+        unit.textContent = field.unit || '';
+        box.appendChild(num); box.appendChild(unit);
+
+        var min = parseFloat(field.min), max = parseFloat(field.max), step = parseFloat(field.step) || 1;
+        var current = parseFloat(v);
+        function isAuto(val) { return field.auto != null && val === field.auto; }
+        function show(val) {
+          num.value = isAuto(val) ? 'auto' : String(val);
+          unit.hidden = isAuto(val) || !field.unit;
         }
-        out.textContent = label(v);
+        /* "37.5", "37.5%", " 40px" and "auto" all read; anything else is NaN. */
+        function read(raw) {
+          raw = String(raw).trim();
+          if (field.auto != null && /^auto$/i.test(raw)) return field.auto;
+          var n = parseFloat(raw.replace(/[^\d.+-]+$/, ''));
+          return isNaN(n) ? NaN : +n.toFixed(4);
+        }
+        function clamp(n) { return Math.min(max, Math.max(min, n)); }
+        function apply(n) {
+          current = n;
+          input.value = n;
+          set(n);
+          onInput();
+        }
+        function commit() {
+          var n = read(num.value);
+          if (isNaN(n)) { show(current); return; }
+          n = clamp(n);
+          show(n);
+          if (n !== current) apply(n);
+        }
+        show(current);
+
         input.addEventListener('input', function () {
-          out.textContent = label(input.value);
-          set(parseFloat(input.value));
+          current = parseFloat(input.value);
+          show(current);
+          set(current);
           onInput();
         });
-        row.appendChild(input); row.appendChild(out);
+        /* Live while the number is a legal one, so the canvas follows the
+           typing; settled on Enter or leaving the box, which is when an
+           out-of-range number is pulled back inside. */
+        num.addEventListener('input', function () {
+          var n = read(num.value);
+          if (!isNaN(n) && n >= min && n <= max && n !== current) apply(n);
+        });
+        num.addEventListener('change', commit);
+        num.addEventListener('blur', commit);
+        num.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); num.select(); }
+          else if (e.key === 'Escape') { show(current); num.blur(); }
+          else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            var base = isNaN(read(num.value)) ? current : read(num.value);
+            var n = clamp(+(base + (e.key === 'ArrowUp' ? 1 : -1) * step * (e.shiftKey ? 10 : 1)).toFixed(4));
+            show(n);
+            if (n !== current) apply(n);
+          }
+        });
+        num.addEventListener('focus', function () { num.select(); });
+
+        row.appendChild(input); row.appendChild(box);
         wrap.appendChild(row);
         break;
       }

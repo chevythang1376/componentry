@@ -61,7 +61,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
 | | Announcement Bar | A thin strip for a launch, a recall or a notice. Closing it is a checkbox and `:has()`, so it works where scripts are stripped; where they run, it stays closed for the rest of the visit, and a new message shows again |
 | | Footage in Type | A headline so large it becomes the picture, with a drifting sheen, a photograph or a muted video showing through the letters. The letters are cut out of a mask, so nothing depends on `background-clip: text`; if the photo or video fails, the letters fall back to a solid brand fill and still read. The words are on the heading as real text, and the cut-out is hidden from screen readers. Each line is sized to fill the width or set to one even size. Video ships with a pause control. Zero JS except that control |
-| **Content** | Card Grid | "Whole card clickable" via a pseudo-element, so text stays selectable |
+| **Content** | Card Grid | "Whole card clickable" via a pseudo-element, so text stays selectable. The link label can be a text link, a button or an outlined button, in the bottom left or right corner — drawn as a button but still the one link per card, so a keyboard user does not tab through two stops that go to the same place. *Image backdrop: None* and *Image fit: Show the whole image* put a transparent PNG straight onto the card, or onto nothing at all with the flat style |
 | | Feature Grid | Icon + title + blurb, four icon treatments |
 | | Stats Counter | Counts up on scroll via `IntersectionObserver` |
 | | Timeline | Alternating or single-column, staggered reveal |
@@ -69,7 +69,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Webinar Library | Recorded and upcoming sessions, newest first. Sorted when the code is generated, not in the browser, so the order survives an editor that strips scripts |
 | | Kinetic Text Reveal | A statement that assembles as it scrolls in, by line, word or letter. The split happens when the code is generated, not by a script in the browser — so it is the CSS-only version of an effect every library builds with JavaScript. The whole sentence stays on the heading as its accessible name, and the pieces are hidden from the accessibility tree |
 | | Table | Ships empty and offers **Import cells** first — paste a block from a spreadsheet and it builds the table. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
-| | Article | Long-form copy typed as plain text: a line is a paragraph, and `##`, `-`, `1.`, `>`, `![alt](url)`, `[text](url)` and `**bold**` become headings, lists, a pull quote, a captioned figure, links and emphasis. Converted when the code is generated, so there is no parser in the page and the result is ordinary HTML. Zero JS |
+| | Article | Long-form copy, formatted by sight in a small editor — bold, italic, links, headings, large and small paragraphs, quotes, lists, dividers and images — or typed as plain text with marks: a line is a paragraph, and `##`, `{large}`, `-`, `1.`, `>`, `![alt](url)`, `[text](url)` and `**bold**` become headings, sizes, lists, a pull quote, a captioned figure, links and emphasis. The editor writes those same marks, so the two never disagree. Converted when the code is generated, so there is no parser in the page and the result is ordinary HTML. Zero JS |
 | | Step-by-Step | Numbered steps in a real `<ol>`, with photos and tip or caution callouts. A caution is labelled in words, not only by colour. Optional `HowTo` JSON-LD with a total time. Zero JS |
 | | Data Bars | Figures as bars or rings, each against its own maximum and held at full past it. Ships empty — every number in it is a claim — and pastes from a spreadsheet, reading figures the way a sheet writes them: `1,200`, `78%`, `$1.2M`. The figure is always written as text as well as drawn. Zero JS |
 | | People | Reps and specialists: photo or initials, role, territory, and email and phone as real `mailto:` / `tel:` links, with the address shown so it can be copied. Pastes from a spreadsheet. Zero JS |
@@ -77,7 +77,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Tabs | APG tabs pattern, roving tabindex, arrow keys |
 | | Carousel | Scroll-snap (real touch swipe) + buttons, dots, autoplay. Slides are either captioned images or **product cards** — flag, spec line and button underneath — from the one mechanism, because the scrolling and keyboard handling is the part worth having only one copy of |
 | | Testimonial Slider | Cross-fade, ratings, height-equalised so the page doesn't jump |
-| | Interactive Diagram | Hotspots over an image with a docked detail panel, zoom-to-point and a filtering legend. Core needs no JS |
+| | Interactive Diagram | Hotspots over an image with a docked detail panel, zoom-to-point and a filtering legend. Each hotspot can carry its own image in the detail box, fitted whole into a frame of the shape you choose, so a tall product shot and a cut-out PNG both sit inside it uncropped. Core needs no JS |
 | | Jump Links | “On this page” links to sections further down. Can stay fixed at the top while you scroll and mark where you are with `aria-current`. Plain anchor links without the script; preflight warns about any link whose section is not on the page |
 | | Video Library | One player and a list of videos beside it. Every video is a real link to its watch page, so it still works with scripts stripped, and nothing loads from YouTube or Vimeo until someone presses play |
 | | Voltage Drop Calculator | Copper or aluminum, single- or three-phase, 14 AWG to 750 kcmil, from NEC Chapter 9, Table 8 circular mils. The starting result is written into the markup, so it reads correctly before any script runs. Voltage drop only, with the formula and its limits printed under it — it never suggests a conductor size, and preflight asks for an engineering check before it ships |
@@ -97,7 +97,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Spec Strip | Row of headline specs with hairline dividers |
 | | Resource Library | Spec sheets, guides and safety data sheets, filtered by category with radio inputs and `:has()`. The filter needs no JavaScript, so it survives any editor that keeps styles. Pastes from a spreadsheet |
 | | Where to Buy | Retailers, distributors and online sellers as logo tiles, grouped by the kind of seller. A seller with no logo gets a wordmark; new-tab links say so to a screen reader. Pastes from a spreadsheet. Zero JS |
-| | Sideways Showcase | As you scroll down, a row of products glides sideways past a pinned frame, then the page carries on. The glide is a CSS scroll timeline, 1:1 with the wheel by default, and the frame sizes the cards to fit whatever height the window has. Without scroll timelines, or with reduced motion, it is an ordinary row you swipe. A small script brings a card reached with the Tab key into the frame |
+| | Sideways Showcase | As you scroll down, a row of products glides sideways past a pinned frame, then the page carries on. The glide is a CSS scroll timeline, 1:1 with the wheel by default, and the frame sizes the cards to fit whatever height the window has. Without scroll timelines, or with reduced motion, it is an ordinary row you swipe. A small script brings a card reached with the Tab key into the frame. *Image backdrop: None* and *Image fit: Show the whole image* show product cut-outs on transparent PNGs as they are |
 
 ---
 
@@ -326,7 +326,7 @@ pages the library actually ships, rather than on an abstract five:
 | Product page | 5 | 73.6 kB CSS | **29.3 kB** | −60% |
 | Capability page | 5 | 75.7 kB CSS | **32.1 kB** | −58% |
 | Landing page | 6 | 83.2 kB CSS | **28.8 kB** | −65% |
-| All 44 | 44 | 609.6 kB CSS | **170.1 kB** | −72% |
+| All 44 | 44 | 610.4 kB CSS | **170.9 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -579,6 +579,11 @@ legible — including the ones I'd never have thought to test.
 - **Design tokens** — colour, type and shape shared by every block, with six presets.
 
 Headline and body fields accept line breaks, plus `**bold**` and `*italic*`.
+
+Every slider has a box beside it that takes an exact value — `37.25` puts a diagram
+hotspot at 37.25%, finer than the slider's own steps. `↑` and `↓` nudge by one step,
+with `Shift` by ten; a number outside the range is pulled back into it when you press
+`Enter` or leave the box, and anything that is not a number goes back to what it was.
 
 ### Advanced controls (every component)
 
@@ -1144,6 +1149,7 @@ index.html              Editor shell
 css/app.css             Editor chrome (does not ship with exports)
 js/core.js              Registry, scoping, escaping, tokens, defensive reset
 js/inspector.js         Schema → property panel
+js/richtext.js          The Article's formatting editor: reads and writes the Article's own marks
 js/export.js            Code assembly, minifier, preview document, platform notes
 js/app.js               State, history, persistence, wiring
 js/freshness.js         Notices when the browser is holding a stale index.html
@@ -1271,6 +1277,15 @@ test/
                         that a mosaic tile can override the block it sits in,
                         and that a list entry carries every field its schema
                         declares; 40 assertions
+  article.html          Asserts the Article's text and its editor agree: every
+                        kind of block renders the same after a trip through the
+                        editor, bold and italic nest whichever way round they
+                        were applied and always come out well formed, a typed
+                        asterisk or a paragraph that starts like a mark stays
+                        words, and a paste from Google Docs or Word keeps its
+                        bold, headings and lists but none of its scripts. Then
+                        drives the editor itself — the style menu, the bold and
+                        list buttons, and the Text view; 56 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 tools/
   us-map/build.js       Regenerates the Territory Map's state outlines from us-atlas's
@@ -1284,7 +1299,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 763 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 819 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

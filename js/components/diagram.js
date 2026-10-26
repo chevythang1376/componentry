@@ -64,7 +64,12 @@
           { k: 'text', t: 'textarea', label: 'Description', value: '' },
           { k: 'meta', t: 'text', label: 'Meta line', value: '', help: 'Small line above the title — a product list, for example.' },
           { k: 'linkText', t: 'text', label: 'Link label', value: '' },
-          { k: 'linkUrl', t: 'url', label: 'Link URL', value: '#' }
+          { k: 'linkUrl', t: 'url', label: 'Link URL', value: '#' },
+          {
+            k: 'image', t: 'image', label: 'Image in the detail box', value: '',
+            help: 'Optional. Shown whole at the top of the box, never cropped, so a product shot or a cut-out PNG both fit.'
+          },
+          { k: 'alt', t: 'textarea', label: 'Detail image description', value: '', help: 'What the image shows, for screen readers. Leave blank only if it is decoration.' }
         ],
         value: [
           { x: 21, y: 24, cat: 'hv', title: 'Utility Power', text: 'Overhead transmission brings high voltage supply onto the site before it is stepped down.', meta: 'ACSR · ACSS · C7', linkText: 'View products', linkUrl: '#' },
@@ -90,6 +95,11 @@
       { k: 'pin', t: 'select', label: 'Pin style', value: 'number', options: [['number', 'Numbered'], ['dot', 'Plain dot']] },
       { k: 'pinSize', t: 'range', label: 'Pin size', min: 18, max: 44, step: 2, unit: 'px', value: 28 },
       { k: 'pulse', t: 'toggle', label: 'Pulse unselected pins', value: true },
+      {
+        k: 'detailRatio', t: 'select', label: 'Detail image shape', value: '4/3',
+        options: [['16/9', 'Wide 16 : 9'], ['4/3', 'Standard 4 : 3'], ['1/1', 'Square']],
+        help: 'The frame each hotspot image is fitted into. The image is never cropped to it.'
+      },
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'page',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -138,6 +148,7 @@
       var panels = items.map(function (it, i) {
         return c.dedent(`
           <article class="cb-hs__detail" data-i="${i}">
+            ${it.image ? '<div class="cb-hs__dMedia"><img src="' + c.url(it.image) + '" alt="' + c.attr(it.alt) + '" loading="lazy" decoding="async"></div>' : ''}
             <span class="cb-hs__badge" style="--cb-pc: ${c.attr(catColor(it.cat))}; --cb-pi: ${c.attr(pinInk(catColor(it.cat)))}">${i + 1}</span>
             ${it.meta ? '<p class="cb-hs__meta">' + c.esc(it.meta) + '</p>' : ''}
             <h3 class="cb-hs__dTitle">${c.esc(it.title)}</h3>
@@ -318,6 +329,18 @@ ${c.indent(panels, 16)}
           min-height: 200px;
         }
         ${s} .cb-hs__detail { display: none; flex-direction: column; gap: 10px; }
+        /* A frame of fixed shape, so the box keeps its height before the image
+           arrives, and contain inside it, so a tall product shot and a wide
+           photo are both seen whole. No fill of its own: a cut-out PNG sits on
+           the panel itself. */
+        ${s} .cb-hs__dMedia {
+          position: relative; flex: none;
+          aspect-ratio: ${p.detailRatio === '1/1' || p.detailRatio === '16/9' ? p.detailRatio : '4/3'};
+          max-height: 300px; margin-bottom: 6px; overflow: hidden; border-radius: calc(var(--cb-radius) * .6);
+        }
+        /* Pinned to the frame rather than sized by its own height, or a tall
+           image would make the box it is contained in taller than the frame. */
+        ${s} .cb-hs__dMedia img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
         ${s} .cb-hs__badge {
           display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
           background: var(--cb-pc); color: var(--cb-pi); font-size: .75em; font-weight: 800;
