@@ -1653,7 +1653,22 @@
      The editor's formatting toolbar reads the same blocks and writes them
      back as text, so what it shows and what the page gets cannot drift.
 
-     A paragraph can open with {large} or {small} to set its size. */
+     A paragraph or heading can open with settings in braces, in any order:
+     a size (small, large, xl), an alignment (left, center, right, justify)
+     and a colour from the palette (ink, muted, brand). {large center} is a
+     centred standfirst; {brand} ## Title is a copper heading. Anything else
+     in braces is left as words. */
+  var ATTRS = { size: ['small', 'large', 'xl'], align: ['left', 'center', 'right', 'justify'], color: ['ink', 'muted', 'brand'] };
+  function readAttrs(s) {
+    var out = { size: '', align: '', color: '' }, ok = true;
+    s.toLowerCase().split(/\s+/).forEach(function (w) {
+      var kind = Object.keys(ATTRS).filter(function (k) { return ATTRS[k].indexOf(w) >= 0; })[0];
+      if (!kind || out[kind]) ok = false;
+      else out[kind] = w;
+    });
+    return ok ? out : null;
+  }
+
   function articleBlocks(src) {
     var lines = String(src == null ? '' : src).replace(/\r\n?/g, '\n').split('\n');
     var blocks = [];
@@ -1672,8 +1687,15 @@
     function flushAll() { flushList(); flushQuote(); flushFigure(''); }
 
     lines.forEach(function (line) {
-      var t = line.trim(), m;
+      var t = line.trim(), m, a = null;
       if (!t) { flushAll(); return; }
+
+      /* Settings first; the rest of the line is then read as usual. */
+      if ((m = /^\{([a-z]+(?:\s+[a-z]+)*)\}\s*(.*)$/i.exec(t)) && (a = readAttrs(m[1]))) {
+        t = m[2];
+        if (!t) return;
+      }
+      a = a || { size: '', align: '', color: '' };
 
       /* A backslash in front of what would otherwise be read as a mark keeps
          the line as words: \- is a paragraph starting with a dash. */
@@ -1684,7 +1706,7 @@
 
       if (!literal && (m = /^(#{2,3})\s+(.+)$/.exec(t))) {
         flushAll();
-        blocks.push({ type: 'h', level: m[1].length, text: m[2] });
+        blocks.push({ type: 'h', level: m[1].length, align: a.align, color: a.color, text: m[2] });
         return;
       }
       if (!literal && (m = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(t))) {
@@ -1710,9 +1732,7 @@
       }
 
       flushList(); flushQuote();
-      m = literal ? null : /^\{(large|small)\}\s*(.*)$/i.exec(t);
-      var text = m ? m[2] : t;
-      if (text) blocks.push({ type: 'p', size: m ? m[1].toLowerCase() : '', text: text });
+      blocks.push({ type: 'p', size: a.size, align: a.align, color: a.color, text: t });
     });
     flushAll();
     return blocks;
@@ -1721,7 +1741,7 @@
   /* What a line can open with to be read as something other than words.
      Asterisks are not here: a literal one is written \*, which no line mark
      starts with. */
-  var LINE_MARK = /^(#{2,3}\s|-\s|\d+[.)]\s|>|!\[|-{3,}$|\{(large|small)\})/i;
+  var LINE_MARK = /^(#{2,3}\s|-\s|\d+[.)]\s|>|!\[|-{3,}$|\{[a-z]+(\s+[a-z]+)*\})/i;
 
   /* And back to text, in the form articleBlocks reads. A blank line between
      blocks keeps two lists, or a figure and the paragraph after it, apart. A
@@ -1729,15 +1749,19 @@
      with a backslash in front, so it comes back as the words it was. */
   function articleText(blocks) {
     function words(t) { return LINE_MARK.test(t) ? '\\' + t : t; }
+    function settings(b) {
+      var a = [b.size, b.align, b.color].filter(Boolean);
+      return a.length ? '{' + a.join(' ') + '} ' : '';
+    }
     return (blocks || []).map(function (b) {
       switch (b.type) {
         case 'hr': return '---';
-        case 'h': return (b.level === 3 ? '### ' : '## ') + b.text;
+        case 'h': return settings(b) + (b.level === 3 ? '### ' : '## ') + b.text;
         case 'figure': return '![' + (b.alt || '') + '](' + b.src + ')' + (b.caption ? '\n' + words(b.caption) : '');
         case 'ul': return b.items.map(function (t) { return '- ' + t; }).join('\n');
         case 'ol': return b.items.map(function (t, i) { return (i + 1) + '. ' + t; }).join('\n');
         case 'quote': return b.lines.map(function (t) { return '> ' + t; }).join('\n');
-        default: return b.size ? '{' + b.size + '} ' + b.text : words(b.text);
+        default: return settings(b) + words(b.text);
       }
     }).filter(Boolean).join('\n\n');
   }
@@ -1753,7 +1777,11 @@
      the URL guard on its own, rather than escaping first and parsing after,
      which would hand CB.url an address that had already been entity-encoded
      once. Marks are then read across the whole line, so a bold link is
-     **[like this](address)** and stays bold. */
+     **[like this](address)** and stays bold.
+
+     [These words]{brand} colours words from the palette (ink, muted, brand),
+     lifted out the same way, innermost first, so a colour can sit inside
+     another or around a link. */
   function articleMarks(s) {
     s = String(s);
     var parts = [], re = /\\\*|\*+/g, last = 0, m;
@@ -1790,13 +1818,22 @@
     }).join('');
   }
   function articleInline(raw) {
-    var links = [];
+    var held = [];
+    function hold(html) { held.push(html); return '\u0000' + (held.length - 1) + '\u0000'; }
     var text = String(raw == null ? '' : raw).replace(/\u0000/g, '')
-      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (all, label, href) {
-        links.push('<a href="' + CB.url(href) + '">' + articleMarks(label) + '</a>');
-        return '\u0000' + (links.length - 1) + '\u0000';
+      .replace(/\[([^\[\]]+)\]\(([^)\s]+)\)/g, function (all, label, href) {
+        return hold('<a href="' + CB.url(href) + '">' + articleMarks(label) + '</a>');
       });
-    return articleMarks(text).replace(/\u0000(\d+)\u0000/g, function (all, i) { return links[+i]; });
+    var colour = /\[([^\[\]]+)\]\{(ink|muted|brand)\}/g, before;
+    do {
+      before = text;
+      text = text.replace(colour, function (all, label, c) {
+        return hold('<span class="cb-ar__c--' + c + '">' + articleMarks(label) + '</span>');
+      });
+    } while (text !== before);
+    var out = articleMarks(text);
+    while (/\u0000\d+\u0000/.test(out)) out = out.replace(/\u0000(\d+)\u0000/g, function (all, i) { return held[+i]; });
+    return out;
   }
 
   CB.article = { blocks: articleBlocks, text: articleText, inline: articleInline };
@@ -1805,6 +1842,9 @@
      layout can be roughed out before the photography exists. */
   function articleBody(src, c, lead) {
     var paras = 0;
+    function settings(b) {
+      return (b.align ? ' cb-ar__al-' + b.align : '') + (b.color ? ' cb-ar__c--' + b.color : '');
+    }
     return articleBlocks(src).map(function (b) {
       switch (b.type) {
         case 'hr': return '<hr>';
@@ -1815,7 +1855,7 @@
              class: a rule written for h3 would land on the wrong heading after
              the shift. */
           var two = b.level === 2, tag = two ? 'h3' : 'h4';
-          return '<' + tag + ' class="' + (two ? 'cb-ar__h' : 'cb-ar__h cb-ar__h--minor') + '">' + articleInline(b.text) + '</' + tag + '>';
+          return '<' + tag + ' class="' + (two ? 'cb-ar__h' : 'cb-ar__h cb-ar__h--minor') + settings(b) + '">' + articleInline(b.text) + '</' + tag + '>';
         case 'figure':
           var src = b.src === 'placeholder' ? CB.ph(1200, 675, '', '#96694c', '#2b241f') : b.src;
           return '<figure class="cb-ar__fig"><img src="' + c.url(src) + '" alt="' + c.attr(b.alt) +
@@ -1827,7 +1867,7 @@
           return '<blockquote>' + b.lines.map(function (t) { return '<p>' + articleInline(t) + '</p>'; }).join('') + '</blockquote>';
         default:
           /* A size set on the paragraph wins over the introduction. */
-          var cls = b.size ? 'cb-ar__' + b.size : (lead && paras === 0 ? 'cb-ar__lead' : '');
+          var cls = ((b.size ? 'cb-ar__' + b.size : (lead && paras === 0 ? 'cb-ar__lead' : '')) + settings(b)).trim();
           paras++;
           return '<p' + (cls ? ' class="' + cls + '"' : '') + '>' + articleInline(b.text) + '</p>';
       }
@@ -1839,30 +1879,51 @@
     name: 'Article',
     category: CAT,
     icon: '¶',
-    blurb: 'Long-form copy — case studies, news, guides — typed as plain text with a few simple marks for headings, lists, quotes, images and links.',
+    blurb: 'Long-form copy or any section of text — case studies, news, guides, a plain block of copy. Formatted by sight: sizes, alignment, palette colours, links, lists, quotes and images.',
     props: [
-      { t: 'section', label: 'Heading' },
-      { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Case study' },
+      { t: 'section', label: 'Heading (optional)' },
+      {
+        k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'Case study',
+        help: 'Leave the eyebrow, title and byline all empty and this is a plain text section, with nothing above the text.'
+      },
       { k: 'title', t: 'text', label: 'Title', value: 'How to write in this block' },
       {
         k: 'meta', t: 'text', label: 'Byline or details', value: 'By the web team · 3 min read',
         help: 'Author, date, reading time — whatever sits under a title. Leave empty for none.'
       },
 
-      { t: 'section', label: 'Article' },
+      { t: 'section', label: 'Text' },
       {
-        k: 'body', t: 'textarea', label: 'Article text', value: ARTICLE_SAMPLE, rows: 18, editor: 'article',
+        k: 'body', t: 'textarea', label: 'Text', value: ARTICLE_SAMPLE, rows: 18, editor: 'article',
         help: 'Format with the toolbar, or switch to Text and type the marks: every line is a paragraph · ' +
-              '## heading · ### smaller heading · {large} or {small} at the start of a paragraph · - bullet · ' +
-              '1. numbered · > pull quote · ![alt text](image address) with an optional caption on the next line · ' +
-              '[link text](address) · **bold** · *italic* · --- for a divider.'
+              '## heading · ### smaller heading · settings in braces at the start of a paragraph or heading, ' +
+              'like {large center} or {xl brand} (sizes small, large, xl; left, center, right, justify; ink, muted, brand) · ' +
+              '[some words]{brand} to colour words · - bullet · 1. numbered · > pull quote · ' +
+              '![alt text](image address) with an optional caption on the next line · [link text](address) · ' +
+              '**bold** · *italic* · --- for a divider.'
       },
       { k: 'lead', t: 'toggle', label: 'Set the first paragraph as an introduction', value: true },
 
       { t: 'section', label: 'Layout' },
-      { k: 'measure', t: 'range', label: 'Line length', min: 50, max: 90, step: 2, unit: 'ch', value: 68,
-        help: 'Around 65 characters is the comfortable reading measure.' },
-      { k: 'align', t: 'select', label: 'Column', value: 'center', options: [['center', 'Centered on the page'], ['left', 'Aligned left']] },
+      {
+        k: 'textAlign', t: 'select', label: 'Text alignment', value: 'left',
+        options: [['left', 'Left'], ['center', 'Centred'], ['right', 'Right'], ['justify', 'Justified']],
+        help: 'For the whole block; the toolbar can set one paragraph differently. Justified text is hyphenated so ' +
+              'it does not open gaps between words, keeps the last line of each paragraph on the left, and is ' +
+              'left-aligned on phones, where a narrow justified column reads worst.'
+      },
+      {
+        k: 'spacing', t: 'select', label: 'Paragraph spacing', value: 'comfortable',
+        options: [['compact', 'Compact'], ['comfortable', 'Comfortable'], ['airy', 'Airy']]
+      },
+      { k: 'width', t: 'select', label: 'Width', value: 'measure', options: [['measure', 'Comfortable reading width'], ['full', 'Full width']] },
+      { k: 'measure', t: 'range', label: 'Line length', min: 50, max: 90, step: 2, unit: 'ch', value: 68, when: { width: ['measure'] },
+        help: 'Around 65 characters is the comfortable reading measure. With two columns this is each column.' },
+      { k: 'align', t: 'select', label: 'Position on the page', value: 'center', options: [['center', 'Centered on the page'], ['left', 'Aligned left']], when: { width: ['measure'] } },
+      {
+        k: 'columns', t: 'select', label: 'Columns', value: '1', options: [['1', 'One column'], ['2', 'Two columns']],
+        help: 'Long copy runs down the first column and on into the second. Narrow screens always get one.'
+      },
       { k: 'ratio', t: 'select', label: 'Image shape', value: '16/9', options: [['16/9', '16 : 9'], ['3/2', '3 : 2'], ['4/3', '4 : 3'], ['1/1', 'Square']] },
 
       { t: 'section', label: 'Style' },
@@ -1879,6 +1940,23 @@
       var s = c.s;
       var body = articleBody(p.body, c, !!p.lead);
       var hasHead = p.eyebrow || p.title || p.meta;
+      var ta = ['center', 'right', 'justify'].indexOf(p.textAlign) >= 0 ? p.textAlign : 'left';
+      /* A justified heading only stretches out a line, so headings and the
+         header sit left in a justified block and follow it otherwise. */
+      var headAlign = ta === 'justify' ? 'left' : ta;
+      var gap = { compact: '.7em', airy: '1.6em' }[p.spacing] || '1.1em';
+      var two = String(p.columns) === '2';
+      var measure = c.clamp(c.num(p.measure, 68), 40, 100);
+      var colGap = 'clamp(28px, 4vw, 56px)';
+      var full = p.width === 'full';
+      var maxW = full ? 'none' : two ? 'calc(' + (measure * 2) + 'ch + ' + colGap + ')' : measure + 'ch';
+      /* A justified block justifies its running text. A pull quote or an extra
+         large paragraph has too few words a line to spread evenly, so those
+         stay left unless a paragraph is justified on its own — and one with
+         its own alignment is left out entirely, since this selector would
+         otherwise outrank it. */
+      var justified = s + ' .cb-ar__body .cb-ar__al-justify' + (ta === 'justify'
+        ? ', ' + s + ' .cb-ar__body > p:not(.cb-ar__xl, .cb-ar__al-left, .cb-ar__al-center, .cb-ar__al-right)' : '');
 
       var html = c.dedent(`
         <section class="${c.cls} cb-ar">
@@ -1898,8 +1976,8 @@
 
       var css = `
         ${s}.cb-ar { background: ${c.bg(p)}; padding-block: ${c.num(p.pad, 80)}px; }
-        ${s} .cb-ar__col { max-width: ${c.clamp(c.num(p.measure, 68), 40, 100)}ch; ${p.align === 'left' ? '' : 'margin-inline: auto;'} }
-        ${s} .cb-ar__head { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--cb-border); }
+        ${s} .cb-ar__col { max-width: ${maxW}; ${!full && p.align === 'left' ? '' : 'margin-inline: auto;'} }
+        ${s} .cb-ar__head { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--cb-border); text-align: ${headAlign}; }
         ${s} .cb-ar__eyebrow {
           font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
           letter-spacing: calc(.12em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase;
@@ -1912,31 +1990,46 @@
         ${s} .cb-ar__meta { margin-top: 12px; font-size: .85em; color: var(--cb-muted); }
 
         /* One rhythm for everything in the body, so a heading, a list and a
-           figure all sit the same distance from what comes before them. */
-        ${s} .cb-ar__body > * + * { margin-top: 1.1em; }
+           figure all sit the same distance from what comes before them. The
+           spacing setting moves the gap; headings, quotes, figures and rules
+           keep the same extra room above it. */
+        ${s} .cb-ar__body { --cb-ar-gap: ${gap}; text-align: ${headAlign}; }
+        ${s} .cb-ar__body > * + * { margin-top: var(--cb-ar-gap); }
         ${s} .cb-ar__body p { color: var(--cb-ink); }
         ${s} .cb-ar__lead, ${s} .cb-ar__body .cb-ar__large { font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); line-height: calc(1.5 + var(--cb-body-leading, 0)); }
-        ${s} .cb-ar__body .cb-ar__small { font-size: .85em; color: var(--cb-muted); }
+        ${s} .cb-ar__body .cb-ar__xl {
+          font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-body-scale, 1));
+          line-height: calc(1.35 + var(--cb-body-leading, 0)); letter-spacing: -.01em;
+        }
+        ${s} .cb-ar__body .cb-ar__small { font-size: .85em; }
         ${s} .cb-ar__h {
-          margin-top: 1.9em;
+          margin-top: calc(var(--cb-ar-gap) + .8em); text-align: ${headAlign};
           font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700);
           line-height: calc(1.2 + var(--cb-h-leading, 0)); letter-spacing: calc(-.015em + var(--cb-h-track, 0em)); text-wrap: balance;
         }
         ${s} .cb-ar__h--minor {
-          margin-top: 1.6em;
+          margin-top: calc(var(--cb-ar-gap) + .5em);
           font-size: 1.12em; font-weight: var(--cb-h-weight, 700);
           line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
         }
         ${s} .cb-ar__h + * { margin-top: .6em; }
         /* The reset takes bullets away from every list in the block, so an
            article has to ask for them back. */
-        ${s} .cb-ar__body ul { list-style: disc; padding-left: 1.3em; }
-        ${s} .cb-ar__body ol { list-style: decimal; padding-left: 1.4em; }
+        /* Bullets hang at the left edge whatever the text does, so a list
+           reads left to right in any alignment. */
+        ${s} .cb-ar__body ul { list-style: disc; padding-left: 1.3em; text-align: left; }
+        ${s} .cb-ar__body ol { list-style: decimal; padding-left: 1.4em; text-align: left; }
         ${s} .cb-ar__body li + li { margin-top: .45em; }
         ${s} .cb-ar__body li::marker { color: var(--cb-brand-ink, var(--cb-brand)); }
         ${s} .cb-ar__body blockquote {
-          margin-block: 1.6em; padding-left: 20px; border-left: 3px solid var(--cb-brand);
+          margin-block: calc(var(--cb-ar-gap) + .5em); padding-left: 20px; border-left: 3px solid var(--cb-brand);
         }
+        ${ta === 'center' ? `/* A rule down one side of a centred quote looks misplaced; it moves above. */
+        ${s} .cb-ar__body blockquote { padding-left: 0; border-left: 0; }
+        ${s} .cb-ar__body blockquote::before {
+          content: ""; display: block; width: 48px; height: 3px; margin: 0 auto .7em; background: var(--cb-brand);
+        }` : ''}
+        ${ta === 'right' ? `${s} .cb-ar__body blockquote { padding-left: 0; border-left: 0; padding-right: 20px; border-right: 3px solid var(--cb-brand); }` : ''}
         ${s} .cb-ar__body blockquote p {
           font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-body-scale, 1)); font-weight: 500;
           line-height: calc(1.4 + var(--cb-body-leading, 0)); letter-spacing: -.01em; color: var(--cb-ink); text-wrap: balance;
@@ -1944,13 +2037,42 @@
         ${s} .cb-ar__body a { color: var(--cb-brand-ink, var(--cb-brand)); text-decoration: underline; text-underline-offset: .18em; }
         ${s} .cb-ar__body strong { font-weight: 700; }
         ${s} .cb-ar__body em { font-style: italic; }
-        ${s} .cb-ar__body hr { border: 0; border-top: 1px solid var(--cb-border); margin-block: 2em; }
-        ${s} .cb-ar__fig { margin-block: 1.8em; }
+        ${s} .cb-ar__body hr { border: 0; border-top: 1px solid var(--cb-border); margin-block: calc(var(--cb-ar-gap) + .9em); }
+        ${s} .cb-ar__fig { margin-block: calc(var(--cb-ar-gap) + .7em); }
         ${s} .cb-ar__fig img {
           display: block; width: 100%; aspect-ratio: ${p.ratio || '16/9'}; object-fit: cover;
           border-radius: var(--cb-radius); background: var(--cb-subtle);
         }
-        ${s} .cb-ar__fig figcaption { margin-top: 10px; font-size: .85em; color: var(--cb-muted); }`;
+        ${s} .cb-ar__fig figcaption { margin-top: 10px; font-size: .85em; color: var(--cb-muted); }
+
+        /* A paragraph or heading set apart from the block's alignment. */
+        ${s} .cb-ar__body .cb-ar__al-left { text-align: left; -webkit-hyphens: manual; hyphens: manual; }
+        ${s} .cb-ar__body .cb-ar__al-center { text-align: center; -webkit-hyphens: manual; hyphens: manual; }
+        ${s} .cb-ar__body .cb-ar__al-right { text-align: right; -webkit-hyphens: manual; hyphens: manual; }
+        /* Justified, done the way print does it: words are hyphenated so the
+           spacing stays even rather than opening gaps that run down the
+           column, short words are left whole, and the last line sits left.
+           Hyphenation follows the page's language — the lang on its html. */
+        ${justified} {
+          text-align: justify; text-align-last: left;
+          -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 6 3 3;
+        }
+        @media (max-width: 560px) {
+          ${justified} { text-align: left; -webkit-hyphens: manual; hyphens: manual; }
+        }
+
+        /* Colours from the palette only, so the scheme and the contrast
+           checks keep reaching them. */
+        ${s} .cb-ar__body .cb-ar__c--ink { color: var(--cb-ink); }
+        ${s} .cb-ar__body .cb-ar__c--muted { color: var(--cb-muted); }
+        ${s} .cb-ar__body .cb-ar__c--brand { color: var(--cb-brand-ink, var(--cb-brand)); }
+        ${two ? `
+        /* Copy runs down one column and on into the next. Headings stay with
+           what follows them; figures, quotes and list items are not split. */
+        ${s} .cb-ar__body { columns: 2; column-gap: ${colGap}; }
+        ${s} .cb-ar__h { break-after: avoid; }
+        ${s} .cb-ar__fig, ${s} .cb-ar__body blockquote, ${s} .cb-ar__body li { break-inside: avoid; }
+        @media (max-width: 760px) { ${s} .cb-ar__body { columns: auto; } }` : ''}`;
 
       return { html: html, css: css, js: '' };
     }

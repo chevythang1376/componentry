@@ -69,7 +69,7 @@ so the deploy that introduces it is the last one that can go stale.
 | | Webinar Library | Recorded and upcoming sessions, newest first. Sorted when the code is generated, not in the browser, so the order survives an editor that strips scripts |
 | | Kinetic Text Reveal | A statement that assembles as it scrolls in, by line, word or letter. The split happens when the code is generated, not by a script in the browser — so it is the CSS-only version of an effect every library builds with JavaScript. The whole sentence stays on the heading as its accessible name, and the pieces are hidden from the accessibility tree |
 | | Table | Ships empty and offers **Import cells** first — paste a block from a spreadsheet and it builds the table. A real `<table>` with sticky row labels, optional image/flag/button column headers, automatic right-alignment for numeric columns, and a zero-JS “only show differences” filter — which rows are identical is worked out when the code is generated, not in the browser |
-| | Article | Long-form copy, formatted by sight in a small editor — bold, italic, links, headings, large and small paragraphs, quotes, lists, dividers and images — or typed as plain text with marks: a line is a paragraph, and `##`, `{large}`, `-`, `1.`, `>`, `![alt](url)`, `[text](url)` and `**bold**` become headings, sizes, lists, a pull quote, a captioned figure, links and emphasis. The editor writes those same marks, so the two never disagree. Converted when the code is generated, so there is no parser in the page and the result is ordinary HTML. Zero JS |
+| | Article | Long-form copy or any plain section of text — leave the eyebrow, title and byline empty and nothing sits above it. Formatted by sight in a small editor: bold, italic, links, headings, quotes, lists, dividers and images; Small, Normal, Large and Extra large paragraphs from the type scale; left, centred, right or justified, for the whole block or one paragraph; and text, muted or copper from the palette, for a paragraph or a few words. Paragraph spacing, a full-width option and two columns for long copy. Justified text is hyphenated so it does not open gaps, keeps each last line left, and is left-aligned on phones. Or type the marks — `##`, `{large center}`, `[words]{brand}`, `-`, `>`, `![alt](url)`, `[text](url)`, `**bold**` — which the editor writes too, so the two never disagree. Converted when the code is generated, so there is no parser in the page and the result is ordinary HTML. Zero JS |
 | | Step-by-Step | Numbered steps in a real `<ol>`, with photos and tip or caution callouts. A caution is labelled in words, not only by colour. Optional `HowTo` JSON-LD with a total time. Zero JS |
 | | Data Bars | Figures as bars or rings, each against its own maximum and held at full past it. Ships empty — every number in it is a claim — and pastes from a spreadsheet, reading figures the way a sheet writes them: `1,200`, `78%`, `$1.2M`. The figure is always written as text as well as drawn. Zero JS |
 | | People | Reps and specialists: photo or initials, role, territory, and email and phone as real `mailto:` / `tel:` links, with the address shown so it can be copied. Pastes from a spreadsheet. Zero JS |
@@ -326,7 +326,7 @@ pages the library actually ships, rather than on an abstract five:
 | Product page | 5 | 73.6 kB CSS | **29.3 kB** | −60% |
 | Capability page | 5 | 75.7 kB CSS | **32.1 kB** | −58% |
 | Landing page | 6 | 83.2 kB CSS | **28.8 kB** | −65% |
-| All 44 | 44 | 610.4 kB CSS | **170.9 kB** | −72% |
+| All 44 | 44 | 612.4 kB CSS | **172.9 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -1129,6 +1129,12 @@ a copy, or point image fields at URLs instead of uploading.
   in front of the words, and it was moved by a script a frame behind the scroll. A banner
   saved before then opens as it was set: a strength of 0 stays still, and anything else
   becomes the matching depth, so the old default opens on the new one.
+- **Article → text alignment, paragraph spacing, width and columns.** The alignment is the
+  block's default; the toolbar sets one paragraph or heading differently, and pressing the
+  same button again hands it back to the block. Justified text uses the page's language
+  for hyphenation — the `lang` on its `<html>` — so a page without one justifies without
+  hyphens. Colours are the palette's three on purpose: they follow Light and Dark, and the
+  contrast checks can vouch for them.
 - **Countdown → when it reaches zero**: show a message, hide the block, or hold at zero.
 
 Toggles that are off cost nothing: the code for them isn't emitted at all, which keeps
@@ -1285,7 +1291,11 @@ test/
                         words, and a paste from Google Docs or Word keeps its
                         bold, headings and lists but none of its scripts. Then
                         drives the editor itself — the style menu, the bold and
-                        list buttons, and the Text view; 56 assertions
+                        list buttons, alignment, colour and the Text view. The
+                        layout settings are checked as the browser resolves
+                        them: a justified block justifies its running text but
+                        not a paragraph aligned on its own, a pull quote or
+                        extra large text; 99 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 tools/
   us-map/build.js       Regenerates the Territory Map's state outlines from us-atlas's
@@ -1299,7 +1309,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 819 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 862 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
