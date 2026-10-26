@@ -311,10 +311,94 @@ input, select, textarea { font: inherit; color: inherit; }
   width: 13px; height: 13px; border-radius: 50%;
   background: var(--accent); border: 2px solid var(--panel); cursor: grab;
 }
-.ctl-out {
-  flex: 0 0 auto; min-width: 48px; text-align: right;
-  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+.ctl-num {
+  flex: 0 0 auto; display: flex; align-items: baseline; gap: 2px;
+  padding: 0 7px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  font-family: var(--mono); font-size: 11.5px; transition: border-color .15s;
 }
+.ctl-num:focus-within { border-color: var(--accent); }
+.ctl-num__in {
+  width: 5ch; padding: 5px 0; text-align: right;
+  background: none; border: 0; outline: none;
+  color: var(--text); font: inherit;
+}
+.ctl-num__unit { color: var(--dim); font-size: 10.5px; }
+.ctl-num__unit[hidden] { display: none; }
+
+/* The Article's formatting editor. Sized like the panel's own type, with
+   enough of the article's shape (heading weight, quote rule, list markers) to
+   read at a glance; the canvas is still where it is judged. */
+.rte { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.rte:focus-within { border-color: var(--accent); }
+.rte__bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px;
+  padding: 5px; border-bottom: 1px solid var(--line); background: var(--panel-2);
+  border-radius: 8px 8px 0 0;
+}
+.rte__style {
+  height: 28px; padding: 0 22px 0 8px; margin-right: 3px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--text); font-size: 12px; cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+  background-position: calc(100% - 12px) 12px, calc(100% - 8px) 12px;
+  background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+}
+.rte__btn {
+  display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 5px;
+  border-radius: 6px; color: var(--muted); font-size: 13.5px; line-height: 1;
+}
+.rte__btn b { font-weight: 800; }
+.rte__btn i { font-style: italic; font-family: Georgia, serif; font-size: 14.5px; }
+.rte__btn:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+.rte__btn.is-on { background: var(--accent-soft); color: var(--accent-lift); }
+.rte__btn:disabled, .rte__style:disabled { opacity: .35; cursor: default; }
+.rte__mode {
+  margin-left: auto; height: 28px; padding: 0 10px; border-radius: 6px;
+  border: 1px solid var(--line); color: var(--muted); font-size: 11.5px; font-weight: 600;
+}
+.rte__mode:hover { color: var(--text); border-color: var(--dim); }
+.rte__mode[aria-pressed="true"] { color: var(--accent-lift); border-color: var(--accent); }
+
+.rte__form { display: grid; gap: 7px; padding: 9px; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+.rte__field { display: grid; gap: 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.rte__acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.rte__act {
+  height: 28px; padding: 0 11px; border-radius: 6px; border: 1px solid var(--line);
+  color: var(--muted); font-size: 12px; font-weight: 600;
+}
+.rte__act:hover { color: var(--text); border-color: var(--dim); }
+.rte__act.is-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.rte__area {
+  min-height: 240px; max-height: 62vh; overflow: auto; resize: vertical;
+  padding: 11px 13px; outline: none;
+  font-size: 13px; line-height: 1.55; color: var(--text); overflow-wrap: anywhere;
+}
+.rte__area > * + * { margin-top: 8px; }
+.rte__area h3 { font-size: 16.5px; font-weight: 750; line-height: 1.3; margin-top: 14px; }
+.rte__area h4 { font-size: 14px; font-weight: 750; line-height: 1.35; margin-top: 12px; }
+.rte__area .is-large { font-size: 15px; }
+.rte__area .is-small { font-size: 11.5px; color: var(--muted); }
+.rte__area ul { list-style: disc; padding-left: 20px; }
+.rte__area ol { list-style: decimal; padding-left: 22px; }
+.rte__area li + li { margin-top: 3px; }
+.rte__area li::marker { color: var(--accent-lift); }
+.rte__area blockquote { border-left: 3px solid var(--accent); padding-left: 11px; font-size: 14px; }
+.rte__area blockquote > * + * { margin-top: 6px; }
+.rte__area hr { border: 0; border-top: 1px solid var(--line); margin-block: 14px; }
+.rte__area a { color: var(--accent-lift); text-decoration: underline; text-underline-offset: 2px; }
+.rte__area b, .rte__area strong { font-weight: 750; }
+.rte__area i, .rte__area em { font-style: italic; }
+.rte-fig {
+  display: flex; align-items: center; gap: 9px; padding: 6px;
+  border: 1px dashed var(--line); border-radius: 7px; cursor: pointer; user-select: none;
+}
+.rte-fig:hover { border-color: var(--accent); }
+.rte-fig img { flex: 0 0 auto; width: 58px; height: 38px; object-fit: cover; border-radius: 4px; background: var(--raised); }
+.rte-fig__text { display: grid; font-size: 11.5px; color: var(--muted); min-width: 0; }
+.rte-fig__text b { color: var(--text); font-weight: 650; }
+.rte-fig__text i { font-style: italic; }
+.rte__raw { border: 0; border-radius: 0 0 8px 8px; font-family: var(--mono); font-size: 12px; min-height: 240px; }
 
 .ctl-color { display: flex; gap: 7px; align-items: center; }
 .ctl-swatch {

@@ -1,0 +1,194 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Componentry — article text</title>
+<style>
+  body { font: 14px/1.6 system-ui; margin: 24px; color: #141210; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b625a; margin: 0 0 18px; max-width: 74ch; }
+  #out { white-space: pre-wrap; font: 12.5px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .bar { padding: 10px 14px; border-radius: 8px; font-weight: 700; margin-bottom: 16px; }
+  .ok { background: #e8f4ea; color: #14532d; }
+  .bad { background: #fdeaea; color: #7f1d1d; }
+  #mount { position: absolute; left: -20000px; width: 420px; }
+</style>
+<h1>Article text</h1>
+<p class="sub">The Article stores plain text with a few marks and is formatted by sight in the
+editor. Both have to agree: whatever the toolbar does is written back as marks, the marks
+are read back into exactly what was shown, and a paste from a document keeps its bold,
+italic, headings, lists and links without bringing anything else along.</p>
+<div id="bar" class="bar">running…</div>
+<div id="out"></div>
+<div id="mount"></div>
+<!-- Loaded with a timestamp so a test page can never report on stale source. -->
+<script>
+  ['core.js', 'components/content.js', 'components/heroes.js', 'components/interactive.js', 'components/media.js', 'components/modern.js', 'components/product.js', 'components/diagram.js', 'components/territory.js', 'export.js', 'richtext.js'
+  ].forEach(function (f) {
+    document.write('<scr' + 'ipt src="../js/' + f + '?t=' + Date.now() + '"><\/scr' + 'ipt>');
+  });
+</script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, got, want) {
+  var ok = String(got) === String(want);
+  ok ? pass++ : fail++;
+  log.push((ok ? 'PASS  ' : 'FAIL  ') + name + '\n        got ' + got + (ok ? '' : '\n        want ' + want));
+}
+function body(text, extra) {
+  var props = Object.assign(CB.defaults(CB.get('article')), { body: text }, extra || {});
+  return CB.build({ type: 'article', cls: 'cb-ar-t', props: props }, CB.DEFAULT_TOKENS, { omitBase: true }).html;
+}
+function dom(html) { var d = document.createElement('div'); d.innerHTML = html; return d; }
+var A = CB.article;
+function again(text) { return A.text(A.blocks(text)); }
+
+// --- marks to page, and back -------------------------------------------------
+var CASES = [
+  CB.defaults(CB.get('article')).body,
+  'One\nTwo\nThree',
+  '## Heading\n### Smaller\nWith **bold**, *italic*, ***both*** and [a link](https://example.com/a?b=1&c=2).',
+  '- a\n- b\n1. c\n2. d\n- e',
+  '> one\n> two\n\n> three',
+  '![Alt](placeholder)\nCaption with *it*\n\nAfter the figure',
+  '{large} Big\n{small} Fine print\nNormal',
+  '**a *b* c** and *a **b** c* and **[bold link](https://example.com)**',
+  '5 * 3 = 15, and a lone ** pair'
+];
+CASES.forEach(function (text, i) {
+  check('case ' + i + ' renders the same after a trip through the editor\'s form', body(again(text)), body(text));
+});
+check('and a second trip changes nothing', CASES.every(function (t) { return again(again(t)) === again(t); }), true);
+
+// --- sizes -----------------------------------------------------------------
+var sized = dom(body('{large} Big\n{small} Fine print\nNormal', { lead: true }));
+check('{large} sets a paragraph large', !!sized.querySelector('p.cb-ar__large'), true);
+check('{small} sets one small', !!sized.querySelector('p.cb-ar__small'), true);
+check('and the mark itself is not printed', /\{(large|small)\}/.test(sized.textContent), false);
+check('a sized first paragraph is not also the introduction', sized.querySelectorAll('.cb-ar__lead').length, 0);
+var css = CB.build({ type: 'article', cls: 'cb-ar-t', props: CB.defaults(CB.get('article')) }, CB.DEFAULT_TOKENS, { omitBase: true }).css;
+check('large is the introduction\'s size', /\.cb-ar__lead, [^{]*\.cb-ar__large \{ font-size: calc\(clamp\(16px/.test(css), true);
+
+// --- marks inside a line -----------------------------------------------------
+function inline(t) { return dom(A.inline(t)); }
+var both = inline('***x***');
+check('three asterisks are bold italic', !!both.querySelector('strong em, em strong') && both.textContent, 'x');
+var nest = inline('**a *b* c**');
+check('italic inside bold nests inside it', nest.querySelector('strong em') && nest.querySelector('strong em').textContent, 'b');
+var nest2 = inline('*a **b** c*');
+check('and bold inside italic', nest2.querySelector('em strong') && nest2.querySelector('em strong').textContent, 'b');
+var bl = inline('**[x](https://example.com)**');
+check('a bold link stays bold', !!bl.querySelector('strong > a[href="https://example.com"]'), true);
+var bad = inline('[x](javascript:alert(1))');
+check('a link cannot carry script', /^javascript:/i.test(bad.querySelector('a').getAttribute('href')), false);
+check('a lone asterisk stays an asterisk', inline('5 * 3').textContent, '5 * 3');
+check('and so do two with spaces round them', inline('5 * 3 = 15 * 1').querySelector('em'), null);
+check('\\* is only an asterisk', inline('\\*not italic\\*').textContent, '*not italic*');
+/* Well formed means a browser parsing it changes nothing. */
+['**a *b** c*', '*a **b* c**', '***a** b*', '**a *b***', '****x****'].forEach(function (t) {
+  var html = A.inline(t);
+  check('overlapping marks still come out well formed: ' + t, dom(html).innerHTML, html);
+});
+check('marks are text, not markup, when they hold markup', inline('**<img src=x>**').querySelector('img'), null);
+
+// --- the editor reads what it writes -----------------------------------------
+var R = CB.RichText;
+function readBack(blocks) {
+  var d = document.createElement('div');
+  d.innerHTML = blocks.map(R.blockHtml).join('');
+  return A.text(R.blocksOf(d));
+}
+/* Compared as the page it renders: the editor writes a literal asterisk as
+   \*, so the text can differ while meaning exactly the same thing. */
+CASES.forEach(function (text, i) {
+  check('case ' + i + ' drawn in the editor reads back as the same page', body(readBack(A.blocks(text))), body(text));
+});
+
+/* Formatting applied by the browser arrives as b and i, in whatever nesting
+   the selection produced. Each has to come back as the same emphasis. */
+function viaEditor(html) {
+  var d = document.createElement('div');
+  d.innerHTML = html;
+  return dom(body(A.text(R.blocksOf(d))));
+}
+var e1 = viaEditor('<p><b>a <i>b</i></b> c</p>');
+check('bold ending in italic', e1.querySelector('strong em') && e1.querySelector('strong').textContent.trim(), 'a b');
+var e2 = viaEditor('<p><i><b>a</b> b</i></p>');
+check('italic starting in bold', e2.querySelector('em strong') && e2.querySelector('em').textContent.trim(), 'a b');
+var e3 = viaEditor('<p>x <b><i>both</i></b> y</p>');
+check('wholly both', e3.querySelector('strong em, em strong') && e3.querySelector('strong em, em strong').textContent, 'both');
+var e5 = viaEditor('<p>5 * 3 and 2 * 4, *starred*</p>');
+check('asterisks typed in the editor stay asterisks', !e5.querySelector('em') && e5.querySelector('.cb-ar__body p').textContent, '5 * 3 and 2 * 4, *starred*');
+var e6 = viaEditor('<p>- not a list</p><p>1. nor this</p><p>## nor a heading</p><p>&gt; nor a quote</p>');
+check('words that start like a mark stay words',
+      e6.querySelectorAll('.cb-ar__body p').length + ' ' + e6.querySelectorAll('ul, ol, h3, blockquote').length, '4 0');
+var e4 = viaEditor('<p>see <a href="https://example.com/a b(c)">the page</a></p>');
+check('a link with spaces and brackets in its address survives',
+      e4.querySelector('a') && e4.querySelector('a').getAttribute('href'), 'https://example.com/a%20b%28c%29');
+
+// --- pastes from elsewhere ---------------------------------------------------
+function pasted(html) { return A.text(R.blocksOf(new DOMParser().parseFromString(html, 'text/html').body)); }
+check('Google Docs: the bold wrapper around the whole paste is not bold',
+      pasted('<b style="font-weight:normal" id="docs-internal-guid-1"><p><span style="font-weight:700">Bold</span><span> plain</span></p></b>'),
+      '**Bold** plain');
+check('a document\'s headings, italics and lists, nested lists flattened',
+      pasted('<h1>Title</h1><p class="MsoNormal"><i>Lean</i></p><ul><li>one</li><li>two<ul><li>nested</li></ul></li></ul><h4>Minor</h4>'),
+      '## Title\n\n*Lean*\n\n- one\n- two\n- nested\n\n### Minor');
+check('scripts, styles and images in a paste go nowhere',
+      pasted('<p>ok<script>bad()<\/script><style>p{}</style><img src="x" onerror="bad()"></p>'), 'ok');
+check('loose text between blocks becomes its own paragraph',
+      pasted('text before<p>inside</p>text after'), 'text before\n\ninside\n\ntext after');
+
+// --- the editor itself -------------------------------------------------------
+var changes = [];
+var ed = R.article({ id: 'ed-test', value: 'First paragraph\n\nSecond with a word', onChange: function (t) { changes.push(t); } });
+document.getElementById('mount').appendChild(ed.node);
+var area = ed.node.querySelector('.rte__area');
+var raw = ed.node.querySelector('.rte__raw');
+var modeBtn = ed.node.querySelector('.rte__mode');
+if (!raw.hidden) modeBtn.click();          // a remembered Text view would hide the visual one
+check('opens showing the text formatted, not as marks', area.hidden === false && area.querySelectorAll('p').length, 2);
+
+/* A selection inside the first piece of text in a node, as a mouse would make it. */
+function selectIn(node, from, to) {
+  var t = document.createTreeWalker(node, NodeFilter.SHOW_TEXT).nextNode(), r = document.createRange();
+  r.setStart(t, from); r.setEnd(t, to == null ? from : to);
+  area.focus();
+  var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  document.dispatchEvent(new Event('selectionchange'));
+}
+function last() { return changes[changes.length - 1] || ''; }
+
+var second = area.querySelectorAll('p')[1];
+selectIn(second, 3);
+var styleSel = ed.node.querySelector('.rte__style');
+styleSel.value = 'large';
+styleSel.dispatchEvent(new Event('change'));
+check('the style menu writes {large}', /^\{large\} Second with a word$/m.test(last()), true);
+
+var first = area.querySelector('p');
+selectIn(first, 0, 5);
+ed.node.querySelector('.rte__btn--bold').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+check('the bold button writes the marks', /^\*\*First\*\* paragraph$/m.test(last()), true);
+
+selectIn(area.querySelector('p'), 2);
+styleSel.value = 'h2';
+styleSel.dispatchEvent(new Event('change'));
+check('a heading keeps its bold word', /^## \*\*First\*\* paragraph$/m.test(last()), true);
+
+ed.node.querySelector('.rte__btn--ul').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+check('the list button turns the heading into a bullet', /^- \*\*First\*\* paragraph$/m.test(last()), true);
+
+modeBtn.click();
+check('Text shows the marks', raw.hidden === false && raw.value === last(), true);
+raw.value = '## Typed\nBy hand';
+raw.dispatchEvent(new Event('input'));
+check('and typing there is saved as typed', last(), '## Typed\nBy hand');
+modeBtn.click();
+check('back to the visual view draws what was typed', area.querySelector('h3') && area.querySelector('h3').textContent, 'Typed');
+try { localStorage.removeItem('cb-rte-mode'); } catch (e) {}
+
+document.getElementById('out').textContent = log.join('\n');
+var bar = document.getElementById('bar');
+bar.className = 'bar ' + (fail ? 'bad' : 'ok');
+bar.textContent = fail ? (fail + ' failed, ' + pass + ' passed') : (pass + '/' + pass + ' passed');
+document.title = fail ? 'ARTICLE FAIL ' + fail : 'ARTICLE OK ' + pass;
+</script>

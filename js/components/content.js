@@ -46,8 +46,24 @@
       { k: 'ratio', t: 'select', label: 'Image ratio', value: '4/3', options: [['16/9', '16 : 9'], ['4/3', '4 : 3'], ['1/1', 'Square'], ['3/2', '3 : 2'], ['none', 'No image']] },
 
       { t: 'section', label: 'Style' },
-      { k: 'variant', t: 'select', label: 'Card style', value: 'elevated', options: [['elevated', 'Elevated'], ['outline', 'Outlined'], ['flat', 'Flat / borderless'], ['overlay', 'Text over image']] },
+      { k: 'variant', t: 'select', label: 'Card style', value: 'elevated', options: [['elevated', 'Elevated'], ['outline', 'Outlined'], ['flat', 'Flat / borderless'], ['overlay', 'Text over image']],
+        help: 'Flat has no card background at all, for products on transparent PNGs. Pair it with Image backdrop: None.' },
       { k: 'hover', t: 'select', label: 'Hover effect', value: 'lift', options: [['lift', 'Lift'], ['zoom', 'Image zoom'], ['border', 'Border glow'], ['none', 'None']] },
+      {
+        k: 'ctaStyle', t: 'select', label: 'Link label style', value: 'text',
+        options: [['text', 'Text link with arrow'], ['button', 'Button'], ['outline', 'Outlined button']],
+        help: 'The whole card stays one link either way. A button is how the label looks, not a second thing to tab to.'
+      },
+      { k: 'ctaAlign', t: 'select', label: 'Link label position', value: 'right', options: [['right', 'Bottom right'], ['left', 'Bottom left']] },
+      {
+        k: 'mediaBg', t: 'select', label: 'Image backdrop', value: 'tint',
+        options: [['tint', 'Tinted'], ['none', 'None — for transparent PNGs']],
+        help: 'The colour behind the image, which shows through any transparency in it.'
+      },
+      {
+        k: 'fit', t: 'select', label: 'Image fit', value: 'cover',
+        options: [['cover', 'Fill the frame (crops)'], ['contain', 'Show the whole image']]
+      },
       {
         k: 'bgMode', t: 'select', label: 'Background', value: 'band',
         options: CB.BG_MODES, legacy: { key: 'bg', value: 'custom' },
@@ -62,6 +78,11 @@
       var items = (p.items || []).filter(Boolean);
       var overlay = p.variant === 'overlay';
       var showImg = p.ratio !== 'none';
+      /* The label is drawn as a button but stays a span hidden from assistive
+         technology: the title link already covers the whole card, and a second
+         link to the same place is one more tab stop saying nothing new. */
+      var asButton = p.ctaStyle === 'button' || p.ctaStyle === 'outline';
+      var ctaClass = 'cb-cg__cta' + (asButton ? ' cb-btn ' + (p.ctaStyle === 'button' ? 'cb-btn--primary' : 'cb-btn--ghost') : '');
 
       var cards = items.map(function (it) {
         var linked = !!(it.linkUrl && it.linkText);
@@ -80,7 +101,7 @@
                 ${it.text ? '<p class="cb-cg__x">' + c.rich(it.text) + '</p>' : ''}
                 <div class="cb-cg__foot">
                   ${it.meta ? '<span class="cb-cg__meta">' + c.esc(it.meta) + '</span>' : ''}
-                  ${linked ? '<span class="cb-cg__cta" aria-hidden="true">' + c.esc(it.linkText) + ' &rarr;</span>' : ''}
+                  ${linked ? '<span class="' + ctaClass + '" aria-hidden="true">' + c.esc(it.linkText) + (asButton ? '' : ' &rarr;') + '</span>' : ''}
                 </div>
               </div>
             </article>
@@ -142,9 +163,9 @@
         }
         ${variantCss}
         ${hoverCss}
-        ${s} .cb-cg__media { overflow: hidden; background: var(--cb-subtle); }
+        ${s} .cb-cg__media { overflow: hidden; ${p.mediaBg === 'none' ? '' : 'background: var(--cb-subtle);'} }
         ${s} .cb-cg__media img {
-          width: 100%; ${p.ratio !== 'none' ? 'aspect-ratio: ' + p.ratio + ';' : ''} object-fit: cover;
+          width: 100%; ${p.ratio !== 'none' ? 'aspect-ratio: ' + p.ratio + ';' : ''} object-fit: ${p.fit === 'contain' && !overlay ? 'contain' : 'cover'};
           transition: transform .5s cubic-bezier(.2,.7,.3,1);
         }
         ${s} .cb-cg__body { display: flex; flex-direction: column; gap: 10px; padding: 22px; flex: 1 1 auto; }
@@ -166,6 +187,12 @@
         }
         ${s} .cb-cg__meta { color: var(--cb-muted); }
         ${s} .cb-cg__cta { color: ${overlay ? '#fff' : 'var(--cb-brand-ink, var(--cb-brand))'}; font-weight: 650; margin-left: auto; }
+        ${asButton ? `${s} .cb-cg__cta.cb-btn { font-weight: var(--cb-btn-weight); ${p.ctaStyle === 'button' ? '' : 'color: ' + (overlay ? '#fff' : 'var(--cb-ink)') + ';'} }
+        /* The card's link sits over the button, so the button never sees the
+           pointer itself; it answers to the card being hovered instead. */
+        ${s} .cb-cg__card:hover .cb-cg__cta.cb-btn { transform: translateY(var(--cb-btn-lift)); filter: var(--cb-btn-filter); }` : ''}
+        ${p.ctaAlign === 'left' ? `${s} .cb-cg__cta { order: -1; margin-left: 0; }
+        ${s} .cb-cg__meta { margin-left: auto; }` : ''}
         @media (max-width: 900px) { ${s} .cb-cg__grid { grid-template-columns: repeat(${Math.min(2, c.clamp(c.num(p.cols, 3), 1, 4))}, minmax(0, 1fr)); } }
         @media (max-width: 560px) { ${s} .cb-cg__grid { grid-template-columns: 1fr; } }`;
 
@@ -1622,48 +1649,24 @@
     'Square brackets, then an address in round brackets, make a link: [southwire.com](https://www.southwire.com).'
   ].join('\n');
 
-  /* The sample uses the word "placeholder" where an address would go, so a
-     layout can be roughed out before the photography exists. */
-  function articleBody(src, c, lead) {
-    var lines = String(src == null ? '' : src).replace(/\r\n?/g, '\n').split('\n');
-    var out = [];
-    var list = null;          // { tag, items }
-    var quote = [];
-    var figure = null;        // waiting to see whether a caption follows
-    var paras = 0;
+  /* The text is read into blocks first, and the blocks are what gets drawn.
+     The editor's formatting toolbar reads the same blocks and writes them
+     back as text, so what it shows and what the page gets cannot drift.
 
-    function inl(s) {
-      return c.esc(s)
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>');
-    }
-    /* Links are found in the raw text and each piece escaped on its own,
-       rather than escaping first and parsing after, which would hand c.url
-       an address that had already been entity-encoded once. */
-    function inline(raw) {
-      var html = '', re = /\[([^\]]+)\]\(([^)\s]+)\)/g, last = 0, m;
-      while ((m = re.exec(raw))) {
-        html += inl(raw.slice(last, m.index)) + '<a href="' + c.url(m[2]) + '">' + inl(m[1]) + '</a>';
-        last = re.lastIndex;
-      }
-      return html + inl(raw.slice(last));
-    }
-    function flushList() {
-      if (!list) return;
-      out.push('<' + list.tag + '>' + list.items.map(function (t) { return '<li>' + inline(t) + '</li>'; }).join('') + '</' + list.tag + '>');
-      list = null;
-    }
-    function flushQuote() {
-      if (!quote.length) return;
-      out.push('<blockquote>' + quote.map(function (t) { return '<p>' + inline(t) + '</p>'; }).join('') + '</blockquote>');
-      quote = [];
-    }
+     A paragraph can open with {large} or {small} to set its size. */
+  function articleBlocks(src) {
+    var lines = String(src == null ? '' : src).replace(/\r\n?/g, '\n').split('\n');
+    var blocks = [];
+    var list = null;          // { type: 'ul' | 'ol', items }
+    var quote = null;         // { type: 'quote', lines }
+    var figure = null;        // waiting to see whether a caption follows
+
+    function flushList() { if (list) { blocks.push(list); list = null; } }
+    function flushQuote() { if (quote) { blocks.push(quote); quote = null; } }
     function flushFigure(caption) {
       if (!figure) return;
-      var src = figure.src === 'placeholder' ? CB.ph(1200, 675, '', '#96694c', '#2b241f') : figure.src;
-      out.push('<figure class="cb-ar__fig"><img src="' + c.url(src) + '" alt="' + c.attr(figure.alt) +
-               '" loading="lazy" decoding="async">' +
-               (caption ? '<figcaption>' + inline(caption) + '</figcaption>' : '') + '</figure>');
+      figure.caption = caption || '';
+      blocks.push(figure);
       figure = null;
     }
     function flushAll() { flushList(); flushQuote(); flushFigure(''); }
@@ -1672,42 +1675,163 @@
       var t = line.trim(), m;
       if (!t) { flushAll(); return; }
 
-      if (/^(-{3,}|\*{3,})$/.test(t)) { flushAll(); out.push('<hr>'); return; }
+      /* A backslash in front of what would otherwise be read as a mark keeps
+         the line as words: \- is a paragraph starting with a dash. */
+      var literal = t.charAt(0) === '\\' && LINE_MARK.test(t.slice(1));
+      if (literal) t = t.slice(1);
 
-      if ((m = /^(#{2,3})\s+(.+)$/.exec(t))) {
+      if (!literal && /^(-{3,}|\*{3,})$/.test(t)) { flushAll(); blocks.push({ type: 'hr' }); return; }
+
+      if (!literal && (m = /^(#{2,3})\s+(.+)$/.exec(t))) {
         flushAll();
-        /* The block's own title is the h2, so the article's headings sit under
-           it: ## is an h3 and ### an h4. Heading level under Advanced renumbers
-           all of them together, which is why they are styled by class: a rule
-           written for h3 would land on the wrong heading after the shift. */
-        var two = m[1].length === 2;
-        var tag = two ? 'h3' : 'h4';
-        out.push('<' + tag + ' class="' + (two ? 'cb-ar__h' : 'cb-ar__h cb-ar__h--minor') + '">' + inline(m[2]) + '</' + tag + '>');
+        blocks.push({ type: 'h', level: m[1].length, text: m[2] });
         return;
       }
-      if ((m = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(t))) {
+      if (!literal && (m = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(t))) {
         flushAll();
-        figure = { alt: m[1], src: m[2] };
+        figure = { type: 'figure', alt: m[1], src: m[2], caption: '' };
         return;
       }
       if (figure) { flushFigure(t); return; }
 
-      if ((m = /^[-*]\s+(.+)$/.exec(t)) || (m = /^\d+[.)]\s+(.+)$/.exec(t))) {
+      if (!literal && ((m = /^[-*]\s+(.+)$/.exec(t)) || (m = /^\d+[.)]\s+(.+)$/.exec(t)))) {
         flushQuote();
         var want = /^\d/.test(t) ? 'ol' : 'ul';
-        if (list && list.tag !== want) flushList();
-        if (!list) list = { tag: want, items: [] };
+        if (list && list.type !== want) flushList();
+        if (!list) list = { type: want, items: [] };
         list.items.push(m[1]);
         return;
       }
-      if ((m = /^>\s?(.*)$/.exec(t))) { flushList(); quote.push(m[1]); return; }
+      if (!literal && (m = /^>\s?(.*)$/.exec(t))) {
+        flushList();
+        if (!quote) quote = { type: 'quote', lines: [] };
+        quote.lines.push(m[1]);
+        return;
+      }
 
       flushList(); flushQuote();
-      out.push('<p' + (lead && paras === 0 ? ' class="cb-ar__lead"' : '') + '>' + inline(t) + '</p>');
-      paras++;
+      m = literal ? null : /^\{(large|small)\}\s*(.*)$/i.exec(t);
+      var text = m ? m[2] : t;
+      if (text) blocks.push({ type: 'p', size: m ? m[1].toLowerCase() : '', text: text });
     });
     flushAll();
-    return out.join('\n');
+    return blocks;
+  }
+
+  /* What a line can open with to be read as something other than words.
+     Asterisks are not here: a literal one is written \*, which no line mark
+     starts with. */
+  var LINE_MARK = /^(#{2,3}\s|-\s|\d+[.)]\s|>|!\[|-{3,}$|\{(large|small)\})/i;
+
+  /* And back to text, in the form articleBlocks reads. A blank line between
+     blocks keeps two lists, or a figure and the paragraph after it, apart. A
+     paragraph or caption whose words happen to open like a mark is written
+     with a backslash in front, so it comes back as the words it was. */
+  function articleText(blocks) {
+    function words(t) { return LINE_MARK.test(t) ? '\\' + t : t; }
+    return (blocks || []).map(function (b) {
+      switch (b.type) {
+        case 'hr': return '---';
+        case 'h': return (b.level === 3 ? '### ' : '## ') + b.text;
+        case 'figure': return '![' + (b.alt || '') + '](' + b.src + ')' + (b.caption ? '\n' + words(b.caption) : '');
+        case 'ul': return b.items.map(function (t) { return '- ' + t; }).join('\n');
+        case 'ol': return b.items.map(function (t, i) { return (i + 1) + '. ' + t; }).join('\n');
+        case 'quote': return b.lines.map(function (t) { return '> ' + t; }).join('\n');
+        default: return b.size ? '{' + b.size + '} ' + b.text : words(b.text);
+      }
+    }).filter(Boolean).join('\n\n');
+  }
+
+  /* Marks inside a line, read the way Markdown reads them. A run of
+     asterisks can open only before a word and close only after one, so the
+     star in "5 * 3" stays a star. Each closer pairs with the nearest open run,
+     two at a time where both have two (bold) and one otherwise (italic), so
+     ***both***, **a *b* c** and *a **b** c* all nest, and the tags that come
+     out are always well formed. \* is an asterisk that is only an asterisk.
+
+     Links are lifted out of the raw text first and each address goes through
+     the URL guard on its own, rather than escaping first and parsing after,
+     which would hand CB.url an address that had already been entity-encoded
+     once. Marks are then read across the whole line, so a bold link is
+     **[like this](address)** and stays bold. */
+  function articleMarks(s) {
+    s = String(s);
+    var parts = [], re = /\\\*|\*+/g, last = 0, m;
+    while ((m = re.exec(s))) {
+      if (m.index > last) parts.push(CB.esc(s.slice(last, m.index)));
+      if (m[0] === '\\*') parts.push('*');
+      else {
+        var before = s.charAt(m.index - 1), after = s.charAt(re.lastIndex);
+        parts.push({
+          n: m[0].length, pre: '', post: '',
+          open: after !== '' && !/\s/.test(after),
+          close: before !== '' && !/\s/.test(before)
+        });
+      }
+      last = re.lastIndex;
+    }
+    if (last < s.length) parts.push(CB.esc(s.slice(last)));
+
+    var open = [];
+    parts.forEach(function (d) {
+      if (typeof d === 'string') return;
+      while (d.close && d.n && open.length) {
+        var o = open[open.length - 1], use = o.n >= 2 && d.n >= 2 ? 2 : 1;
+        o.n -= use; d.n -= use;
+        /* The first pair matched is the innermost, so later tags wrap it. */
+        o.post = (use === 2 ? '<strong>' : '<em>') + o.post;
+        d.pre += use === 2 ? '</strong>' : '</em>';
+        if (!o.n) open.pop();
+      }
+      if (d.open && d.n) open.push(d);
+    });
+    return parts.map(function (d) {
+      return typeof d === 'string' ? d : d.pre + new Array(d.n + 1).join('*') + d.post;
+    }).join('');
+  }
+  function articleInline(raw) {
+    var links = [];
+    var text = String(raw == null ? '' : raw).replace(/\u0000/g, '')
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (all, label, href) {
+        links.push('<a href="' + CB.url(href) + '">' + articleMarks(label) + '</a>');
+        return '\u0000' + (links.length - 1) + '\u0000';
+      });
+    return articleMarks(text).replace(/\u0000(\d+)\u0000/g, function (all, i) { return links[+i]; });
+  }
+
+  CB.article = { blocks: articleBlocks, text: articleText, inline: articleInline };
+
+  /* The sample uses the word "placeholder" where an address would go, so a
+     layout can be roughed out before the photography exists. */
+  function articleBody(src, c, lead) {
+    var paras = 0;
+    return articleBlocks(src).map(function (b) {
+      switch (b.type) {
+        case 'hr': return '<hr>';
+        case 'h':
+          /* The block's own title is the h2, so the article's headings sit
+             under it: ## is an h3 and ### an h4. Heading level under Advanced
+             renumbers all of them together, which is why they are styled by
+             class: a rule written for h3 would land on the wrong heading after
+             the shift. */
+          var two = b.level === 2, tag = two ? 'h3' : 'h4';
+          return '<' + tag + ' class="' + (two ? 'cb-ar__h' : 'cb-ar__h cb-ar__h--minor') + '">' + articleInline(b.text) + '</' + tag + '>';
+        case 'figure':
+          var src = b.src === 'placeholder' ? CB.ph(1200, 675, '', '#96694c', '#2b241f') : b.src;
+          return '<figure class="cb-ar__fig"><img src="' + c.url(src) + '" alt="' + c.attr(b.alt) +
+                 '" loading="lazy" decoding="async">' +
+                 (b.caption ? '<figcaption>' + articleInline(b.caption) + '</figcaption>' : '') + '</figure>';
+        case 'ul': case 'ol':
+          return '<' + b.type + '>' + b.items.map(function (t) { return '<li>' + articleInline(t) + '</li>'; }).join('') + '</' + b.type + '>';
+        case 'quote':
+          return '<blockquote>' + b.lines.map(function (t) { return '<p>' + articleInline(t) + '</p>'; }).join('') + '</blockquote>';
+        default:
+          /* A size set on the paragraph wins over the introduction. */
+          var cls = b.size ? 'cb-ar__' + b.size : (lead && paras === 0 ? 'cb-ar__lead' : '');
+          paras++;
+          return '<p' + (cls ? ' class="' + cls + '"' : '') + '>' + articleInline(b.text) + '</p>';
+      }
+    }).join('\n');
   }
 
   CB.register({
@@ -1727,10 +1851,11 @@
 
       { t: 'section', label: 'Article' },
       {
-        k: 'body', t: 'textarea', label: 'Article text', value: ARTICLE_SAMPLE, rows: 18,
-        help: 'Every line is a paragraph. ## heading · ### smaller heading · - bullet · 1. numbered · > pull quote · ' +
-              '![alt text](image address) with an optional caption on the next line · [link text](address) · ' +
-              '**bold** · *italic* · --- for a divider.'
+        k: 'body', t: 'textarea', label: 'Article text', value: ARTICLE_SAMPLE, rows: 18, editor: 'article',
+        help: 'Format with the toolbar, or switch to Text and type the marks: every line is a paragraph · ' +
+              '## heading · ### smaller heading · {large} or {small} at the start of a paragraph · - bullet · ' +
+              '1. numbered · > pull quote · ![alt text](image address) with an optional caption on the next line · ' +
+              '[link text](address) · **bold** · *italic* · --- for a divider.'
       },
       { k: 'lead', t: 'toggle', label: 'Set the first paragraph as an introduction', value: true },
 
@@ -1790,7 +1915,8 @@
            figure all sit the same distance from what comes before them. */
         ${s} .cb-ar__body > * + * { margin-top: 1.1em; }
         ${s} .cb-ar__body p { color: var(--cb-ink); }
-        ${s} .cb-ar__lead { font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); line-height: calc(1.5 + var(--cb-body-leading, 0)); }
+        ${s} .cb-ar__lead, ${s} .cb-ar__body .cb-ar__large { font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); line-height: calc(1.5 + var(--cb-body-leading, 0)); }
+        ${s} .cb-ar__body .cb-ar__small { font-size: .85em; color: var(--cb-muted); }
         ${s} .cb-ar__h {
           margin-top: 1.9em;
           font-size: calc(clamp(20px, 2.6vw, 28px) * var(--cb-h-scale, 1)); font-weight: var(--cb-h-weight, 700);
