@@ -51,7 +51,11 @@ var CASES = [
   '![Alt](placeholder)\nCaption with *it*\n\nAfter the figure',
   '{large} Big\n{small} Fine print\nNormal',
   '**a *b* c** and *a **b** c* and **[bold link](https://example.com)**',
-  '5 * 3 = 15, and a lone ** pair'
+  '5 * 3 = 15, and a lone ** pair',
+  '{center} Centred\n{xl brand} Big copper\n{justify} Justified\n{center} ## Centred heading\n{right muted} ### Minor, right',
+  'With [copper words]{brand}, [muted ones]{muted}, [**bold copper**]{brand}, **[copper in bold]{brand}** and [[a link](https://example.com) in copper]{brand}',
+  '{brand} A copper paragraph with [one plain word]{ink} in it',
+  '{nonsense} stays words, and so does {center} mid-line'
 ];
 CASES.forEach(function (text, i) {
   check('case ' + i + ' renders the same after a trip through the editor\'s form', body(again(text)), body(text));
@@ -66,6 +70,69 @@ check('and the mark itself is not printed', /\{(large|small)\}/.test(sized.textC
 check('a sized first paragraph is not also the introduction', sized.querySelectorAll('.cb-ar__lead').length, 0);
 var css = CB.build({ type: 'article', cls: 'cb-ar-t', props: CB.defaults(CB.get('article')) }, CB.DEFAULT_TOKENS, { omitBase: true }).css;
 check('large is the introduction\'s size', /\.cb-ar__lead, [^{]*\.cb-ar__large \{ font-size: calc\(clamp\(16px/.test(css), true);
+check('extra large is the subsection size', /\.cb-ar__xl \{\s*font-size: calc\(clamp\(20px, 2\.6vw, 28px\)/.test(css), true);
+
+// --- settings on a paragraph or heading --------------------------------------
+var set = dom(body('{center} Centred\n{xl brand justify} Big\n{center brand} ## Heading\n{foo} Words\n{large large} Twice', { lead: false }));
+var ps = set.querySelectorAll('.cb-ar__body p');
+check('{center} centres a paragraph', ps[0].className, 'cb-ar__al-center');
+check('settings combine, in any order', ps[1].className.split(' ').sort().join(' '), 'cb-ar__al-justify cb-ar__c--brand cb-ar__xl');
+check('and reach headings', set.querySelector('h3').className.split(' ').sort().join(' '), 'cb-ar__al-center cb-ar__c--brand cb-ar__h');
+check('a word in braces that is not a setting stays words', ps[2].textContent, '{foo} Words');
+check('and so does a setting given twice', ps[3].textContent, '{large large} Twice');
+
+var col = dom(A.inline('[copper]{brand} and [grey]{muted}'));
+check('[words]{brand} colours them', col.querySelector('.cb-ar__c--brand').textContent, 'copper');
+check('[words]{muted} too', col.querySelector('.cb-ar__c--muted').textContent, 'grey');
+var colLink = A.inline('[[a link](https://example.com) in copper]{brand}');
+check('a colour can hold a link', !!dom(colLink).querySelector('.cb-ar__c--brand > a'), true);
+check('and nested colours still come out well formed', dom(A.inline('[a [b]{muted} c]{brand}')).innerHTML, A.inline('[a [b]{muted} c]{brand}'));
+
+// --- the block's layout ------------------------------------------------------
+function cssFor(extra) {
+  return CB.build({ type: 'article', cls: 'cb-ar-t', props: Object.assign(CB.defaults(CB.get('article')), extra) }, CB.DEFAULT_TOKENS, { omitBase: true }).css;
+}
+var jcss = cssFor({ textAlign: 'justify' });
+check('justified text is hyphenated', /\.cb-ar__body > p:not\([^)]*\) \{[^}]*text-align: justify;[^}]*hyphens: auto;/.test(jcss), true);
+check('keeps its last line on the left', /text-align: justify; text-align-last: left;/.test(jcss), true);
+check('and is left-aligned on phones', /@media \(max-width: 560px\) \{[^@]*\.cb-ar__body > p:not\([^)]*\) \{ text-align: left;/.test(jcss), true);
+/* Alignment as the browser resolves it, since which rule wins is a matter of
+   specificity and reading the stylesheet cannot settle that. Run at desktop
+   width: on a phone, justified text is meant to come out left. */
+function rendered(text, extra) {
+  var out = CB.build({ type: 'article', cls: 'cb-ar-r', props: Object.assign(CB.defaults(CB.get('article')), { body: text, lead: false }, extra) },
+                     CB.DEFAULT_TOKENS);
+  var box = document.createElement('div');
+  box.innerHTML = '<style>' + out.css + '</style>' + out.html;
+  document.getElementById('mount').appendChild(box);
+  return box;
+}
+function al(el) { return el ? getComputedStyle(el).textAlign : 'missing'; }
+var rj = rendered('Plain running words\n{center} Centred on its own\n{xl} Extra large words\n{right} ## A heading set right\n## A heading\n> A pull quote', { textAlign: 'justify' });
+var rjp = rj.querySelectorAll('.cb-ar__body > p');
+check('a justified block justifies its running text', al(rjp[0]), 'justify');
+check('but not a paragraph aligned on its own', al(rjp[1]), 'center');
+check('nor extra large text, which has too few words a line', al(rjp[2]), 'left');
+check('nor a pull quote', al(rj.querySelector('blockquote p')), 'left');
+check('a heading set on its own keeps its alignment', al(rj.querySelectorAll('.cb-ar__h')[0]), 'right');
+check('and the others stay left rather than stretch', al(rj.querySelectorAll('.cb-ar__h')[1]), 'left');
+rj.remove();
+var rc = rendered('Words\n{left} Set left\n## A heading', { textAlign: 'center', title: 'Title', eyebrow: 'Eyebrow' });
+check('a centred block centres its header', al(rc.querySelector('.cb-ar__head')), 'center');
+check('and its paragraphs and headings', al(rc.querySelector('.cb-ar__body > p')) + ' ' + al(rc.querySelector('.cb-ar__h')), 'center center');
+check('while one set left stays left', al(rc.querySelectorAll('.cb-ar__body > p')[1]), 'left');
+rc.remove();
+var rl = rendered('- one\n- two', { textAlign: 'center' });
+check('and its lists still read from the left', al(rl.querySelector('li')), 'left');
+rl.remove();
+check('spacing moves the gap between paragraphs',
+      ['compact', 'comfortable', 'airy'].map(function (v) { return (cssFor({ spacing: v }).match(/--cb-ar-gap: ([^;]+);/) || [])[1]; }).join(' '),
+      '.7em 1.1em 1.6em');
+check('full width lifts the reading measure', /\.cb-ar__col \{ max-width: none;/.test(cssFor({ width: 'full' })), true);
+var two = cssFor({ columns: '2' });
+check('two columns flow the copy', /\.cb-ar__body \{ columns: 2;/.test(two), true);
+check('each column keeps the line length', /\.cb-ar__col \{ max-width: calc\(136ch \+ clamp\(28px, 4vw, 56px\)\);/.test(two), true);
+check('and narrow screens get one', /@media \(max-width: 760px\) \{[^}]*columns: auto;/.test(two), true);
 
 // --- marks inside a line -----------------------------------------------------
 function inline(t) { return dom(A.inline(t)); }
@@ -120,6 +187,14 @@ check('asterisks typed in the editor stay asterisks', !e5.querySelector('em') &&
 var e6 = viaEditor('<p>- not a list</p><p>1. nor this</p><p>## nor a heading</p><p>&gt; nor a quote</p>');
 check('words that start like a mark stay words',
       e6.querySelectorAll('.cb-ar__body p').length + ' ' + e6.querySelectorAll('ul, ol, h3, blockquote').length, '4 0');
+/* Colouring a whole paragraph that already had copper words in it leaves
+   those words as plain parts of it, not a run inside a run of the same. */
+function editorText(html) { var d = document.createElement('div'); d.innerHTML = html; return A.text(R.blocksOf(d)); }
+check('a colour run is only written where the colour changes',
+      editorText('<p class="c-brand">All <font color="#d7a97f">copper</font> already, <font color="#f3efeb">one plain</font></p>'),
+      '{brand} All copper already, [one plain]{ink}');
+check('and a colour the editor did not set is not read as one',
+      editorText('<p>From <span style="color: rgb(255, 0, 0)">a pasted red</span> source</p>'), 'From a pasted red source');
 var e4 = viaEditor('<p>see <a href="https://example.com/a b(c)">the page</a></p>');
 check('a link with spaces and brackets in its address survives',
       e4.querySelector('a') && e4.querySelector('a').getAttribute('href'), 'https://example.com/a%20b%28c%29');
@@ -184,6 +259,28 @@ raw.dispatchEvent(new Event('input'));
 check('and typing there is saved as typed', last(), '## Typed\nBy hand');
 modeBtn.click();
 check('back to the visual view draws what was typed', area.querySelector('h3') && area.querySelector('h3').textContent, 'Typed');
+
+/* Alignment and colour, from the toolbar. */
+function press(name) { ed.node.querySelector('.rte__btn--' + name).dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+selectIn(area.querySelector('p'), 1);
+press('al-center');
+check('an alignment button writes it on the paragraph', /^\{center\} By hand$/m.test(last()), true);
+press('al-center');
+check('pressed again, the paragraph follows the block again', /^By hand$/m.test(last()), true);
+press('al-justify');
+styleSel.value = 'xl';
+styleSel.dispatchEvent(new Event('change'));
+check('changing the style keeps the alignment', /^\{xl justify\} By hand$/m.test(last()), true);
+
+var colourSel = ed.node.querySelector('.rte__colour');
+selectIn(area.querySelector('p'), 0, 2);
+colourSel.value = 'brand';
+colourSel.dispatchEvent(new Event('change'));
+check('a colour on selected words writes a coloured run', /\[By\]\{brand\} hand$/m.test(last()), true);
+selectIn(area.querySelector('h3'), 1);
+colourSel.value = 'muted';
+colourSel.dispatchEvent(new Event('change'));
+check('with nothing selected it colours the whole heading', /^\{muted\} ## Typed$/m.test(last()), true);
 try { localStorage.removeItem('cb-rte-mode'); } catch (e) {}
 
 document.getElementById('out').textContent = log.join('\n');

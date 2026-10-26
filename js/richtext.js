@@ -15,10 +15,28 @@ CB.RichText = (function () {
   'use strict';
 
   var STYLES = [
-    ['p', 'Paragraph'], ['large', 'Large text'], ['small', 'Small text'],
+    ['p', 'Paragraph'], ['small', 'Small text'], ['large', 'Large text'], ['xl', 'Extra large'],
     ['h2', 'Heading'], ['h3', 'Subheading'], ['quote', 'Quote'], ['list', 'List']
   ];
+  var ALIGNS = [['left', 'Align left'], ['center', 'Centre'], ['right', 'Align right'], ['justify', 'Justify']];
   var MODE_KEY = 'cb-rte-mode';
+
+  /* Coloured words are held in the editor as <font color>, because that is
+     what the browser's own colour command splits and merges correctly across
+     a selection. The colours are the panel's own, so they read as what they
+     are here, and only these three are read back: a colour pasted in from
+     somewhere else is dropped rather than guessed at. */
+  var COLOURS = [['ink', 'Text colour', '#f3efeb'], ['muted', 'Muted', '#9c9289'], ['brand', 'Copper', '#d7a97f']];
+  function hexOf(token) {
+    for (var i = 0; i < COLOURS.length; i++) if (COLOURS[i][0] === token) return COLOURS[i][2];
+    return '';
+  }
+  function tokenOf(colour) {
+    var c = String(colour || '').trim().toLowerCase(), m = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c);
+    if (m) c = '#' + [m[1], m[2], m[3]].map(function (v) { return ('0' + (+v).toString(16)).slice(-2); }).join('');
+    for (var i = 0; i < COLOURS.length; i++) if (COLOURS[i][2] === c) return COLOURS[i][0];
+    return '';
+  }
 
   /* Small line icons, drawn in currentColor so they follow the panel. */
   var ICON = {
@@ -26,7 +44,11 @@ CB.RichText = (function () {
     ul: '<circle cx="3" cy="4" r="1"/><circle cx="3" cy="8" r="1"/><circle cx="3" cy="12" r="1"/><path d="M6 4h8M6 8h8M6 12h8"/>',
     ol: '<path d="M2.2 2.8h1v3M2 5.8h2.2M2 9.6c0-.6.5-1 1.1-1s1.1.4 1.1 1c0 .7-2.2 1.4-2.2 2.4h2.2M6.5 4h7.5M6.5 8h7.5M6.5 12h7.5"/>',
     hr: '<path d="M2 8h12"/><path d="M5 4.5h6M5 11.5h6" opacity=".45"/>',
-    image: '<rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="6" cy="6.5" r="1.2"/><path d="M2.5 12l3.8-3.8 2.7 2.7 1.8-1.8 2.7 2.7"/>'
+    image: '<rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="6" cy="6.5" r="1.2"/><path d="M2.5 12l3.8-3.8 2.7 2.7 1.8-1.8 2.7 2.7"/>',
+    left: '<path d="M2 3.5h12M2 6.5h8M2 9.5h12M2 12.5h8"/>',
+    center: '<path d="M2 3.5h12M4 6.5h8M2 9.5h12M4 12.5h8"/>',
+    right: '<path d="M2 3.5h12M6 6.5h8M2 9.5h12M6 12.5h8"/>',
+    justify: '<path d="M2 3.5h12M2 6.5h12M2 9.5h12M2 12.5h7"/>'
   };
 
   function el(tag, cls, text) {
@@ -47,18 +69,36 @@ CB.RichText = (function () {
       (b.caption ? '<i>' + CB.esc(b.caption) + '</i>' : '') + '</span></figure>';
   }
 
+  /* The page's coloured spans, as the editor holds them. */
+  function inline(t) {
+    var html = CB.article.inline(t);
+    if (html.indexOf('cb-ar__c--') < 0) return html;
+    var box = document.createElement('div');
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('span[class^="cb-ar__c--"]'), function (sp) {
+      var f = document.createElement('font');
+      f.setAttribute('color', hexOf(sp.className.replace('cb-ar__c--', '')));
+      while (sp.firstChild) f.appendChild(sp.firstChild);
+      sp.parentNode.replaceChild(f, sp);
+    });
+    return box.innerHTML;
+  }
+  function classes(b) {
+    var c = [b.size ? 'is-' + b.size : '', b.align ? 'al-' + b.align : '', b.color ? 'c-' + b.color : ''].filter(Boolean).join(' ');
+    return c ? ' class="' + c + '"' : '';
+  }
+
   function blockHtml(b) {
-    var inline = CB.article.inline;
     switch (b.type) {
       case 'hr': return '<hr>';
-      case 'h': return b.level === 3 ? '<h4>' + inline(b.text) + '</h4>' : '<h3>' + inline(b.text) + '</h3>';
+      case 'h': return b.level === 3 ? '<h4' + classes(b) + '>' + inline(b.text) + '</h4>' : '<h3' + classes(b) + '>' + inline(b.text) + '</h3>';
       case 'ul': case 'ol':
         return '<' + b.type + '>' + b.items.map(function (t) { return '<li>' + (inline(t) || '<br>') + '</li>'; }).join('') + '</' + b.type + '>';
       case 'quote':
         return '<blockquote>' + b.lines.map(function (t) { return '<p>' + (inline(t) || '<br>') + '</p>'; }).join('') + '</blockquote>';
       case 'figure': return figureHtml(b);
       default:
-        return '<p' + (b.size ? ' class="is-' + b.size + '"' : '') + '>' + (inline(b.text) || '<br>') + '</p>';
+        return '<p' + classes(b) + '>' + (inline(b.text) || '<br>') + '</p>';
     }
   }
 
@@ -85,22 +125,33 @@ CB.RichText = (function () {
   }
 
   /* Text typed here is words: an asterisk in it is written \* so it can
-     never start a mark. */
-  function marksOf(node) {
+     never start a mark.
+
+     `colour` is the colour the surrounding text already has, so a run is
+     only marked where it changes \u2014 and never inside a link, which has its
+     own colour and whose words the link mark could not carry. */
+  function marksOf(node, colour, inLink) {
     var out = '';
+    colour = colour || 'ink';
     Array.prototype.forEach.call(node.childNodes, function (n) {
       if (n.nodeType === 3) { out += n.nodeValue.replace(/[\s\u00a0]+/g, ' ').replace(/\*/g, '\\*'); return; }
       if (n.nodeType !== 1) return;
       var tag = n.tagName, st = n.style || {};
       if (tag === 'BR') { out += ' '; return; }
       if (tag === 'UL' || tag === 'OL' || tag === 'SCRIPT' || tag === 'STYLE') return;
-      var inner = marksOf(n);
+      var own = inLink ? '' : tokenOf(tag === 'FONT' ? n.getAttribute('color') : st.color);
+      var link = tag === 'A' && !!n.getAttribute('href');
+      var inner = marksOf(n, own || colour, inLink || link);
+      if (own && own !== colour) {
+        var lead = /^\s*/.exec(inner)[0], trail = /\s*$/.exec(inner)[0], core = inner.trim();
+        if (core) inner = lead + '[' + core + ']{' + own + '}' + trail;
+      }
       var w = st.fontWeight, f = st.fontStyle;
       /* Google Docs wraps a whole paste in <b style="font-weight:normal">, so
          the tag alone is not enough to call something bold. */
       var bold = ((tag === 'B' || tag === 'STRONG') && !/^(normal|[1-5]00)$/.test(w)) || /^(bold|bolder|[6-9]00)$/.test(w);
       var ital = ((tag === 'I' || tag === 'EM') && f !== 'normal') || f === 'italic';
-      if (tag === 'A' && n.getAttribute('href')) inner = linkMark(inner, n.getAttribute('href'));
+      if (link) inner = linkMark(inner, n.getAttribute('href'));
       if (bold && ital) inner = wrap('***', inner);
       else if (bold) inner = wrap('**', inner);
       else if (ital) inner = wrap('*', inner);
@@ -109,17 +160,29 @@ CB.RichText = (function () {
     return out;
   }
 
+  /* A paragraph's or heading's own settings: the editor's classes, or for a
+     paste, the alignment its source gave it. */
+  function settingsOf(n) {
+    var cl = n.classList, pick = function (prefix, list) {
+      for (var i = 0; i < list.length; i++) if (cl.contains(prefix + list[i])) return list[i];
+      return '';
+    };
+    var align = pick('al-', ['left', 'center', 'right', 'justify']);
+    if (!align && /^(center|right|justify)$/.test(n.style && n.style.textAlign)) align = n.style.textAlign;
+    return { size: pick('is-', ['small', 'large', 'xl']), align: align, color: pick('c-', ['ink', 'muted', 'brand']) };
+  }
+
   function blocksOf(root) {
     var blocks = [], loose = null;     // inline content found between blocks
 
-    function line(n) { return marksOf(n).replace(/\s+/g, ' ').trim(); }
+    function line(n, colour) { return marksOf(n, colour).replace(/\s+/g, ' ').trim(); }
     function hasBlocks(n) {
       return Array.prototype.some.call(n.children, function (c) { return BLOCK.test(c.tagName); });
     }
     function endLoose() {
       if (!loose) return;
       var t = line(loose);
-      if (t) blocks.push({ type: 'p', size: '', text: t });
+      if (t) blocks.push({ type: 'p', size: '', align: '', color: '', text: t });
       loose = null;
     }
     function listItems(list, items) {
@@ -146,9 +209,11 @@ CB.RichText = (function () {
           return;
         }
         endLoose();
-        var t;
-        if (/^H[1-3]$/.test(tag)) { if ((t = line(n))) blocks.push({ type: 'h', level: 2, text: t }); }
-        else if (/^H[4-6]$/.test(tag)) { if ((t = line(n))) blocks.push({ type: 'h', level: 3, text: t }); }
+        var t, a;
+        if (/^H[1-6]$/.test(tag)) {
+          a = settingsOf(n);
+          if ((t = line(n, a.color))) blocks.push({ type: 'h', level: /^H[1-3]$/.test(tag) ? 2 : 3, align: a.align, color: a.color, text: t });
+        }
         else if (tag === 'UL' || tag === 'OL') {
           var items = listItems(n, []);
           if (items.length) blocks.push({ type: tag === 'OL' ? 'ol' : 'ul', items: items });
@@ -176,9 +241,9 @@ CB.RichText = (function () {
           }
         }
         else if (hasBlocks(n)) walk(n);
-        else if ((t = line(n))) {
-          var size = n.classList.contains('is-large') ? 'large' : n.classList.contains('is-small') ? 'small' : '';
-          blocks.push({ type: 'p', size: size, text: t });
+        else {
+          a = settingsOf(n);
+          if ((t = line(n, a.color))) blocks.push({ type: 'p', size: a.size, align: a.align, color: a.color, text: t });
         }
       });
     }
@@ -210,6 +275,16 @@ CB.RichText = (function () {
     });
     bar.appendChild(style);
 
+    var colour = el('select', 'rte__style rte__colour');
+    colour.setAttribute('aria-label', 'Colour');
+    colour.title = 'Colour of the selected words, or of the whole paragraph when nothing is selected';
+    COLOURS.forEach(function (c) {
+      var o = el('option', null, c[1]);
+      o.value = c[0];
+      colour.appendChild(o);
+    });
+    bar.appendChild(colour);
+
     function button(name, label, html) {
       var b = el('button', 'rte__btn rte__btn--' + name);
       b.type = 'button';
@@ -228,6 +303,10 @@ CB.RichText = (function () {
     var bBold = button('bold', 'Bold (Ctrl+B)', '<b>B</b>');
     var bItal = button('italic', 'Italic (Ctrl+I)', '<i>I</i>');
     var bLink = button('link', 'Link (Ctrl+K)', icon('link'));
+    /* A paragraph's own alignment. Pressed again, it goes back to following
+       the block's Text alignment setting. */
+    var bAlign = {};
+    ALIGNS.forEach(function (a) { bAlign[a[0]] = button('al-' + a[0], a[1], icon(a[0])); });
     var bUl = button('ul', 'Bulleted list', icon('ul'));
     var bOl = button('ol', 'Numbered list', icon('ol'));
     var bHr = button('hr', 'Divider', icon('hr'));
@@ -326,7 +405,11 @@ CB.RichText = (function () {
       if (tag === 'UL' || tag === 'OL') return 'list';
       if (b.classList && b.classList.contains('is-large')) return 'large';
       if (b.classList && b.classList.contains('is-small')) return 'small';
+      if (b.classList && b.classList.contains('is-xl')) return 'xl';
       return 'p';
+    }
+    function textBlocks() {
+      return topBlocks().filter(function (b) { return /^(P|H3|H4)$/.test(b.tagName); });
     }
 
     function refresh() {
@@ -343,10 +426,58 @@ CB.RichText = (function () {
       var olist = bl.length && bl.every(function (b) { return b.tagName === 'OL'; });
       bUl.classList.toggle('is-on', !!list); bUl.setAttribute('aria-pressed', list ? 'true' : 'false');
       bOl.classList.toggle('is-on', !!olist); bOl.setAttribute('aria-pressed', olist ? 'true' : 'false');
+      var tb = textBlocks();
+      ALIGNS.forEach(function (a) {
+        var v = tb.length > 0 && tb.every(function (b) { return b.classList.contains('al-' + a[0]); });
+        bAlign[a[0]].classList.toggle('is-on', v);
+        bAlign[a[0]].setAttribute('aria-pressed', v ? 'true' : 'false');
+      });
+      /* What the caret is actually sitting in, whether that came from a
+         coloured run or from the paragraph's own colour. */
+      var now = '';
+      try { now = tokenOf(document.queryCommandValue('foreColor')); } catch (e) {}
+      colour.value = now || 'ink';
+    }
+
+    function setAlign(a) {
+      restore();
+      var tb = textBlocks();
+      if (!tb.length) return;
+      var all = tb.every(function (b) { return b.classList.contains('al-' + a); });
+      tb.forEach(function (b) {
+        ALIGNS.forEach(function (x) { b.classList.remove('al-' + x[0]); });
+        if (!all) b.classList.add('al-' + a);
+        if (!b.className) b.removeAttribute('class');
+      });
+      sync();
+      refresh();
+    }
+
+    /* Selected words get a coloured run; with nothing selected, the whole
+       paragraph or heading changes colour. */
+    function setColour(v) {
+      restore();
+      var s = window.getSelection();
+      if (s.rangeCount && !s.isCollapsed) {
+        try {
+          document.execCommand('styleWithCSS', false, false);
+          document.execCommand('foreColor', false, hexOf(v));
+        } catch (e) {}
+      } else {
+        textBlocks().forEach(function (b) {
+          b.classList.remove('c-ink', 'c-muted', 'c-brand');
+          if (v !== 'ink') b.classList.add('c-' + v);
+          if (!b.className) b.removeAttribute('class');
+        });
+      }
+      sync();
+      refresh();
     }
 
     /* Replaces the selected blocks with new ones built from their lines.
-       make(lines) returns the nodes to put in their place. */
+       make(lines) returns the nodes to put in their place; each line carries
+       its words and the alignment and colour it had, so changing a
+       paragraph's style does not quietly undo either. */
     function restructure(make) {
       restore();
       var bl = topBlocks();
@@ -354,7 +485,9 @@ CB.RichText = (function () {
       var lines = [];
       bl.forEach(function (b) { lines = lines.concat(partsOf(b)); });
       if (!lines.length) return;
-      var nodes = make(lines.map(function (n) { return n.innerHTML; }));
+      var nodes = make(lines.map(function (n) {
+        return { html: n.innerHTML, keep: (n.className.match(/\b(al|c)-[a-z]+/g) || []).join(' ') };
+      }));
       var kept = bl.filter(function (b) { return !partsOf(b).length; });   // rules and images stay
       nodes.forEach(function (n) { area.insertBefore(n, bl[0]); });
       bl.forEach(function (b) { if (kept.indexOf(b) < 0) area.removeChild(b); });
@@ -374,21 +507,21 @@ CB.RichText = (function () {
       restructure(function (lines) {
         if (v === 'quote') {
           var q = document.createElement('blockquote');
-          lines.forEach(function (h) { q.appendChild(blockOf('p', h)); });
+          lines.forEach(function (l) { q.appendChild(blockOf('p', l.html)); });
           return [q];
         }
         var tag = v === 'h2' ? 'h3' : v === 'h3' ? 'h4' : 'p';
-        var cls = v === 'large' || v === 'small' ? 'is-' + v : '';
-        return lines.map(function (h) { return blockOf(tag, h, cls); });
+        var size = v === 'large' || v === 'small' || v === 'xl' ? 'is-' + v : '';
+        return lines.map(function (l) { return blockOf(tag, l.html, (size + ' ' + l.keep).trim()); });
       });
     }
     function toggleList(tag) {
       var bl = topBlocks();
       var already = bl.length && bl.every(function (b) { return b.tagName === tag.toUpperCase(); });
       restructure(function (lines) {
-        if (already) return lines.map(function (h) { return blockOf('p', h); });
+        if (already) return lines.map(function (l) { return blockOf('p', l.html); });
         var list = document.createElement(tag);
-        lines.forEach(function (h) { list.appendChild(blockOf('li', h)); });
+        lines.forEach(function (l) { list.appendChild(blockOf('li', l.html)); });
         return [list];
       });
     }
@@ -505,6 +638,8 @@ CB.RichText = (function () {
 
     /* ---- wiring */
     style.addEventListener('change', function () { setStyle(style.value); });
+    colour.addEventListener('change', function () { setColour(colour.value); });
+    ALIGNS.forEach(function (a) { bAlign[a[0]].addEventListener('click', function () { setAlign(a[0]); }); });
     bBold.addEventListener('click', function () { exec('bold'); });
     bItal.addEventListener('click', function () { exec('italic'); });
     bLink.addEventListener('click', openLink);
