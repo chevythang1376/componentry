@@ -163,6 +163,31 @@ window.addEventListener('load', function () {
         /\.cb-px__shift \{[^}]*animation-range: cover 0% cover 100%;/.test(css3) &&
         /\.cb-px__bg \{[^}]*animation-range: cover 0% cover 100%;/.test(css3), true);
 
+  // --- sideways showcase, short rows -----------------------------------------
+  /* Three products or fewer fit the page anyway, so by default they sit still
+     as an ordinary row: nothing pinned, nothing gliding, no script. Four glide,
+     and so do three if the option is turned off. */
+  function showcase(n, extra) {
+    var items = CB.defaults(CB.get('side-scroll')).items.slice(0, n);
+    var props = Object.assign({ items: items }, extra || {});
+    var d = place('side-scroll', props, { above: 900, below: 900 });
+    return {
+      d: d,
+      stage: w.getComputedStyle(d.querySelector('.cb-ss__stage')).position,
+      glide: w.getComputedStyle(d.querySelector('.cb-ss__track')).animationName,
+      js: CB.build({ type: 'side-scroll', cls: 'q', props: Object.assign(CB.defaults(CB.get('side-scroll')), props) }, CB.DEFAULT_TOKENS).js
+    };
+  }
+  var s3 = showcase(3);
+  check('three products sit still: nothing pinned', s3.stage, 'static');
+  check('and nothing gliding', s3.glide, 'none');
+  check('with no progress line and no script',
+        !s3.d.querySelector('.cb-ss__progress') && s3.js === '', true);
+  var track3 = s3.d.querySelector('.cb-ss__track');
+  check('the row fits the page rather than running off it', track3.scrollWidth <= track3.clientWidth + 1, true);
+  check('four products glide', showcase(4).stage, 'sticky');
+  check('and so do three with the option off', showcase(3, { stillFew: false }).stage, 'sticky');
+
   /* --- a stagger slider that is live everywhere, and safe everywhere -------
 
      Both staggered reveals used to state the gap between neighbours, and both

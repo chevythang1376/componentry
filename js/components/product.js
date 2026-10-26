@@ -1013,6 +1013,12 @@
         help: 'Set this to the height of a fixed site header, or the frame will pin underneath it.'
       },
       { k: 'progress', t: 'toggle', label: 'Show a progress line', value: true },
+      {
+        k: 'stillFew', t: 'toggle', label: 'Sit still with 3 products or fewer', value: true,
+        help: 'Three or fewer fit the page anyway, so instead of pinning and gliding they are laid out as an ' +
+              'ordinary row in line with the heading, wrapping as the screen narrows and full width on a phone. ' +
+              'Turn off to glide whatever the count.'
+      },
 
       { t: 'section', label: 'Layout' },
       { k: 'size', t: 'select', label: 'Card size', value: 'regular', options: [['compact', 'Compact'], ['regular', 'Regular'], ['large', 'Large']] },
@@ -1051,6 +1057,8 @@
       var pad = c.num(p.pad, 80);
       var asCards = p.variant === 'card';
       var tl = '--cb-ss-' + c.cls;
+      /* A short row has nowhere to glide to: no pin, no glide, no script. */
+      var still = p.stillFew !== false && items.length <= 3;
 
       var cw = 'min(' + (SS_WIDTH[p.size] || SS_WIDTH.regular) + ', max(160px, (100svh - ' + top + 'px - 440px) * ' + aspect + '))';
       var gap = 'clamp(16px, 2.4vw, 28px)';
@@ -1075,7 +1083,7 @@
       }).join('\n');
 
       var html = c.dedent(`
-        <section class="${c.cls} cb-ss">
+        <section class="${c.cls} cb-ss${still ? ' cb-ss--still' : ''}">
           <div class="cb-ss__stage">
             ${(p.eyebrow || p.title || p.sub) ? `<div class="cb-wrap">
               <header class="cb-ss__head">
@@ -1089,7 +1097,7 @@
         ${c.indent(cards, 8)}
               </ul>
             </div>
-            ${p.progress ? '<div class="cb-ss__progress" aria-hidden="true"><span class="cb-ss__bar"></span></div>' : ''}
+            ${p.progress && !still ? '<div class="cb-ss__progress" aria-hidden="true"><span class="cb-ss__bar"></span></div>' : ''}
           </div>
         </section>`);
 
@@ -1137,7 +1145,14 @@
         ${s} .cb-ss__x { font-size: .92em; color: var(--cb-muted); }
         ${s} .cb-ss__cta { margin-top: 6px; }
         ${s} .cb-ss__progress { display: none; }
-
+        ${still ? `
+        /* Still: the cards share the content column, as wide as their size
+           allows, wrapping as the screen narrows rather than scrolling, and
+           full width once they are one to a row. */
+        ${s} .cb-ss__viewport { overflow: visible; scroll-snap-type: none; }
+        ${s} .cb-ss__track { flex-wrap: wrap; width: auto; padding-bottom: 0; }
+        ${s} .cb-ss__card { flex: 1 1 220px; width: auto; max-width: ${SS_WIDTH[p.size] || SS_WIDTH.regular}; }
+        @media (max-width: 560px) { ${s} .cb-ss__card { max-width: none; } }` : `
         /* The glide. Only where scroll timelines exist and motion is welcome;
            everywhere else the row above is the whole block. */
         @supports (animation-timeline: view()) {
@@ -1181,14 +1196,14 @@
           from { transform: translateX(0); }
           to { transform: translateX(min(0px, calc(100cqw - 100%))); }
         }
-        @keyframes cb-ss-fill-${c.cls} { from { transform: scaleX(0); } to { transform: scaleX(1); } }`;
+        @keyframes cb-ss-fill-${c.cls} { from { transform: scaleX(0); } to { transform: scaleX(1); } }`}`;
 
       /* The one job for script: keyboard focus. Tabbing to a card that is
          still off to the side would put focus somewhere nobody can see, and a
          row moved by a transform is not one the browser can scroll into view
          itself. So the page is scrolled to the point in the glide where that
          card is in the frame. Without script, the glide works as before. */
-      var js = c.wrap(c.cls, `
+      var js = still ? '' : c.wrap(c.cls, `
         var stage = root.querySelector(".cb-ss__stage");
         var track = root.querySelector(".cb-ss__track");
         var viewport = root.querySelector(".cb-ss__viewport");

@@ -185,6 +185,44 @@ window.addEventListener('load', function () {
             String(it.ink).toLowerCase(), CB.readableInk(it.color).toLowerCase());
     });
 
+  // --- words over a photo, on the worst photo there is ---------------------
+  /* Card Grid's text-over-image cards. Nothing here can know the photo, so
+     this takes the worst one for white text — pure white — with the tint off,
+     and asks whether the words' own backdrop still carries them past AA. It
+     used to be one gradient over the whole photo with the words at the top,
+     over the lightest part of it: 1.5:1 on a bright photo. */
+  (function () {
+    var white = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#fff"/></svg>');
+    var props = Object.assign(CB.defaults(CB.get('card-grid')), { variant: 'overlay', tint: 'none' });
+    props.items = props.items.map(function (it) { return Object.assign({}, it, { image: white }); });
+    var out = CB.build({ type: 'card-grid', cls: 'cb-card-grid-k', props: props }, CB.DEFAULT_TOKENS);
+    var d = f.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style><style>' + out.css + '</style>' + out.html);
+    d.close();
+    var card = d.querySelector('.cb-cg__inner'), body = d.querySelector('.cb-cg__body');
+    var first = d.querySelector('.cb-cg__tag') || d.querySelector('.cb-cg__t');
+    var cr = card.getBoundingClientRect(), br = body.getBoundingClientRect(), fr = first.getBoundingClientRect();
+    check('the words sit at the foot of a text-over-image card',
+          Math.abs(br.bottom - cr.bottom) < 2 && fr.top - cr.top > cr.height * .35 ? 'yes'
+            : 'no: first line ' + Math.round(fr.top - cr.top) + 'px down a ' + Math.round(cr.height) + 'px card', 'yes');
+
+    var probe = d.createElement('i');
+    probe.style.backgroundColor = w.getComputedStyle(body).getPropertyValue('--cb-cg-scrim');
+    d.body.appendChild(probe);
+    var c = w.getComputedStyle(probe).backgroundColor, m, ch;
+    if ((m = /^rgba?\(([^)]+)\)/.exec(c))) ch = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    else if ((m = /^color\(srgb ([^)]+)\)/.exec(c))) ch = m[1].split(/[\s/]+/).filter(Boolean).map(Number).map(function (v, i) { return i < 3 ? v * 255 : v; });
+    var a = ch && ch.length > 3 ? ch[3] : 1;
+    function lin(v) { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }
+    var over = ch ? [0, 1, 2].map(function (i) { return a * ch[i] + (1 - a) * 255; }) : null;
+    var L = over ? .2126 * lin(over[0]) + .7152 * lin(over[1]) + .0722 * lin(over[2]) : 1;
+    var ratio = 1.05 / (L + .05);
+    check('white text on it clears 4.5:1 over a white photo', ratio >= 4.5 ? 'yes' : 'no: ' + ratio.toFixed(2) + ':1 (' + c + ')', 'yes');
+    check('and every line sits on the solid part of it, below the fade',
+          fr.top - br.top >= 72 - 1 ? 'yes' : 'no: first line ' + Math.round(fr.top - br.top) + 'px into the backdrop', 'yes');
+  })();
+
 
   document.getElementById('out').textContent = log.join('\n');
   var bar = document.getElementById('bar');
