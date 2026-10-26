@@ -1031,6 +1031,20 @@ window.CB = (function () {
      fields, which is exactly why it could only ever hold four columns; the
      general table stores real cell arrays and has no such limit. */
   var MIGRATIONS = {
+    /* One strength slider whose photo moved faster than the page became a
+       choice of movement with a depth. A strength of 0 meant no movement and
+       has to stay that way; anything else keeps its place on the new scale,
+       so the old default lands on the new one. */
+    'parallax-banner': function (p) {
+      p = Object.assign({}, p);
+      if ('speed' in p && !('motion' in p)) {
+        var sp = Number(p.speed) || 0;
+        p.motion = sp > 0 ? 'depth' : 'none';
+        if (sp > 0) p.depth = Math.max(10, Math.min(80, Math.round(sp * 4 / 3 / 5) * 5));
+      }
+      delete p.speed;
+      return { type: 'parallax-banner', props: p };
+    },
     'compare-table': function (p) {
       p = p || {};
       var products = (p.products || []).filter(function (x) { return x && x.name; });

@@ -77,6 +77,23 @@ check('junk in the import field is ignored',
 check('the stack falls back to something real if the import is stripped',
       /Helvetica Neue|Helvetica|Arial|sans-serif/.test(CB.fontStack(tok())), true);
 
+// --- a parallax, new and as saved before its controls changed ------------
+/* The old single strength slider moved the photo faster than the page. A
+   saved banner has to open as what was asked for: still if it was set to 0,
+   and at a matching depth otherwise. */
+function oldBanner(speed) {
+  return CB.migrate([{ uid: 'u', cls: 'cb-px-o', type: 'parallax-banner', props: { title: 'Old', speed: speed } }])[0].props;
+}
+check('a new banner moves its photo slower than the page',
+      CB.defaults(CB.get('parallax-banner')).motion + ' ' + CB.defaults(CB.get('parallax-banner')).depth, 'depth 40');
+check('a banner saved with no movement still has none', oldBanner(0).motion, 'none');
+check('the old default opens on the new default', oldBanner(30).motion + ' ' + oldBanner(30).depth, 'depth 40');
+check('the strongest old setting stays strong', oldBanner(60).depth, 80);
+check('and the retired setting is not carried along', 'speed' in oldBanner(30), false);
+check('opening it again changes nothing',
+      JSON.stringify(CB.migrate([{ uid: 'u', cls: 'c', type: 'parallax-banner', props: oldBanner(45) }])[0].props),
+      JSON.stringify(oldBanner(45)));
+
 document.getElementById('out').textContent = log.join('\n');
 var bar = document.getElementById('bar');
 bar.className = 'bar ' + (fail ? 'bad' : 'ok');

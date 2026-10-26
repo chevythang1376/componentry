@@ -68,11 +68,34 @@ window.CBProbe = (function () {
   /* ------------------------------------------------------------ heroes */
 
   register('parallax-banner', function (root, t) {
-    t.ok('background layer present', !!q(root, '.cb-px__bg img'));
+    var img = q(root, '.cb-px__shift img'), shift = q(root, '.cb-px__shift');
+    t.ok('background layer present', !!img);
     t.ok('headline rendered', !!q(root, '.cb-px__title'));
-    var bg = q(root, '.cb-px__bg');
-    window.dispatchEvent(new Event('scroll'));
-    t.ok('scroll handler bound', root.hasAttribute('data-cb-ready'));
+    var timelines = window.CSS && CSS.supports && CSS.supports('animation-timeline: view()');
+    var moves = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) && atLeast(641);
+    if (moves && timelines) {
+      /* Detached while the banner is far off screen, which is all its script
+         does here. Attached for the look, then left as it was found. */
+      var idle = root.hasAttribute('data-cb-idle');
+      root.removeAttribute('data-cb-idle');
+      var cs = getComputedStyle(shift), name = cs.animationName, tl = cs.animationTimeline;
+      if (idle) root.setAttribute('data-cb-idle', '');
+      t.ok('the photo is moved by the scroll, with no script involved',
+           /cb-px-b/.test(name) && /--cb-px/.test(tl), name + ' on ' + tl);
+    } else if (moves) {
+      window.dispatchEvent(new Event('scroll'));
+      t.ok('without scroll timelines its script moves the photo', root.hasAttribute('data-cb-ready'));
+    }
+    /* Wherever the page happens to be scrolled, the photo fills whatever part
+       of the banner is on screen. An edge showing is the failure that matters. */
+    var r = root.getBoundingClientRect(), i = img.getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    var top = Math.max(r.top, 0), bottom = Math.min(r.bottom, vh);
+    t.ok('the photo covers the banner where it is on screen',
+         bottom <= top || (i.top <= top + 1 && i.bottom >= bottom - 1 && i.left <= r.left + 1 && i.right >= r.right - 1),
+         'photo ' + Math.round(i.top) + '..' + Math.round(i.bottom) + ' over ' + Math.round(top) + '..' + Math.round(bottom));
+    t.ok('the root contains its paint, since the photo is taller than the banner',
+         /paint/.test(getComputedStyle(root).contain), getComputedStyle(root).contain);
   });
 
   register('hero-slider', function (root, t) {

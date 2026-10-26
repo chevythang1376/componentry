@@ -806,7 +806,15 @@ video { width: 100% !important; }
           /\.layer-mq\.cb-mq\s*\{[^}]*contain:\s*paint/.test(code(mq.css)), 'contain: paint on the marquee root');
     check('and so does the sideways showcase, whose row runs far past its frame',
           /\.layer-ss\.cb-ss\s*\{[^}]*contain:\s*paint/.test(code(ss.css)), 'contain: paint on the showcase root');
-    check('and raises its layer only while it is on screen',
+    /* The parallax holds a layer only while it is near the screen. Where scroll
+       timelines run it, an attached animation keeps its layer for the life of
+       the page, so the script detaches it once the banner is well away; the
+       fallback script raises will-change only while it is on screen. */
+    check('and holds its layer only while it is near the screen',
+          /setAttribute\("data-cb-idle"/.test(code(px.js)) && /removeAttribute\("data-cb-idle"\)/.test(code(px.js)) &&
+          /\[data-cb-idle\][^{]*\.cb-px__shift[^{]*\{\s*animation:\s*none/.test(code(px.css)),
+          'detached off screen where the stylesheet drives it');
+    check('and its fallback raises will-change only while on screen',
           /willChange\s*=\s*"transform"/.test(code(px.js)) && /willChange\s*=\s*""/.test(code(px.js)),
           'toggled by the scroll handler');
   })();

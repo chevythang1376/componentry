@@ -54,7 +54,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 | Category | Component | Notes |
 |---|---|---|
-| **Heroes & Banners** | Parallax Banner | `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't |
+| **Heroes & Banners** | Parallax Banner | The photo moves slower than the page, so it seems to sit behind it, at a depth you set — or stays fixed while the page slides over it. Optional zoom in or out as you scroll, and a headline that fades, or fades and falls behind, as the banner leaves. Run by CSS scroll timelines, in step with the scroll and with no script; a script does the same where they are missing. `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't |
 | | Hero Slider | Multiple banners that rotate. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay always ships with a pause control |
 | | Video Hero | Muted looping background video, poster fallback, pause control |
 | | Split Hero | Copy + image, reversible, optional tick list |
@@ -156,9 +156,13 @@ forever with `translate3d`, and Kinetic Text put `will-change` on every word.
 Three rules now, all pinned by `test/hostile-host.html`:
 
 - **No permanent `will-change` in any block's stylesheet.** A running animation is
-  composited without being asked. The parallax raises its layer from its script only
-  while it is on screen, and drops it once it has scrolled away — so while anyone is
-  reading the page below it, there is no layer to promote that page.
+  composited without being asked — and an attached animation keeps its layer for the
+  life of the page, scrolled away or not. So the parallax detaches its scroll timeline
+  once the banner is well off screen and attaches it again before it returns (its
+  fallback script raises `will-change` only while it is on screen) — while anyone is
+  reading the page below it, there is no layer to promote that page. Measured in
+  Chrome's own layer tree: the photo's two layers are there on screen and gone a
+  screen away.
 - **No forced 3D layers.** `translate3d` and `translateZ` were the old trick for
   demanding a GPU layer. A 2D transform moves just as smoothly.
 - **A block that moves something larger than itself declares `contain: paint`.** That
@@ -239,8 +243,8 @@ are measured at 1280px.
 | **Code / embed block** (verbatim) | **44/44** | yes | yes |
 | **TinyMCE**, permissive config | **44/44** | yes | yes |
 | **DOMPurify**, style+script allowed | **44/44** | yes | yes |
-| DOMPurify, defaults | 31/44 | yes | no |
-| GrapesJS (page builder) | 28/44 | yes | no |
+| DOMPurify, defaults | 32/44 | yes | no |
+| GrapesJS (page builder) | 29/44 | yes | no |
 | `wp_kses_post` (approximated) | 12/44 | no | no |
 | TinyMCE, stock config | 12/44 | no | no |
 | Quill | 0/44 | no | no |
@@ -322,7 +326,7 @@ pages the library actually ships, rather than on an abstract five:
 | Product page | 5 | 73.6 kB CSS | **29.3 kB** | −60% |
 | Capability page | 5 | 75.7 kB CSS | **32.1 kB** | −58% |
 | Landing page | 6 | 83.2 kB CSS | **28.8 kB** | −65% |
-| All 44 | 44 | 608.0 kB CSS | **168.5 kB** | −72% |
+| All 44 | 44 | 609.6 kB CSS | **170.1 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -1108,8 +1112,18 @@ a copy, or point image fields at URLs instead of uploading.
 - **Tabs → link to individual tabs**, plus **manual keyboard activation** (arrows move,
   Enter selects) — the APG recommendation when panels are expensive to load.
 - **Carousel → wrap around at the ends**, so arrows never dead-end.
-- **Parallax → parallax on mobile**, off by default because scroll-linked movement is
-  janky and battery-hungry on phones.
+- **Parallax → scroll effect.** *Photo movement* is how the photo travels against the page:
+  slower (the classic parallax, with a *Depth* from 10% to 90%), fixed while the page slides
+  over it, or not at all. *Zoom* eases the photo in or out across the banner's pass, and
+  *Headline and buttons* can fade, or fade and fall behind, as it leaves — never on the way
+  in, so the words are never waiting on the effect. More depth crops more of the photo,
+  because a taller copy of it has to fill the banner while it slides. All of it is off on
+  phones unless *Scroll effects on phones* is on.
+
+  Until this release the photo moved *faster* than the page, which read as the photo sliding
+  in front of the words, and it was moved by a script a frame behind the scroll. A banner
+  saved before then opens as it was set: a strength of 0 stays still, and anything else
+  becomes the matching depth, so the old default opens on the new one.
 - **Countdown → when it reaches zero**: show a message, hide the block, or hold at zero.
 
 Toggles that are off cost nothing: the code for them isn't emitted at all, which keeps
@@ -1157,12 +1171,12 @@ test/
                         no block leaves a permanent GPU layer, forces a 3D one, or
                         moves something larger than itself without containing its
                         paint — the checks that would have caught the page below a
-                        Parallax Banner turning bold; 174 assertions
+                        Parallax Banner turning bold; 175 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         352 round-trips, then functionally probes what survives.
                         Structured data (JSON-LD) is left in the markup rather
                         than run as script, so a stripped editor that keeps it
-                        is credited for it; 231 assertions
+                        is credited for it; 233 assertions
   degrade.html          Removes one CSS capability at a time (background-clip,
                         gradients, clip-path, backdrop-filter, images, scroll
                         timelines) and reports text that becomes unreadable.
@@ -1199,7 +1213,11 @@ test/
                         statement length for Kinetic Text, every slat count and
                         order for Split Reveal — and fails if any value is a
                         duplicate of its neighbour or finishes after the phase
-                        it lives in; 28 assertions
+                        it lives in. The Parallax Banner's headline fade is held
+                        to the same rule — whole when it never runs, and only
+                        ever on the way out — and the bridge has to leave its
+                        photo on the scroll, since held anywhere else it shows
+                        its own edge; 36 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
@@ -1213,7 +1231,10 @@ test/
   defaults.html         Pins what a brand new project ships as — Inter actually
                         imported rather than merely named, 1px button corners —
                         since a default that reverts is invisible until an
-                        export is already out the door; 14 assertions
+                        export is already out the door. And what an old one
+                        opens as: a Parallax Banner saved under the retired
+                        strength slider keeps the movement it was given; 20
+                        assertions
   radius.html           Asserts one slider reaches every rounded container and
                         that circles and pills are left alone, and fails if any
                         container drifts onto a bare pixel radius; 19 assertions
@@ -1263,7 +1284,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Thirteen harnesses, 746 assertions**, plus two that report coverage rather than a count:
+**Thirteen harnesses, 763 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

@@ -331,9 +331,14 @@ CB.Export = (function () {
          only ever changes what you are looking at, never what you export. */
       var cbHeld = null;
 
+      /* Except motion that only means anything at the scroll position driving
+         it. A parallax photo held anywhere else just shows its own edge, so
+         those layers say so and stay on the scroll. */
       function cbScrollDriven() {
         return document.getAnimations().filter(function (a) {
-          return a.timeline && a.timeline !== document.timeline;
+          var el = a.effect && a.effect.target;
+          return a.timeline && a.timeline !== document.timeline &&
+                 !(el && el.closest && el.closest("[data-cb-scroll-tied]"));
         });
       }
 
