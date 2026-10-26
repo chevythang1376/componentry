@@ -7,6 +7,220 @@
   var CAT = 'Heroes & Banners';
 
   /* --------------------------------------------------------------------- */
+  /* The scroll effect, shared by the Parallax Banner and the Hero Slider   */
+  /* so the two cannot drift apart.                                         */
+  /*                                                                        */
+  /* The drift. Offsetting the photo by k times the banner's distance from  */
+  /* the top of the window moves it at (1 - k) of the page's speed, and it  */
+  /* then has to be (1 - k) of the banner tall plus k of the window to      */
+  /* never show an edge. That offset runs from -k windows, as the banner    */
+  /* enters at the bottom, to +k banners as it leaves at the top — and one  */
+  /* transform cannot say both lengths, since a percentage in it is the     */
+  /* element's own size. So it is split: the outer layer is the banner's    */
+  /* size and moves 0 to k of itself, the inner one moves -k windows to 0,  */
+  /* and the sum is the line above.                                         */
+  /*                                                                        */
+  /* lvh rather than vh because a phone's window is never taller than its   */
+  /* large viewport, and erring tall only ever overfills.                   */
+  /*                                                                        */
+  /* It used to be a script that moved the photo faster than the page,      */
+  /* which read as the photo sliding in front of the words, and a frame     */
+  /* behind the scroll. Where scroll timelines exist the whole effect is    */
+  /* now the stylesheet, in step with the scroll.                           */
+  /*                                                                        */
+  /* An attached animation keeps its compositor layer for the life of the   */
+  /* page, scrolled away or not, and a lingering layer is how the banner    */
+  /* once made the text below it look bold. So the script detaches the      */
+  /* effect once the block is well off screen (data-cb-idle) and puts it    */
+  /* back before it returns. Where scripts are stripped it simply stays     */
+  /* attached, contained like the marquee's.                                */
+  /*                                                                        */
+  /* o names the parts, as selectors inside the block: root (the block      */
+  /* itself, written onto its class), bg (the banner-sized layer or         */
+  /* layers), shift (the layer inside each), zoom (what zooms, or '' for a  */
+  /* block that has none) and content (the words), plus a short name for    */
+  /* the timeline and keyframes. The script it returns is self-contained,   */
+  /* so its early exits cannot cut short a script it is placed beside.      */
+  /* --------------------------------------------------------------------- */
+  function scrollEffect(p, c, o) {
+    var s = c.s;
+    /* The photo's lag behind the page, as a fraction of the scroll: 0 moves
+       with the page, 1 stands still on screen while the page slides over it. */
+    var motion = p.motion === 'fixed' || p.motion === 'none' ? p.motion : 'depth';
+    var k = motion === 'fixed' ? 1 : motion === 'none' ? 0 : c.clamp(c.num(p.depth, 40), 10, 90) / 100;
+    var zoom = o.zoom && (p.zoom === 'in' || p.zoom === 'out') ? p.zoom : 'none';
+    var zf = zoom === 'none' ? 0 : c.clamp(c.num(p.zoomAmount, 15), 5, 40) / 100;
+    var fx = p.contentFx === 'fade' || p.contentFx === 'sink' ? p.contentFx : 'still';
+    var tl = '--cb-' + o.name + '-' + c.cls;
+    var kf = 'cb-' + o.name + '-';
+    function n(x) { return String(+x.toFixed(4)); }
+    /* Phones are left out unless asked for: the whole effect, not only the drift. */
+    var when = '(prefers-reduced-motion: no-preference)' + (p.mobileParallax ? '' : ' and (min-width: 641px)');
+    var on = !!(k || zf || fx !== 'still');
+    if (!on) return { on: false, drift: false, css: '', js: '' };
+
+    var idle = [o.bg, o.shift, o.zoom || o.shift + ' img', o.content].map(function (x) {
+      return s + o.root + '[data-cb-idle] ' + x;
+    });
+    var css = `
+        @supports (animation-timeline: view()) {
+          @media ${when} {
+            ${s}${o.root} { view-timeline: ${tl} block; }${k ? `
+            ${s} ${o.bg} {
+              animation: ${kf}a-${c.cls} linear;
+              animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
+            }
+            ${s} ${o.shift} {
+              height: calc(${n(1 - k)} * 100% + ${n(k)} * 100lvh);
+              animation: ${kf}b-${c.cls} linear;
+              animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
+            }` : ''}${zf ? `
+            ${s} ${o.zoom} {
+              animation: ${kf}z-${c.cls} linear;
+              animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
+            }` : ''}${fx !== 'still' ? `
+            ${s} ${o.content} {
+              animation: ${kf}c-${c.cls} linear;
+              animation-timeline: ${tl}; animation-range: exit 0% exit 100%;
+            }` : ''}
+            ${idle[0]}, ${idle[1]},
+            ${idle[2]}, ${idle[3]} { animation: none; }
+          }
+        }
+        @keyframes ${kf}a-${c.cls} { from { transform: translateY(0); } to { transform: translateY(${n(k * 100)}%); } }
+        @keyframes ${kf}b-${c.cls} { from { transform: translateY(calc(${n(-k)} * 100lvh)); } to { transform: translateY(0); } }
+        @keyframes ${kf}z-${c.cls} { from { transform: scale(${zoom === 'in' ? 1 : n(1 + zf)}); } to { transform: scale(${zoom === 'in' ? n(1 + zf) : 1}); } }
+        @keyframes ${kf}c-${c.cls} {
+          0% { opacity: 1;${fx === 'sink' ? ' transform: translateY(0);' : ''} }
+          70% { opacity: 0; }
+          100% { opacity: 0;${fx === 'sink' ? ' transform: translateY(50%);' : ''} }
+        }`;
+
+    var js = `
+        (function () {
+          /* Where scroll timelines exist the stylesheet runs the effect, and all
+             this does is detach it while the block is well off screen, so no
+             layer is held beside the page somebody is reading. */
+          if (window.CSS && CSS.supports && CSS.supports("animation-timeline: view()")) {
+            if (!("IntersectionObserver" in window)) return;
+            new IntersectionObserver(function (entries) {
+              entries.forEach(function (e) {
+                if (e.isIntersecting) root.removeAttribute("data-cb-idle");
+                else root.setAttribute("data-cb-idle", "");
+              });
+            }, { rootMargin: "50% 0px" }).observe(root);
+            return;
+          }
+
+          /* Everything below is for browsers without them. */
+          var shifts = Array.prototype.slice.call(root.querySelectorAll(${JSON.stringify(o.shift)}));
+          var contents = Array.prototype.slice.call(root.querySelectorAll(${JSON.stringify(o.content)}));
+          if (!shifts.length && !contents.length) return;
+          if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+          /* Scroll-linked movement is battery-hungry on phones, so it is opt-in
+             there. Re-checked on resize rather than read once. */
+          var mobileOn = ${p.mobileParallax ? 'true' : 'false'};
+          var small = window.matchMedia ? window.matchMedia("(max-width: 640px)") : null;
+          function enabled() { return mobileOn || !small || !small.matches; }
+
+          var k = ${n(k)}, zoomIn = ${zoom === 'in' ? 'true' : 'false'}, zf = ${n(zf)}, fx = "${fx}";
+          var queued = false;
+
+          function clear() {
+            shifts.forEach(function (sh) {
+              sh.style.height = sh.style.transform = sh.style.willChange = "";
+              var img = sh.querySelector("img");
+              if (img) img.style.transform = "";
+            });
+            contents.forEach(function (ct) { ct.style.opacity = ct.style.transform = ""; });
+          }
+
+          /* The same geometry as the stylesheet, worked out from where the
+             block is rather than from a timeline. */
+          function paint() {
+            queued = false;
+            if (!enabled()) { clear(); return; }
+            var r = root.getBoundingClientRect();
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            if (r.bottom < -80 || r.top > vh + 80) {
+              shifts.forEach(function (sh) { sh.style.willChange = ""; });
+              return;
+            }
+            var top = Math.max(-r.height, Math.min(vh, r.top));
+            var t = (vh - top) / (vh + r.height);          /* 0 entering at the bottom, 1 gone off the top */
+            shifts.forEach(function (sh) {
+              if (!k && !zf) return;
+              sh.style.willChange = "transform";
+              sh.style.height = "calc(" + (1 - k) + " * 100% + " + k + " * 100vh)";
+              /* 2D, not translate3d: the 3D form was the old trick for forcing a
+                 GPU layer, and a forced layer is the thing this block should not
+                 leave lying around. The compositor still moves a 2D transform
+                 smoothly. */
+              sh.style.transform = "translateY(" + (-k * top).toFixed(2) + "px)";
+              var img = sh.querySelector("img");
+              if (img && zf) img.style.transform = "scale(" + (1 + zf * (zoomIn ? t : 1 - t)).toFixed(4) + ")";
+            });
+            if (fx !== "still") {
+              var from = Math.min(0, vh - r.height);       /* where it starts to leave */
+              var e = Math.max(0, Math.min(1, (from - r.top) / (from + r.height)));
+              contents.forEach(function (ct) {
+                ct.style.opacity = String(Math.max(0, 1 - e / 0.7));
+                if (fx === "sink") ct.style.transform = "translateY(" + (e * 50).toFixed(2) + "%)";
+              });
+            }
+          }
+          function onScroll() {
+            if (queued) return;
+            queued = true;
+            window.requestAnimationFrame(paint);
+          }
+
+          window.addEventListener("scroll", onScroll, { passive: true });
+          window.addEventListener("resize", onScroll, { passive: true });
+          paint();
+        })();`;
+
+    return { on: true, drift: !!k, css: css, js: js };
+  }
+
+  /* The settings that drive it, for any block that offers it. `zoom` adds the
+     zoom controls; a block with its own zoom (the slider's slow zoom) leaves
+     them out. */
+  function scrollEffectProps(defaultMotion, zoom) {
+    return [
+      { t: 'section', label: 'Scroll effect' },
+      {
+        k: 'motion', t: 'select', label: 'Photo movement', value: defaultMotion,
+        options: [['depth', 'Slower than the page'], ['fixed', 'Fixed — the page slides over it'], ['none', 'None — scrolls with the page']],
+        help: 'Slower than the page is the classic parallax: the photo seems to sit behind the page.'
+      },
+      {
+        k: 'depth', t: 'range', label: 'Depth', min: 10, max: 90, step: 5, unit: '%', value: 40,
+        when: { motion: ['depth'] },
+        help: 'How much slower the photo moves than the page. More depth shows less of the photo at once, ' +
+              'because a taller copy of it has to fill the banner while it slides.'
+      }
+    ].concat(zoom ? [
+      {
+        k: 'zoom', t: 'select', label: 'Zoom', value: 'none',
+        options: [['none', 'None'], ['in', 'Zoom in as you scroll'], ['out', 'Zoom out as you scroll']]
+      },
+      { k: 'zoomAmount', t: 'range', label: 'Zoom amount', min: 5, max: 40, step: 5, unit: '%', value: 15, when: { zoom: ['in', 'out'] } }
+    ] : []).concat([
+      {
+        k: 'contentFx', t: 'select', label: 'Headline and buttons', value: 'still',
+        options: [['still', 'Scroll with the page'], ['fade', 'Fade out as the banner leaves'], ['sink', 'Fade and fall behind as it leaves']],
+        help: 'Only while the banner scrolls off the top. Nothing fades in, so the words are never waiting on the effect to be readable.'
+      },
+      {
+        k: 'mobileParallax', t: 'toggle', label: 'Scroll effects on phones', value: false,
+        help: 'Off by default: on a phone the photo simply fills the banner. Turn on to run the effects at every width.'
+      }
+    ]);
+  }
+
+  /* --------------------------------------------------------------------- */
   /* Parallax Banner                                                        */
   /* --------------------------------------------------------------------- */
   CB.register({
@@ -14,7 +228,7 @@
     name: 'Parallax Banner',
     category: CAT,
     icon: '⛰',
-    blurb: 'Full-bleed scroll parallax with overlay, headline and CTAs. Uses transform (not background-attachment) so it works on iOS.',
+    blurb: 'Full-bleed scroll parallax with overlay, headline and CTAs. Uses transform (not background-attachment) so it works on iOS. For several banners that rotate with the same effect, use the Hero Slider.',
     props: [
       { t: 'section', label: 'Content' },
       { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: 'New for 2026' },
@@ -28,35 +242,8 @@
       { t: 'section', label: 'Media' },
       { k: 'image', t: 'image', label: 'Background image', value: CB.ph(1600, 900, '', '#2b241f', '#2b241f') },
       { k: 'height', t: 'range', label: 'Height', min: 280, max: 900, step: 10, unit: 'px', value: 580 },
-      { k: 'focal', t: 'select', label: 'Image focus', value: 'center', options: [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom']] },
-
-      { t: 'section', label: 'Scroll effect' },
-      {
-        k: 'motion', t: 'select', label: 'Photo movement', value: 'depth',
-        options: [['depth', 'Slower than the page'], ['fixed', 'Fixed — the page slides over it'], ['none', 'None — scrolls with the page']],
-        help: 'Slower than the page is the classic parallax: the photo seems to sit behind the page.'
-      },
-      {
-        k: 'depth', t: 'range', label: 'Depth', min: 10, max: 90, step: 5, unit: '%', value: 40,
-        when: { motion: ['depth'] },
-        help: 'How much slower the photo moves than the page. More depth shows less of the photo at once, ' +
-              'because a taller copy of it has to fill the banner while it slides.'
-      },
-      {
-        k: 'zoom', t: 'select', label: 'Zoom', value: 'none',
-        options: [['none', 'None'], ['in', 'Zoom in as you scroll'], ['out', 'Zoom out as you scroll']]
-      },
-      { k: 'zoomAmount', t: 'range', label: 'Zoom amount', min: 5, max: 40, step: 5, unit: '%', value: 15, when: { zoom: ['in', 'out'] } },
-      {
-        k: 'contentFx', t: 'select', label: 'Headline and buttons', value: 'still',
-        options: [['still', 'Scroll with the page'], ['fade', 'Fade out as the banner leaves'], ['sink', 'Fade and fall behind as it leaves']],
-        help: 'Only while the banner scrolls off the top. Nothing fades in, so the words are never waiting on the effect to be readable.'
-      },
-      {
-        k: 'mobileParallax', t: 'toggle', label: 'Scroll effects on phones', value: false,
-        help: 'Off by default: on a phone the photo simply fills the banner. Turn on to run the effects at every width.'
-      },
-
+      { k: 'focal', t: 'select', label: 'Image focus', value: 'center', options: [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom']] }
+    ].concat(scrollEffectProps('depth', true), [
       { t: 'section', label: 'Overlay' },
       { k: 'overlay', t: 'color', label: 'Overlay colour', value: '#12100e' },
       { k: 'overlayOpacity', t: 'range', label: 'Overlay opacity', min: 0, max: 90, step: 5, unit: '%', value: 45 },
@@ -67,23 +254,15 @@
       { k: 'textColor', t: 'color', label: 'Text colour', value: '#ffffff' },
       { k: 'titleSize', t: 'range', label: 'Headline size', min: 28, max: 88, step: 2, unit: 'px', value: 60 },
       { k: 'cue', t: 'toggle', label: 'Scroll cue', value: true }
-    ],
+    ]),
 
     render: function (p, c) {
       var s = c.s;
       var flex = p.align === 'left' ? 'flex-start' : p.align === 'right' ? 'flex-end' : 'center';
-
-      /* The photo's lag behind the page, as a fraction of the scroll: 0 moves
-         with the page, 1 stands still on screen while the page slides over it. */
-      var motion = p.motion === 'fixed' || p.motion === 'none' ? p.motion : 'depth';
-      var k = motion === 'fixed' ? 1 : motion === 'none' ? 0 : c.clamp(c.num(p.depth, 40), 10, 90) / 100;
-      var zoom = p.zoom === 'in' || p.zoom === 'out' ? p.zoom : 'none';
-      var zf = zoom === 'none' ? 0 : c.clamp(c.num(p.zoomAmount, 15), 5, 40) / 100;
-      var fx = p.contentFx === 'fade' || p.contentFx === 'sink' ? p.contentFx : 'still';
-      var tl = '--cb-px-' + c.cls;
-      function n(x) { return String(+x.toFixed(4)); }
-      /* Phones are left out unless asked for: the whole effect, not only the drift. */
-      var when = '(prefers-reduced-motion: no-preference)' + (p.mobileParallax ? '' : ' and (min-width: 641px)');
+      var effect = scrollEffect(p, c, {
+        name: 'px', root: '.cb-px', bg: '.cb-px__bg', shift: '.cb-px__shift',
+        zoom: '.cb-px__shift img', content: '.cb-px__content'
+      });
 
       var html = c.dedent(`
         <section class="${c.cls} cb-px" aria-label="${c.attr((p.title || '').split('\n')[0])}">
@@ -171,136 +350,8 @@
           ${s} .cb-btn { width: 100%; }
         }`;
 
-      /* The drift. Offsetting the photo by k times the banner's distance from
-         the top of the window moves it at (1 - k) of the page's speed, and it
-         then has to be (1 - k) of the banner tall plus k of the window to never
-         show an edge. That offset runs from -k windows, as the banner enters at
-         the bottom, to +k banners as it leaves at the top — and one transform
-         cannot say both lengths, since a percentage in it is the element's own
-         size. So it is split: the outer layer is the banner's size and moves
-         0 to k of itself, the inner one moves -k windows to 0, and the sum is
-         the line above.
-
-         lvh rather than vh because a phone's window is never taller than its
-         large viewport, and erring tall only ever overfills.
-
-         It used to be a script that moved the photo faster than the page,
-         which read as the photo sliding in front of the words, and a frame
-         behind the scroll. Where scroll timelines exist the whole effect is
-         now the stylesheet, in step with the scroll.
-
-         An attached animation keeps its compositor layer for the life of the
-         page, scrolled away or not, and a lingering layer is how this banner
-         once made the text below it look bold. So the script detaches the
-         effect once the banner is well off screen (data-cb-idle) and puts it
-         back before it returns. Where scripts are stripped it simply stays
-         attached, contained like the marquee's. */
-      if (k || zf || fx !== 'still') {
-        css += `
-        @supports (animation-timeline: view()) {
-          @media ${when} {
-            ${s}.cb-px { view-timeline: ${tl} block; }${k ? `
-            ${s} .cb-px__bg {
-              animation: cb-px-a-${c.cls} linear;
-              animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
-            }
-            ${s} .cb-px__shift {
-              height: calc(${n(1 - k)} * 100% + ${n(k)} * 100lvh);
-              animation: cb-px-b-${c.cls} linear;
-              animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
-            }` : ''}${zf ? `
-            ${s} .cb-px__shift img {
-              animation: cb-px-z-${c.cls} linear;
-              animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
-            }` : ''}${fx !== 'still' ? `
-            ${s} .cb-px__content {
-              animation: cb-px-c-${c.cls} linear;
-              animation-timeline: ${tl}; animation-range: exit 0% exit 100%;
-            }` : ''}
-            ${s}.cb-px[data-cb-idle] .cb-px__bg, ${s}.cb-px[data-cb-idle] .cb-px__shift,
-            ${s}.cb-px[data-cb-idle] .cb-px__shift img, ${s}.cb-px[data-cb-idle] .cb-px__content { animation: none; }
-          }
-        }
-        @keyframes cb-px-a-${c.cls} { from { transform: translateY(0); } to { transform: translateY(${n(k * 100)}%); } }
-        @keyframes cb-px-b-${c.cls} { from { transform: translateY(calc(${n(-k)} * 100lvh)); } to { transform: translateY(0); } }
-        @keyframes cb-px-z-${c.cls} { from { transform: scale(${zoom === 'in' ? 1 : n(1 + zf)}); } to { transform: scale(${zoom === 'in' ? n(1 + zf) : 1}); } }
-        @keyframes cb-px-c-${c.cls} {
-          0% { opacity: 1;${fx === 'sink' ? ' transform: translateY(0);' : ''} }
-          70% { opacity: 0; }
-          100% { opacity: 0;${fx === 'sink' ? ' transform: translateY(50%);' : ''} }
-        }`;
-      }
-
-      var js = !(k || zf || fx !== 'still') ? '' : c.wrap(c.cls, `
-        /* Where scroll timelines exist the stylesheet runs the effect, and all
-           this does is detach it while the banner is well off screen, so no
-           layer is held beside the page somebody is reading. */
-        if (window.CSS && CSS.supports && CSS.supports("animation-timeline: view()")) {
-          if (!("IntersectionObserver" in window)) return;
-          new IntersectionObserver(function (entries) {
-            entries.forEach(function (e) {
-              if (e.isIntersecting) root.removeAttribute("data-cb-idle");
-              else root.setAttribute("data-cb-idle", "");
-            });
-          }, { rootMargin: "50% 0px" }).observe(root);
-          return;
-        }
-
-        /* Everything below is for browsers without them. */
-        var shift = root.querySelector(".cb-px__shift");
-        var img = shift && shift.querySelector("img");
-        var content = root.querySelector(".cb-px__content");
-        if (!shift) return;
-        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-        /* Scroll-linked movement is battery-hungry on phones, so it is opt-in
-           there. Re-checked on resize rather than read once. */
-        var mobileOn = ${p.mobileParallax ? 'true' : 'false'};
-        var small = window.matchMedia ? window.matchMedia("(max-width: 640px)") : null;
-        function enabled() { return mobileOn || !small || !small.matches; }
-
-        var k = ${n(k)}, zoomIn = ${zoom === 'in' ? 'true' : 'false'}, zf = ${n(zf)}, fx = "${fx}";
-        var queued = false;
-
-        function clear() {
-          shift.style.height = shift.style.transform = shift.style.willChange = "";
-          if (img) img.style.transform = "";
-          if (content) content.style.opacity = content.style.transform = "";
-        }
-
-        /* The same geometry as the stylesheet, worked out from where the
-           banner is rather than from a timeline. */
-        function paint() {
-          queued = false;
-          if (!enabled()) { clear(); return; }
-          var r = root.getBoundingClientRect();
-          var vh = window.innerHeight || document.documentElement.clientHeight;
-          if (r.bottom < -80 || r.top > vh + 80) { shift.style.willChange = ""; return; }
-          shift.style.willChange = "transform";
-          var top = Math.max(-r.height, Math.min(vh, r.top));
-          var t = (vh - top) / (vh + r.height);          /* 0 entering at the bottom, 1 gone off the top */
-          shift.style.height = "calc(" + (1 - k) + " * 100% + " + k + " * 100vh)";
-          /* 2D, not translate3d: the 3D form was the old trick for forcing a GPU
-             layer, and a forced layer is the thing this block should not leave
-             lying around. The compositor still moves a 2D transform smoothly. */
-          shift.style.transform = "translateY(" + (-k * top).toFixed(2) + "px)";
-          if (img && zf) img.style.transform = "scale(" + (1 + zf * (zoomIn ? t : 1 - t)).toFixed(4) + ")";
-          if (content && fx !== "still") {
-            var from = Math.min(0, vh - r.height);       /* where it starts to leave */
-            var e = Math.max(0, Math.min(1, (from - r.top) / (from + r.height)));
-            content.style.opacity = String(Math.max(0, 1 - e / 0.7));
-            if (fx === "sink") content.style.transform = "translateY(" + (e * 50).toFixed(2) + "%)";
-          }
-        }
-        function onScroll() {
-          if (queued) return;
-          queued = true;
-          window.requestAnimationFrame(paint);
-        }
-
-        window.addEventListener("scroll", onScroll, { passive: true });
-        window.addEventListener("resize", onScroll, { passive: true });
-        paint();`);
+      css += effect.css;
+      var js = effect.on ? c.wrap(c.cls, effect.js) : '';
 
       return { html: html, css: css, js: js };
     }
@@ -546,7 +597,7 @@
     name: 'Hero Slider',
     category: CAT,
     icon: '⧉',
-    blurb: 'Multiple banners that rotate, with styleable arrows and dots and swipe on touch screens. Dots work with no JavaScript; autoplay and arrows are added by script, and autoplay never ships without a pause control.',
+    blurb: 'Multiple banners that rotate, with styleable arrows and dots and swipe on touch screens, and the Parallax Banner\'s scroll effects if you want them. Dots work with no JavaScript; autoplay and arrows are added by script, and autoplay never ships without a pause control.',
     props: [
       { t: 'section', label: 'Slides' },
       {
@@ -576,8 +627,8 @@
       { k: 'interval', t: 'range', label: 'Seconds per slide', min: 3, max: 15, step: 1, unit: 's', value: 6, when: { autoplay: [true] } },
       { k: 'loop', t: 'toggle', label: 'Wrap around at the ends', value: true },
       { k: 'transition', t: 'select', label: 'Transition', value: 'fade', options: [['fade', 'Cross-fade'], ['slide', 'Slide across'], ['none', 'Cut']] },
-      { k: 'kenBurns', t: 'toggle', label: 'Slow zoom on the active slide', value: false },
-
+      { k: 'kenBurns', t: 'toggle', label: 'Slow zoom on the active slide', value: false }
+    ].concat(scrollEffectProps('none', false), [
       { t: 'section', label: 'Controls' },
       { k: 'dots', t: 'toggle', label: 'Dots', value: true, help: 'The only control that works without JavaScript — leave this on.' },
       { k: 'arrows', t: 'toggle', label: 'Arrows', value: true },
@@ -628,7 +679,7 @@
       { k: 'overlayColor', t: 'color', label: 'Overlay colour', value: '#0b0a09' },
       { k: 'gradient', t: 'toggle', label: 'Extra fade at bottom', value: true },
       { k: 'textColor', t: 'color', label: 'Text colour', value: '#ffffff' }
-    ],
+    ]),
 
     render: function (p, c) {
       var s = c.s;
@@ -636,6 +687,13 @@
       var n = items.length;
       var group = 'cb-hsl-' + c.cls;
       var flex = p.align === 'center' ? 'center' : 'flex-start';
+      /* The Parallax Banner's scroll effect, on every slide at once: each
+         slide's photo is a banner-sized layer like the banner's, so the same
+         geometry holds, whichever slide is showing. The slow zoom is the
+         slider's own, so the scroll zoom is not offered here. */
+      var effect = scrollEffect(p, c, {
+        name: 'hsl', root: '.cb-hsl', bg: '.cb-hsl__bg', shift: '.cb-hsl__shift', zoom: '', content: '.cb-hsl__content'
+      });
 
       /* A solid control is a filled shape, so its glyph has to be stated
          against the fill rather than inherited — the same reasoning as pin(). */
@@ -704,9 +762,9 @@
         var veil = c.rgba(p.overlayColor, c.num(it.overlay, 45) / 100);
         return c.dedent(`
           <div class="cb-hsl__slide" data-i="${i}" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}">
-            <div class="cb-hsl__bg" role="presentation">
-              <img src="${c.url(it.image)}" alt="${c.attr(it.alt)}" loading="${i ? 'lazy' : 'eager'}" decoding="async"
-                   style="object-position: ${c.attr(it.focal || 'center')}">
+            <div class="cb-hsl__bg" role="presentation"${effect.drift ? ' data-cb-scroll-tied' : ''}>
+              ${effect.drift ? '<div class="cb-hsl__shift">' : ''}<img src="${c.url(it.image)}" alt="${c.attr(it.alt)}" loading="${i ? 'lazy' : 'eager'}" decoding="async"
+                   style="object-position: ${c.attr(it.focal || 'center')}">${effect.drift ? '</div>' : ''}
             </div>
             <div class="cb-hsl__veil" role="presentation" style="--cb-veil: ${veil}"></div>
             <div class="cb-hsl__inner cb-wrap">
@@ -789,7 +847,12 @@ ${c.indent(slides, 12)}
           transition: opacity .7s ease, transform .7s cubic-bezier(.3,.7,.3,1), visibility .7s;
         }
         ${s} .cb-hsl__bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
-        ${s} .cb-hsl__bg img { width: 100%; height: 100%; object-fit: cover; }
+        ${s} .cb-hsl__bg img { width: 100%; height: 100%; object-fit: cover; }${effect.on ? `
+        /* The photos move through more than the banner's height, so nothing
+           they paint is allowed past its edges — the rule the Parallax Banner
+           and the marquee follow for the same reason. */
+        ${s}.cb-hsl { contain: paint; }` : ''}${effect.drift ? `
+        ${s} .cb-hsl__shift { position: absolute; left: 0; right: 0; top: 0; height: 100%; }` : ''}
         ${p.kenBurns ? `
         ${s}:has(.cb-hsl__radio:checked) .cb-hsl__slide .cb-hsl__bg img { transform: scale(1); transition: transform 9s linear; }
         ${items.map(function (it, i) {
@@ -906,9 +969,12 @@ ${c.indent(slides, 12)}
         }
         @media (prefers-reduced-motion: reduce) {
           ${s} .cb-hsl__slide { transition: opacity .01ms, visibility .01ms; transform: none !important; }
-        }`;
+        }` + effect.css;
 
-      var js = c.wrap(c.cls, `
+      /* The scroll effect goes first and keeps to itself: the rotation below
+         stops early for a single banner, and that must not take the effect
+         with it. */
+      var js = c.wrap(c.cls, (effect.on ? effect.js : '') + `
         var radios = Array.prototype.slice.call(root.querySelectorAll(".cb-hsl__radio"));
         if (radios.length < 2) return;
 
