@@ -54,8 +54,8 @@ so the deploy that introduces it is the last one that can go stale.
 
 | Category | Component | Notes |
 |---|---|---|
-| **Heroes & Banners** | Parallax Banner | The photo moves slower than the page, so it seems to sit behind it, at a depth you set — or stays fixed while the page slides over it. Optional zoom in or out as you scroll, and a headline that fades, or fades and falls behind, as the banner leaves. Run by CSS scroll timelines, in step with the scroll and with no script; a script does the same where they are missing. `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't |
-| | Hero Slider | Multiple banners that rotate. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay always ships with a pause control |
+| **Heroes & Banners** | Parallax Banner | The photo moves slower than the page, so it seems to sit behind it, at a depth you set — or stays fixed while the page slides over it. Optional zoom in or out as you scroll, and a headline that fades, or fades and falls behind, as the banner leaves. Run by CSS scroll timelines, in step with the scroll and with no script; a script does the same where they are missing. `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't. For several banners that rotate with the same effect, use the Hero Slider |
+| | Hero Slider | Multiple banners that rotate. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay always ships with a pause control. Carries the Parallax Banner's scroll effects too — the photo slower than the page or fixed, and the headline fading as it leaves — on every slide, from the same shared code; off until chosen. Its own slow zoom stands in for the scroll zoom |
 | | Video Hero | Muted looping background video, poster fallback, pause control |
 | | Split Hero | Copy + image, reversible, optional tick list |
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
@@ -1129,6 +1129,10 @@ a copy, or point image fields at URLs instead of uploading.
   in front of the words, and it was moved by a script a frame behind the scroll. A banner
   saved before then opens as it was set: a strength of 0 stays still, and anything else
   becomes the matching depth, so the old default opens on the new one.
+
+  The Hero Slider has the same section, off by default, applied to every slide — the code is
+  shared, so the two cannot drift apart. It leaves out the scroll zoom, since the slider has
+  its own slow zoom.
 - **Article → text alignment, paragraph spacing, width and columns.** The alignment is the
   block's default; the toolbar sets one paragraph or heading differently, and pressing the
   same button again hands it back to the block. Justified text uses the page's language
@@ -1183,7 +1187,7 @@ test/
                         no block leaves a permanent GPU layer, forces a 3D one, or
                         moves something larger than itself without containing its
                         paint — the checks that would have caught the page below a
-                        Parallax Banner turning bold; 175 assertions
+                        Parallax Banner turning bold, and the Hero Slider held to the same rules once it carries the same effect; 177 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         352 round-trips, then functionally probes what survives.
                         Structured data (JSON-LD) is left in the markup rather
@@ -1232,7 +1236,11 @@ test/
                         its own edge. A Sideways Showcase of three products or
                         fewer sits still — nothing pinned, nothing gliding, no
                         script, and no row running off the page — while four
-                        glide, as do three with the option off; 42 assertions
+                        glide, as do three with the option off. A Hero Slider
+                        given the scroll effect keeps its words whole when the
+                        effect never runs, and starts the effect before its
+                        rotation script can stop early for a single banner;
+                        47 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
@@ -1316,7 +1324,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 871 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 878 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

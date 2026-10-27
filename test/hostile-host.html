@@ -817,6 +817,18 @@ video { width: 100% !important; }
     check('and its fallback raises will-change only while on screen',
           /willChange\s*=\s*"transform"/.test(code(px.js)) && /willChange\s*=\s*""/.test(code(px.js)),
           'toggled by the scroll handler');
+
+    /* The Hero Slider carries the same effect, off by default. Turned on, it
+       is held to the same rules: contained, and detached once off screen. */
+    var hs = CB.build({ type: 'hero-slider', cls: 'layer-hs',
+                        props: Object.assign(CB.defaults(CB.get('hero-slider')), { motion: 'depth', contentFx: 'fade' }) },
+                      CB.DEFAULT_TOKENS, { omitBase: true });
+    check('a hero slider moving its photos contains its paint too',
+          /\.layer-hs\.cb-hsl\s*\{[^}]*contain:\s*paint/.test(code(hs.css)), 'contain: paint on the slider root');
+    check('and detaches the effect once it is off screen',
+          /setAttribute\("data-cb-idle"/.test(code(hs.js)) &&
+          /\[data-cb-idle\][^{]*\.cb-hsl__shift[^{]*\{\s*animation:\s*none/.test(code(hs.css)),
+          'detached off screen where the stylesheet drives it');
   })();
 
   window.__hostile = checks;
