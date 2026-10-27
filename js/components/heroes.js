@@ -630,13 +630,17 @@
     name: 'Hero Slider',
     category: CAT,
     icon: '⧉',
-    blurb: 'Multiple banners that rotate, with styleable arrows and dots and swipe on touch screens, and the Parallax Banner\'s scroll effects if you want them. Dots work with no JavaScript; autoplay and arrows are added by script, and autoplay never ships without a pause control.',
+    blurb: 'Multiple banners that rotate, each with a photo or a background video like the Video Hero\'s, with styleable arrows and dots and swipe on touch screens, and the Parallax Banner\'s scroll effects if you want them. Dots work with no JavaScript; autoplay and arrows are added by script, and autoplay and video never ship without a pause control.',
     props: [
       { t: 'section', label: 'Slides' },
       {
         k: 'items', t: 'list', label: 'Banners', itemLabel: 'title',
         fields: [
           { k: 'image', t: 'image', label: 'Background image', value: CB.ph(1600, 900, '', '#96694c', '#2b241f') },
+          {
+            k: 'video', t: 'url', label: 'Background video', value: '',
+            help: 'Optional. A self-hosted .mp4 or .webm that plays muted and looped behind this banner, like the Video Hero. The image above is its poster: it shows until the video starts, and wherever video can\'t play.'
+          },
           { k: 'alt', t: 'text', label: 'Image alt text', value: '', help: 'Leave blank if the image is decorative and the headline carries the meaning.' },
           { k: 'focal', t: 'select', label: 'Image focus', value: 'center', options: [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right']] },
           { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
@@ -649,15 +653,19 @@
           { k: 'overlay', t: 'range', label: 'Overlay opacity', min: 0, max: 90, step: 5, unit: '%', value: 45 }
         ],
         value: [
-          { image: CB.ph(1600, 900, '', '#96694c', '#2b241f'), alt: '', focal: 'center', eyebrow: 'Data centers', title: 'Power that keeps pace with demand', sub: 'Medium voltage through to the rack, from one supplier.', btnText: 'Explore solutions', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 45 },
-          { image: CB.ph(1600, 900, '', '#6f4c37', '#141210'), alt: '', focal: 'center', eyebrow: 'Utility', title: 'Built for the grid,\nbuilt to last', sub: 'Overhead and underground conductor engineered for the long haul.', btnText: 'View products', btnUrl: '#', btn2Text: 'Talk to us', btn2Url: '#', overlay: 50 },
-          { image: CB.ph(1600, 900, '', '#3a332d', '#12100e'), alt: '', focal: 'center', eyebrow: 'Industrial', title: 'On site when it matters', sub: 'Field services and support that shorten the critical path.', btnText: 'Find support', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 42 }
+          { image: CB.ph(1600, 900, '', '#96694c', '#2b241f'), video: '', alt: '', focal: 'center', eyebrow: 'Data centers', title: 'Power that keeps pace with demand', sub: 'Medium voltage through to the rack, from one supplier.', btnText: 'Explore solutions', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 45 },
+          { image: CB.ph(1600, 900, '', '#6f4c37', '#141210'), video: '', alt: '', focal: 'center', eyebrow: 'Utility', title: 'Built for the grid,\nbuilt to last', sub: 'Overhead and underground conductor engineered for the long haul.', btnText: 'View products', btnUrl: '#', btn2Text: 'Talk to us', btn2Url: '#', overlay: 50 },
+          { image: CB.ph(1600, 900, '', '#3a332d', '#12100e'), video: '', alt: '', focal: 'center', eyebrow: 'Industrial', title: 'On site when it matters', sub: 'Field services and support that shorten the critical path.', btnText: 'Find support', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 42 }
         ]
       },
 
       { t: 'section', label: 'Rotation' },
       { k: 'autoplay', t: 'toggle', label: 'Rotate automatically', value: true, help: 'Only runs where scripts do — and it always ships with a pause control, which WCAG 2.2.2 requires.' },
       { k: 'interval', t: 'range', label: 'Seconds per slide', min: 3, max: 15, step: 1, unit: 's', value: 6, when: { autoplay: [true] } },
+      {
+        k: 'videoHold', t: 'toggle', label: 'Let a video play to the end', value: false, when: { autoplay: [true] },
+        help: 'A banner with a background video stays up until its video finishes, then moves on. Banners without one keep the seconds above.'
+      },
       { k: 'loop', t: 'toggle', label: 'Wrap around at the ends', value: true },
       { k: 'transition', t: 'select', label: 'Transition', value: 'fade', options: [['fade', 'Cross-fade'], ['slide', 'Slide across'], ['none', 'Cut']] },
       { k: 'kenBurns', t: 'toggle', label: 'Slow zoom on the active slide', value: false }
@@ -791,13 +799,32 @@
         ring: 'background: ' + cc + '; border-color: ' + cc + ';'
       }[p.dotStyle] || 'background: ' + cc + '; width: ' + Math.round(dotSize * 3) + 'px;';
 
+      /* A banner with a video plays it the Video Hero's way: muted, looped,
+         inline, with the photo as its poster. Only the first one autoplays
+         from the markup, so it moves where scripts are stripped as the Video
+         Hero does; the rest wait for the script, which plays the one showing
+         and pauses the others, rather than every hidden video streaming at
+         once. */
+      var filmed = items.some(function (it) { return String(it.video || '').trim(); });
+      // Unused options cost nothing: no video code without a video.
+      var toEnd = filmed && p.autoplay && p.videoHold;
+      function media(it, i) {
+        var at = 'object-position: ' + c.attr(it.focal || 'center');
+        var vid = String(it.video || '').trim();
+        if (!vid) {
+          return `<img src="${c.url(it.image)}" alt="${c.attr(it.alt)}" loading="${i ? 'lazy' : 'eager'}" decoding="async"
+                   style="${at}">`;
+        }
+        return `<video class="cb-hsl__video" muted loop playsinline${i ? ' preload="none"' : ' autoplay'} poster="${c.url(it.image)}"${it.alt ? ' aria-label="' + c.attr(it.alt) + '"' : ' aria-hidden="true"'}
+                   style="${at}"><source src="${c.url(vid)}"></video>`;
+      }
+
       var slides = items.map(function (it, i) {
         var veil = c.rgba(p.overlayColor, c.num(it.overlay, 45) / 100);
         return c.dedent(`
           <div class="cb-hsl__slide" data-i="${i}" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}">
             <div class="cb-hsl__bg" role="presentation"${effect.drift ? ' data-cb-scroll-tied' : ''}>
-              ${effect.drift ? '<div class="cb-hsl__shift">' : ''}<img src="${c.url(it.image)}" alt="${c.attr(it.alt)}" loading="${i ? 'lazy' : 'eager'}" decoding="async"
-                   style="object-position: ${c.attr(it.focal || 'center')}">${effect.drift ? '</div>' : ''}
+              ${effect.drift ? '<div class="cb-hsl__shift">' : ''}${media(it, i)}${effect.drift ? '</div>' : ''}
             </div>
             <div class="cb-hsl__veil" role="presentation" style="--cb-veil: ${veil}"></div>
             <div class="cb-hsl__inner cb-wrap">
@@ -843,7 +870,7 @@ ${c.indent(slides, 12)}
             ${sideArrows ? '' : c.indent(arrowsHtml, 12).trim()}
             ${dots}
             ${p.counter ? '<p class="cb-hsl__counter" aria-hidden="true"></p>' : ''}
-            ${p.autoplay ? `<button type="button" class="cb-hsl__play" hidden aria-label="Pause banner rotation" data-playing="1">
+            ${(p.autoplay || filmed) ? `<button type="button" class="cb-hsl__play" hidden aria-label="${p.autoplay ? 'Pause banner rotation' : 'Pause background video'}" data-playing="1">
               <span class="cb-hsl__playIcon" aria-hidden="true"></span>
             </button>` : ''}
           </div>
@@ -880,7 +907,7 @@ ${c.indent(slides, 12)}
           transition: opacity .7s ease, transform .7s cubic-bezier(.3,.7,.3,1), visibility .7s;
         }
         ${s} .cb-hsl__bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
-        ${s} .cb-hsl__bg img { width: 100%; height: 100%; object-fit: cover; }${effect.on ? `
+        ${s} .cb-hsl__bg img, ${s} .cb-hsl__bg video { display: block; width: 100%; height: 100%; object-fit: cover; }${effect.on ? `
         /* The photos move through more than the banner's height, so nothing
            they paint is allowed past its edges — the rule the Parallax Banner
            and the marquee follow for the same reason. */
@@ -893,12 +920,12 @@ ${c.indent(slides, 12)}
         ${s} .cb-hsl__bg { overflow: visible; }
         ${s} .cb-hsl__shift { position: absolute; left: 0; right: 0; top: 0; height: 100%; }` : ''}
         ${p.kenBurns ? `
-        ${s}:has(.cb-hsl__radio:checked) .cb-hsl__slide .cb-hsl__bg img { transform: scale(1); transition: transform 9s linear; }
+        ${s}:has(.cb-hsl__radio:checked) .cb-hsl__slide .cb-hsl__bg :is(img, video) { transform: scale(1); transition: transform 9s linear; }
         ${items.map(function (it, i) {
-          return `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__slide[data-i="${i}"] .cb-hsl__bg img { transform: scale(1.09); }`;
+          return `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__slide[data-i="${i}"] .cb-hsl__bg :is(img, video) { transform: scale(1.09); }`;
         }).join('\n        ')}
         @media (prefers-reduced-motion: reduce) {
-          ${s} .cb-hsl__bg img { transition: none !important; transform: none !important; }
+          ${s} .cb-hsl__bg :is(img, video) { transition: none !important; transform: none !important; }
         }` : ''}
         ${s} .cb-hsl__veil {
           position: absolute; inset: 0; z-index: 1; background: var(--cb-veil);
@@ -1015,7 +1042,16 @@ ${c.indent(slides, 12)}
          with it. */
       var js = c.wrap(c.cls, (effect.on ? effect.js : '') + `
         var radios = Array.prototype.slice.call(root.querySelectorAll(".cb-hsl__radio"));
-        if (radios.length < 2) return;
+        var many = radios.length > 1;${filmed ? `
+        /* Each banner's video, where it has one, by slide number. */
+        var videos = Array.prototype.slice.call(root.querySelectorAll(".cb-hsl__slide")).map(function (sl) {
+          return sl.querySelector(".cb-hsl__video");
+        });
+        var filmed = videos.some(Boolean);
+        /* A single banner has nothing to rotate, but its video still needs
+           the pause control. */
+        if (!many && !filmed) return;` : `
+        if (!many) return;`}
 
         /* Radio groups are document-wide, so a duplicated paste would otherwise
            share one selection between both banners. */
@@ -1041,16 +1077,17 @@ ${c.indent(slides, 12)}
         }
         function sync() {
           var i = index();
-          if (counter) counter.textContent = (i + 1) + " / " + radios.length;
+          if (counter && many) counter.textContent = (i + 1) + " / " + radios.length;
           var prev = root.querySelector(".cb-hsl__prev");
           var next = root.querySelector(".cb-hsl__next");
           if (prev && !loop) prev.disabled = i === 0;
           if (next && !loop) next.disabled = i === radios.length - 1;
+          film();
         }
 
         /* Arrows are markup-hidden until scripts run, so they never sit there
            as dead controls where JavaScript has been stripped. */
-        if (arrows) {
+        if (arrows && many) {
           arrows.hidden = false;
           root.querySelector(".cb-hsl__prev").addEventListener("click", function () { stop(); go(index() - 1); });
           root.querySelector(".cb-hsl__next").addEventListener("click", function () { stop(); go(index() + 1); });
@@ -1059,47 +1096,120 @@ ${c.indent(slides, 12)}
 
         /* ---- rotation ---- */
         var timer = null;
-        var wanted = ${p.autoplay ? 'true' : 'false'} && !reduced;
+        var auto = ${p.autoplay ? 'true' : 'false'} && many;
+        /* Rotating until the visitor stops it, which an arrow, a swipe or the
+           pause control all do. Hover, focus and scrolling away only hold it,
+           so they must not count as stopping it. */
+        var rotating = auto && !reduced;
+        var every = ${c.num(p.interval, 6) * 1000};
+        var seen = true;
 
-        function tick() { go(index() + 1); }
-        function start() {
-          if (!wanted || timer) return;
-          timer = setInterval(tick, ${c.num(p.interval, 6) * 1000});
-          if (play) { play.setAttribute("data-playing", "1"); play.setAttribute("aria-label", "Pause banner rotation"); }
+        function tick() {${toEnd ? `
+          /* A video that is let play to the end moves the banner on itself. */
+          var v = videos[index()];
+          if (v && !v.error) return;` : ''}
+          go(index() + 1);
+        }
+        function run() {
+          if (timer) return;
+          timer = setInterval(tick, every);
           if (stage) stage.setAttribute("aria-live", "off");
         }
+        function start() {
+          rotating = auto;
+          if (rotating) run();
+          mark();
+        }
         function stop() {
-          if (!timer) return;
-          clearInterval(timer); timer = null;
-          if (play) { play.setAttribute("data-playing", "0"); play.setAttribute("aria-label", "Start banner rotation"); }
+          rotating = false;
+          suspend();
           if (stage) stage.setAttribute("aria-live", "polite");
+          mark();
         }
-
-        /* Autoplay only ever appears alongside its pause control — WCAG 2.2.2
-           requires a way to stop motion that starts on its own. */
-        if (play && wanted) {
-          play.hidden = false;
-          play.addEventListener("click", function () { if (timer) { stop(); } else { start(); } });
-        }
-
         function suspend() { if (timer) { clearInterval(timer); timer = null; } }
         function resume() {
-          if (!wanted || timer) return;
-          if (play && play.getAttribute("data-playing") !== "1") return;
+          if (!rotating || timer || !seen) return;
           if (root.contains(document.activeElement)) return;
-          timer = setInterval(tick, ${c.num(p.interval, 6) * 1000});
+          timer = setInterval(tick, every);
         }
         root.addEventListener("mouseenter", suspend);
         root.addEventListener("mouseleave", resume);
         root.addEventListener("focusin", suspend);
         root.addEventListener("focusout", function () { setTimeout(resume, 0); });
 
+        /* ---- video ---- */${filmed ? `
+        /* The visitor paused the motion: no video starts on its own, on this
+           banner or any other, until they press play again. */
+        var held = reduced;
+        var shown = -1;
+
+        function film() {
+          var i = index();
+          videos.forEach(function (v, j) {
+            if (!v) return;
+            if (j !== i) { v.pause(); return; }
+            /* A banner coming back round starts its video from the top. */
+            if (i !== shown) { try { v.currentTime = 0; } catch (e) {} }
+            if (held || !seen) { v.pause(); return; }
+            if (v.paused) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }
+          });
+          shown = i;
+          /* The next video loads while this one plays, so it is ready to show. */
+          var next = videos[(i + 1) % videos.length];
+          if (next && !held && next.getAttribute("preload") === "none") next.setAttribute("preload", "auto");
+        }
+
+        videos.forEach(function (v) {
+          if (!v) return;
+          /* From here the script decides what plays. Muted again in case a
+             sanitiser kept the video but dropped the attribute, since only a
+             muted video may start on its own. */
+          v.removeAttribute("autoplay");
+          v.muted = true;
+          v.setAttribute("playsinline", "");${toEnd ? `
+          if (!auto) return;
+          v.loop = false;
+          v.addEventListener("ended", function () {
+            if (v !== videos[index()]) return;
+            var i = index();
+            if (timer) {
+              go(i + 1);
+              /* The banner after a video gets its full time on screen. */
+              if (index() !== i) { clearInterval(timer); timer = setInterval(tick, every); return; }
+            }
+            /* Held, or nowhere to move on to: play it again, as the loop would. */
+            try { v.currentTime = 0; } catch (e) {}
+            film();
+          });` : ''}
+        });` : `
+        var filmed = false, held = true;
+        function film() {}`}
+
+        /* Autoplay and video only ever appear alongside the pause control —
+           WCAG 2.2.2 requires a way to stop motion that starts on its own. One
+           control stops both. */
+        var what = auto && filmed ? "banner rotation and video" : auto ? "banner rotation" : "background video";
+        function moving() { return rotating || (filmed && !held); }
+        function mark() {
+          if (!play) return;
+          var on = moving();
+          play.setAttribute("data-playing", on ? "1" : "0");
+          play.setAttribute("aria-label", (on ? "Pause " : filmed ? "Play " : "Start ") + what);
+        }
+        if (play && (rotating || filmed)) {
+          play.hidden = false;
+          play.addEventListener("click", function () {
+            if (moving()) { held = true; stop(); } else { held = false; start(); }
+            film();
+          });
+        }
+
         ${p.swipe ? `
         /* Swipe. Listeners are passive and nothing is preventDefault-ed, so a
            vertical drag still scrolls the page — only a clearly horizontal one
            changes banner. Treated as a deliberate choice, like the arrows, so
            it stops autoplay rather than fighting the user. */
-        if (stage && "ontouchstart" in window) {
+        if (many && stage && "ontouchstart" in window) {
           var sx = 0, sy = 0, swiping = false;
           stage.addEventListener("touchstart", function (e) {
             swiping = e.touches.length === 1;
@@ -1119,15 +1229,20 @@ ${c.indent(slides, 12)}
         }` : ''}
 
         /* Pause while off-screen so a hero at the top of a long page is not
-           cycling images nobody can see. */
+           cycling images, or playing video, that nobody can see. */
         if ("IntersectionObserver" in window) {
           new IntersectionObserver(function (entries) {
-            entries.forEach(function (e) { if (e.isIntersecting) resume(); else suspend(); });
+            entries.forEach(function (e) {
+              seen = e.isIntersecting;
+              if (seen) resume(); else suspend();
+              film();
+            });
           }, { threshold: 0.2 }).observe(root);
         }
 
         sync();
-        start();`);
+        if (rotating) run();
+        mark();`);
 
       return { html: html, css: css, js: js };
     }

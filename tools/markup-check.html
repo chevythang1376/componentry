@@ -17,7 +17,7 @@
   .cbx-t fieldset { display: inline; border: 0; padding: 0; margin: 0; }
   .cbx-t legend { display: inline; padding: 0; }
   .cbx-t svg { width: 14px; height: 14px; }
-  .cbx-t img { width: 14px; height: 14px; }
+  .cbx-t img, .cbx-t video { width: 14px; height: 14px; }
   .cbx-t::after { content: " — stripped"; color: #b42318; font-weight: 700; }
   .cbx-css { color: #067647; font-weight: 700; }
   .cbx-button:has(button)::after, .cbx-radio:has(input[type="radio"])::after, .cbx-label:has(label)::after,
@@ -25,6 +25,7 @@
   .cbx-role:has([role])::after, .cbx-data:has([data-cbx-test])::after, .cbx-inline:has([style])::after,
   .cbx-hash:has(a.cbx-a[href="#"])::after, .cbx-http:has(a.cbx-b[href^="https://"])::after,
   .cbx-svg:has(svg path)::after, .cbx-id:has([id="cbx-id-test"])::after, .cbx-img:has(img[loading][decoding])::after,
+  .cbx-video:has(video source[src^="https://"])::after, .cbx-vattr:has(video[autoplay][muted][loop][playsinline])::after,
   section.cbx .cbx-section::after {
     content: " — kept"; color: #067647;
   }
@@ -49,6 +50,8 @@
   <li class="cbx-t cbx-svg">inline &lt;svg&gt; <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 5h8" stroke="currentColor"/></svg></li>
   <li class="cbx-t cbx-id">id attributes <span id="cbx-id-test">x</span></li>
   <li class="cbx-t cbx-img">&lt;img&gt; with loading and decoding <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" loading="lazy" decoding="async"></li>
+  <li class="cbx-t cbx-video">&lt;video&gt; with a &lt;source&gt; address <video preload="none"><source src="https://www.example.com/clip.mp4" type="video/mp4"></video></li>
+  <li class="cbx-t cbx-vattr">a video's autoplay, muted, loop and playsinline <video autoplay muted loop playsinline></video></li>
   <li class="cbx-t cbx-section">the &lt;section&gt; element</li>
 </ol>
 <script>
