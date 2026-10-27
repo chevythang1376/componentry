@@ -1,0 +1,60 @@
+<!--
+  Componentry markup check. Paste this into a page builder or CMS the way you
+  would paste a block, publish or preview it, and read the list: each line
+  says whether the thing the blocks rely on survived. No styling at all means
+  the <style> element itself was removed. Needs a current browser (it uses
+  :has() to tell what survived, and nothing else).
+-->
+<section class="cbx" aria-label="Componentry markup check" role="region" data-cbx="1">
+<style>
+  .cbx { font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #141210; background: #fff;
+         border: 2px solid #96694c; border-radius: 8px; padding: 18px 20px; max-width: 680px; margin: 20px auto; }
+  .cbx h2 { font-size: 18px; margin: 0 0 4px; }
+  .cbx p { margin: 0 0 12px; color: #6b625a; }
+  .cbx ol { margin: 0; padding-left: 22px; }
+  .cbx li { margin: 5px 0; }
+  .cbx-t button, .cbx-t input, .cbx-t label, .cbx-t fieldset, .cbx-t svg, .cbx-t img, .cbx-t a { vertical-align: middle; }
+  .cbx-t fieldset { display: inline; border: 0; padding: 0; margin: 0; }
+  .cbx-t legend { display: inline; padding: 0; }
+  .cbx-t svg { width: 14px; height: 14px; }
+  .cbx-t img { width: 14px; height: 14px; }
+  .cbx-t::after { content: " — stripped"; color: #b42318; font-weight: 700; }
+  .cbx-css { color: #067647; font-weight: 700; }
+  .cbx-button:has(button)::after, .cbx-radio:has(input[type="radio"])::after, .cbx-label:has(label)::after,
+  .cbx-fieldset:has(fieldset):has(legend)::after, .cbx-hidden:has([hidden])::after, .cbx-aria:has([aria-label])::after,
+  .cbx-role:has([role])::after, .cbx-data:has([data-cbx-test])::after, .cbx-inline:has([style])::after,
+  .cbx-hash:has(a.cbx-a[href="#"])::after, .cbx-http:has(a.cbx-b[href^="https://"])::after,
+  .cbx-svg:has(svg path)::after, .cbx-id:has([id="cbx-id-test"])::after, .cbx-img:has(img[loading][decoding])::after,
+  section.cbx .cbx-section::after {
+    content: " — kept"; color: #067647;
+  }
+  .cbx-js-no { color: #b42318; font-weight: 700; }
+  .cbx-js-yes { color: #067647; font-weight: 700; }
+</style>
+<h2>Componentry markup check</h2>
+<p class="cbx-css">If this line is green and bold, the &lt;style&gt; element and class names survived.</p>
+<ol>
+  <li>Scripts run: <span id="cbx-js" class="cbx-js-no">no — scripts were removed or blocked</span></li>
+  <li class="cbx-t cbx-button">&lt;button&gt; <button type="button">button</button></li>
+  <li class="cbx-t cbx-radio">radio &lt;input&gt; <input type="radio" name="cbx-r" checked></li>
+  <li class="cbx-t cbx-label">&lt;label&gt; <label>label</label></li>
+  <li class="cbx-t cbx-fieldset">&lt;fieldset&gt; and &lt;legend&gt; <fieldset><legend>legend</legend></fieldset></li>
+  <li class="cbx-t cbx-hidden">the hidden attribute <span hidden>x</span></li>
+  <li class="cbx-t cbx-aria">aria- attributes <span aria-label="test">x</span></li>
+  <li class="cbx-t cbx-role">the role attribute <span role="note">x</span></li>
+  <li class="cbx-t cbx-data">data- attributes <span data-cbx-test="1">x</span></li>
+  <li class="cbx-t cbx-inline">style="" attributes <span style="color: inherit">x</span></li>
+  <li class="cbx-t cbx-hash">a link with a class and href="#" <a class="cbx-a" href="#">link</a></li>
+  <li class="cbx-t cbx-http">a link with a class and a full address <a class="cbx-b" href="https://www.example.com/">link</a></li>
+  <li class="cbx-t cbx-svg">inline &lt;svg&gt; <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 5h8" stroke="currentColor"/></svg></li>
+  <li class="cbx-t cbx-id">id attributes <span id="cbx-id-test">x</span></li>
+  <li class="cbx-t cbx-img">&lt;img&gt; with loading and decoding <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" loading="lazy" decoding="async"></li>
+  <li class="cbx-t cbx-section">the &lt;section&gt; element</li>
+</ol>
+<script>
+  (function () {
+    var e = document.getElementById("cbx-js");
+    if (e) { e.textContent = "yes"; e.className = "cbx-js-yes"; }
+  })();
+</script>
+</section>

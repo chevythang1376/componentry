@@ -62,24 +62,27 @@
     var idle = [o.bg, o.shift, o.zoom || o.shift + ' img', o.content].map(function (x) {
       return s + o.root + '[data-cb-idle] ' + x;
     });
+    /* Only once the script has checked the page (data-cb-drift): see below.
+       Without it the photo simply sits still and fills the banner. */
+    var go = s + o.root + '[data-cb-drift]';
     var css = `
         @supports (animation-timeline: view()) {
           @media ${when} {
-            ${s}${o.root} { view-timeline: ${tl} block; }${k ? `
-            ${s} ${o.bg} {
+            ${go} { view-timeline: ${tl} block; }${k ? `
+            ${go} ${o.bg} {
               animation: ${kf}a-${c.cls} linear;
               animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
             }
-            ${s} ${o.shift} {
+            ${go} ${o.shift} {
               height: calc(${n(1 - k)} * 100% + ${n(k)} * 100lvh);
               animation: ${kf}b-${c.cls} linear;
               animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
             }` : ''}${zf ? `
-            ${s} ${o.zoom} {
+            ${go} ${o.zoom} {
               animation: ${kf}z-${c.cls} linear;
               animation-timeline: ${tl}; animation-range: cover 0% cover 100%;
             }` : ''}${fx !== 'still' ? `
-            ${s} ${o.content} {
+            ${go} ${o.content} {
               animation: ${kf}c-${c.cls} linear;
               animation-timeline: ${tl}; animation-range: exit 0% exit 100%;
             }` : ''}
@@ -98,10 +101,37 @@
 
     var js = `
         (function () {
-          /* Where scroll timelines exist the stylesheet runs the effect, and all
-             this does is detach it while the block is well off screen, so no
-             layer is held beside the page somebody is reading. */
-          if (window.CSS && CSS.supports && CSS.supports("animation-timeline: view()")) {
+          /* A scroll timeline follows the nearest scroll container around the
+             block, which is meant to be the page. But a wrapper set to
+             overflow-x: hidden — the usual way to stop a page scrolling
+             sideways — is a scroll container too, and one that never scrolls:
+             the effect froze part way and left a black band across the top of
+             the banner. So the stylesheet is only switched on once the scroll
+             it would follow is a real one; in a page like that the script moves
+             the photo itself, measured against the window. */
+          function frozen() {
+            var html = document.documentElement, body = document.body;
+            for (var el = root.parentElement; el && el !== html; el = el.parentElement) {
+              var cs = getComputedStyle(el);
+              if (!/(auto|scroll|hidden)/.test(cs.overflowX + " " + cs.overflowY)) continue;
+              /* The body's overflow passes to the window unless the html element
+                 has one of its own; only then is the body a container itself. */
+              if (el === body) {
+                var hs = getComputedStyle(html);
+                if (!/(auto|scroll|hidden)/.test(hs.overflowX + " " + hs.overflowY)) continue;
+              }
+              /* A container that really scrolls is fine: the effect follows it. */
+              return !(/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1);
+            }
+            return false;
+          }
+
+          /* Where scroll timelines exist and the scroll is real, the stylesheet
+             runs the effect, and all this does is detach it while the block is
+             well off screen, so no layer is held beside the page somebody is
+             reading. */
+          if (window.CSS && CSS.supports && CSS.supports("animation-timeline: view()") && !frozen()) {
+            root.setAttribute("data-cb-drift", "");
             if (!("IntersectionObserver" in window)) return;
             new IntersectionObserver(function (entries) {
               entries.forEach(function (e) {
@@ -112,7 +142,8 @@
             return;
           }
 
-          /* Everything below is for browsers without them. */
+          /* Everything below is for browsers without them, and for pages whose
+             wrapper would freeze them. */
           var shifts = Array.prototype.slice.call(root.querySelectorAll(${JSON.stringify(o.shift)}));
           var contents = Array.prototype.slice.call(root.querySelectorAll(${JSON.stringify(o.content)}));
           if (!shifts.length && !contents.length) return;
@@ -176,7 +207,9 @@
             window.requestAnimationFrame(paint);
           }
 
-          window.addEventListener("scroll", onScroll, { passive: true });
+          /* Captured on the document, so a page that scrolls an element rather
+             than the window is followed too. */
+          document.addEventListener("scroll", onScroll, { passive: true, capture: true });
           window.addEventListener("resize", onScroll, { passive: true });
           paint();
         })();`;

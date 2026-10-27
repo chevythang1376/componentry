@@ -73,18 +73,22 @@ window.CBProbe = (function () {
     t.ok('headline rendered', !!q(root, '.cb-px__title'));
     var timelines = window.CSS && CSS.supports && CSS.supports('animation-timeline: view()');
     var moves = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) && atLeast(641);
-    if (moves && timelines) {
-      /* Detached while the banner is far off screen, which is all its script
-         does here. Attached for the look, then left as it was found. */
+    if (moves && timelines && root.hasAttribute('data-cb-drift')) {
+      /* Detached while the banner is far off screen. Attached for the look,
+         then left as it was found. */
       var idle = root.hasAttribute('data-cb-idle');
       root.removeAttribute('data-cb-idle');
       var cs = getComputedStyle(shift), name = cs.animationName, tl = cs.animationTimeline;
       if (idle) root.setAttribute('data-cb-idle', '');
-      t.ok('the photo is moved by the scroll, with no script involved',
+      t.ok('the photo is moved by the scroll',
            /cb-px-b/.test(name) && /--cb-px/.test(tl), name + ' on ' + tl);
+    } else if (moves && timelines && !root.hasAttribute('data-cb-ready')) {
+      /* The script checks the page before the stylesheet is let run, so with
+         it stripped the photo stays still: correct, but not the effect. */
+      t.ok('the photo is moved by the scroll', false, 'the script did not run, so the photo stays still');
     } else if (moves) {
       window.dispatchEvent(new Event('scroll'));
-      t.ok('without scroll timelines its script moves the photo', root.hasAttribute('data-cb-ready'));
+      t.ok('where the stylesheet cannot follow the scroll, its script moves the photo', root.hasAttribute('data-cb-ready'));
     }
     /* Wherever the page happens to be scrolled, the photo fills whatever part
        of the banner is on screen. An edge showing is the failure that matters. */
