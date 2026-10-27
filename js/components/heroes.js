@@ -398,7 +398,7 @@
     name: 'Video Hero',
     category: CAT,
     icon: '▶',
-    blurb: 'Muted looping background video with a poster fallback and a WCAG-required pause control.',
+    blurb: 'Muted looping background video with a poster fallback and a WCAG-required pause control. For several videos, or videos and photos that rotate, use the Hero Slider.',
     props: [
       { t: 'section', label: 'Content' },
       { k: 'title', t: 'textarea', label: 'Headline', value: 'Motion tells the story', help: 'Line breaks are kept. **bold** and *italic* work too.' },
@@ -645,23 +645,34 @@
           { k: 'focal', t: 'select', label: 'Image focus', value: 'center', options: [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right']] },
           { k: 'eyebrow', t: 'text', label: 'Eyebrow', value: '' },
           { k: 'title', t: 'textarea', label: 'Headline', value: 'Headline goes here' },
+          {
+            k: 'titleImage', t: 'image', label: 'Headline image', value: '',
+            help: 'Optional. A logo or wordmark shown in place of the headline text, which becomes its alt text — so keep the headline filled in.'
+          },
           { k: 'sub', t: 'textarea', label: 'Subheadline', value: '' },
           { k: 'btnText', t: 'text', label: 'Primary button', value: '' },
           { k: 'btnUrl', t: 'url', label: 'Primary link', value: '#' },
           { k: 'btn2Text', t: 'text', label: 'Secondary button', value: '' },
           { k: 'btn2Url', t: 'url', label: 'Secondary link', value: '#' },
-          { k: 'overlay', t: 'range', label: 'Overlay opacity', min: 0, max: 90, step: 5, unit: '%', value: 45 }
+          { k: 'overlay', t: 'range', label: 'Overlay opacity', min: 0, max: 90, step: 5, unit: '%', value: 45 },
+          {
+            k: 'seconds', t: 'range', label: 'Seconds on screen', min: 0, max: 30, step: 1, unit: 's', value: 0,
+            help: '0 uses the slider\'s Seconds per slide. Video banners usually want longer.'
+          }
         ],
         value: [
-          { image: CB.ph(1600, 900, '', '#96694c', '#2b241f'), video: '', alt: '', focal: 'center', eyebrow: 'Data centers', title: 'Power that keeps pace with demand', sub: 'Medium voltage through to the rack, from one supplier.', btnText: 'Explore solutions', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 45 },
-          { image: CB.ph(1600, 900, '', '#6f4c37', '#141210'), video: '', alt: '', focal: 'center', eyebrow: 'Utility', title: 'Built for the grid,\nbuilt to last', sub: 'Overhead and underground conductor engineered for the long haul.', btnText: 'View products', btnUrl: '#', btn2Text: 'Talk to us', btn2Url: '#', overlay: 50 },
-          { image: CB.ph(1600, 900, '', '#3a332d', '#12100e'), video: '', alt: '', focal: 'center', eyebrow: 'Industrial', title: 'On site when it matters', sub: 'Field services and support that shorten the critical path.', btnText: 'Find support', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 42 }
+          { image: CB.ph(1600, 900, '', '#96694c', '#2b241f'), video: '', alt: '', focal: 'center', eyebrow: 'Data centers', title: 'Power that keeps pace with demand', titleImage: '', sub: 'Medium voltage through to the rack, from one supplier.', btnText: 'Explore solutions', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 45, seconds: 0 },
+          { image: CB.ph(1600, 900, '', '#6f4c37', '#141210'), video: '', alt: '', focal: 'center', eyebrow: 'Utility', title: 'Built for the grid,\nbuilt to last', titleImage: '', sub: 'Overhead and underground conductor engineered for the long haul.', btnText: 'View products', btnUrl: '#', btn2Text: 'Talk to us', btn2Url: '#', overlay: 50, seconds: 0 },
+          { image: CB.ph(1600, 900, '', '#3a332d', '#12100e'), video: '', alt: '', focal: 'center', eyebrow: 'Industrial', title: 'On site when it matters', titleImage: '', sub: 'Field services and support that shorten the critical path.', btnText: 'Find support', btnUrl: '#', btn2Text: '', btn2Url: '#', overlay: 42, seconds: 0 }
         ]
       },
 
       { t: 'section', label: 'Rotation' },
       { k: 'autoplay', t: 'toggle', label: 'Rotate automatically', value: true, help: 'Only runs where scripts do — and it always ships with a pause control, which WCAG 2.2.2 requires.' },
-      { k: 'interval', t: 'range', label: 'Seconds per slide', min: 3, max: 15, step: 1, unit: 's', value: 6, when: { autoplay: [true] } },
+      {
+        k: 'interval', t: 'range', label: 'Seconds per slide', min: 3, max: 15, step: 1, unit: 's', value: 6, when: { autoplay: [true] },
+        help: 'A banner can set its own time under Banners. Hovering or focusing the slider holds the time left rather than starting it over.'
+      },
       {
         k: 'videoHold', t: 'toggle', label: 'Let a video play to the end', value: false, when: { autoplay: [true] },
         help: 'A banner with a background video stays up until its video finishes, then moves on. Banners without one keep the seconds above.'
@@ -707,7 +718,8 @@
       },
       {
         k: 'dotStyle', t: 'select', label: 'Dot style', value: 'bar', when: { dots: [true] },
-        options: [['bar', 'Expanding bar'], ['dot', 'Dot'], ['ring', 'Ring']]
+        options: [['bar', 'Expanding bar'], ['dot', 'Dot'], ['ring', 'Ring'], ['progress', 'Progress bar']],
+        help: 'A progress bar fills as each banner\'s time runs, and holds while rotation is held.'
       },
       { k: 'dotSize', t: 'range', label: 'Dot size', min: 6, max: 18, step: 1, unit: 'px', value: 10, when: { dots: [true] } },
 
@@ -715,10 +727,15 @@
       { k: 'height', t: 'range', label: 'Height', min: 320, max: 900, step: 10, unit: 'px', value: 600 },
       { k: 'align', t: 'select', label: 'Alignment', value: 'left', options: [['left', 'Left'], ['center', 'Center']] },
       { k: 'titleSize', t: 'range', label: 'Headline size', min: 30, max: 88, step: 2, unit: 'px', value: 60 },
+      {
+        k: 'titleImageWidth', t: 'range', label: 'Headline image width', min: 120, max: 900, step: 10, unit: 'px', value: 560,
+        help: 'The widest a banner\'s headline image grows. It still shrinks to fit a narrow screen.'
+      },
 
       { t: 'section', label: 'Style' },
       { k: 'overlayColor', t: 'color', label: 'Overlay colour', value: '#0b0a09' },
       { k: 'gradient', t: 'toggle', label: 'Extra fade at bottom', value: true },
+      { k: 'vignette', t: 'toggle', label: 'Darken the edges', value: false, help: 'A soft vignette that keeps copy readable over busy footage.' },
       { k: 'textColor', t: 'color', label: 'Text colour', value: '#ffffff' }
     ]),
 
@@ -787,17 +804,40 @@
       }
 
       var dotSize = c.num(p.dotSize, 10);
+      var track = Math.max(3, Math.round(dotSize * 0.4));
       var dotBase = {
         bar: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: ' + dotSize + 'px; background: ' + c.rgba(cc, 0.45) + ';',
         dot: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: 50%; background: ' + c.rgba(cc, 0.4) + ';',
-        ring: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: 50%; background: transparent; border: 2px solid ' + c.rgba(cc, 0.6) + ';'
+        ring: 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: 50%; background: transparent; border: 2px solid ' + c.rgba(cc, 0.6) + ';',
+        progress: 'width: ' + Math.round(dotSize * 3.5) + 'px; height: ' + track + 'px; border-radius: ' + track + 'px; background: ' + c.rgba(cc, 0.35) + '; position: relative; overflow: hidden;'
       }[p.dotStyle] || 'width: ' + dotSize + 'px; height: ' + dotSize + 'px; border-radius: ' + dotSize + 'px; background: ' + c.rgba(cc, 0.45) + ';';
 
       var dotActive = {
         bar: 'background: ' + cc + '; width: ' + Math.round(dotSize * 3) + 'px;',
         dot: 'background: ' + cc + ';',
-        ring: 'background: ' + cc + '; border-color: ' + cc + ';'
-      }[p.dotStyle] || 'background: ' + cc + '; width: ' + Math.round(dotSize * 3) + 'px;';
+        ring: 'background: ' + cc + '; border-color: ' + cc + ';',
+        progress: ''
+      }[p.dotStyle];
+      if (dotActive === undefined) dotActive = 'background: ' + cc + '; width: ' + Math.round(dotSize * 3) + 'px;';
+      var progress = p.dots && p.dotStyle === 'progress';
+
+      /* Each banner's time on screen: its own where it sets one, otherwise the
+         slider's. Under two seconds nobody can read a banner. */
+      var times = items.map(function (it) {
+        var own = c.num(it.seconds, 0);
+        return (own > 0 ? Math.max(2, own) : c.num(p.interval, 6)) * 1000;
+      });
+
+      /* A logo or wordmark in place of the headline text. The text stays as
+         its alt, so the heading still says what it says. */
+      var titled = items.some(function (it) { return String(it.titleImage || '').trim(); });
+      function heading(it, i) {
+        var logo = String(it.titleImage || '').trim();
+        if (!logo) return it.title ? '<h2 class="cb-hsl__title">' + c.rich(it.title) + '</h2>' : '';
+        var alt = String(it.title || '').replace(/\*+/g, '').replace(/\s+/g, ' ').trim();
+        return '<h2 class="cb-hsl__title cb-hsl__title--img"><img class="cb-hsl__titleImg" src="' + c.url(logo) +
+          '" alt="' + c.attr(alt) + '" loading="' + (i ? 'lazy' : 'eager') + '" decoding="async"></h2>';
+      }
 
       /* A banner with a video plays it the Video Hero's way: muted, looped,
          inline, with the photo as its poster. Only the first one autoplays
@@ -830,7 +870,7 @@
             <div class="cb-hsl__inner cb-wrap">
               <div class="cb-hsl__content">
                 ${it.eyebrow ? '<p class="cb-hsl__eyebrow">' + c.esc(it.eyebrow) + '</p>' : ''}
-                ${it.title ? '<h2 class="cb-hsl__title">' + c.rich(it.title) + '</h2>' : ''}
+                ${heading(it, i)}
                 ${it.sub ? '<p class="cb-hsl__sub">' + c.rich(it.sub) + '</p>' : ''}
                 ${(it.btnText || it.btn2Text) ? `<div class="cb-hsl__actions">
                   ${it.btnText ? '<a class="cb-btn cb-btn--primary" href="' + c.url(it.btnUrl) + '">' + c.esc(it.btnText) + '</a>' : ''}
@@ -893,6 +933,37 @@ ${c.indent(slides, 12)}
           (p.dots ? `${s}:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__dot:nth-of-type(${i + 1}) .cb-hsl__dotMark { ${dotActive} }` : '');
       }).join('\n        ');
 
+      /* The progress bar. Without scripts, or with rotation stopped, the
+         showing banner's bar is simply full. While the script rotates
+         (data-cb-rotating) it fills over that banner's time, and it holds
+         (data-cb-held) exactly when the clock does, so the two cannot
+         disagree. Longhands, so the hold's play-state is not reset by them.
+         A video let play to the end is filled by its own progress instead. */
+      var fill = !progress ? '' : `
+        ${s} .cb-hsl__dotMark::after {
+          content: ""; position: absolute; inset: 0; background: ${cc};
+          transform: scaleX(0); transform-origin: left center;
+        }
+        ${items.map(function (it, i) {
+          var has = `:has(.cb-hsl__radio[data-i="${i}"]:checked) .cb-hsl__dot:nth-of-type(${i + 1}) .cb-hsl__dotMark::after`;
+          return `${s}${has} { transform: scaleX(1); }\n        ` +
+            (toEnd && String(it.video || '').trim()
+              ? `${s}[data-cb-rotating]${has} { transform: scaleX(var(--cb-fill, 0)); transition: transform .3s linear; }`
+              : `${s}[data-cb-rotating]${has} {
+          animation-name: cb-hsl-fill-${c.cls}; animation-duration: ${times[i]}ms;
+          animation-timing-function: linear; animation-fill-mode: forwards;
+        }`);
+        }).join('\n        ')}
+        ${s}[data-cb-held] .cb-hsl__dotMark::after { animation-play-state: paused; }
+        ${s}:not(:has(.cb-hsl__radio:checked)) .cb-hsl__dot:nth-of-type(1) .cb-hsl__dotMark::after { transform: scaleX(1); }
+        @keyframes cb-hsl-fill-${c.cls} { from { transform: scaleX(0); } to { transform: scaleX(1); } }`;
+
+      /* The overlay's own colour, then a darker rim and a fade at the foot
+         where they are on. */
+      var veils = [];
+      if (p.vignette) veils.push('radial-gradient(120% 85% at 50% 55%, transparent 35%, ' + c.rgba(p.overlayColor, 0.6) + ' 100%)');
+      if (p.gradient) veils.push('linear-gradient(to bottom, transparent 40%, ' + c.rgba(p.overlayColor, 0.85) + ' 100%)');
+
       var css = `
         ${s}.cb-hsl {
           position: relative; overflow: hidden; isolation: isolate;
@@ -929,7 +1000,7 @@ ${c.indent(slides, 12)}
         }` : ''}
         ${s} .cb-hsl__veil {
           position: absolute; inset: 0; z-index: 1; background: var(--cb-veil);
-          ${p.gradient ? 'background-image: linear-gradient(to bottom, transparent 40%, ' + c.rgba(p.overlayColor, 0.85) + ' 100%);' : ''}
+          ${veils.length ? 'background-image: ' + veils.join(', ') + ';' : ''}
         }
         ${s} .cb-hsl__inner { position: relative; z-index: 2; width: 100%; padding-block: 80px 120px; }
         ${s} .cb-hsl__content {
@@ -946,9 +1017,23 @@ ${c.indent(slides, 12)}
           font-weight: var(--cb-h-weight, 800); line-height: calc(1.08 + var(--cb-h-leading, 0)); letter-spacing: calc(-.03em + var(--cb-h-track, 0em)); text-wrap: balance;
         }
         ${s} .cb-hsl__sub { font-size: calc(clamp(16px, 2.2vw, 19px) * var(--cb-body-scale, 1)); opacity: .9; max-width: 54ch; }
-        ${s} .cb-hsl__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; justify-content: ${flex}; }
+        ${s} .cb-hsl__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; justify-content: ${flex}; }${titled ? `
+        /* The heading spans the column so the logo's width has something to
+           be a share of; it is capped, then shrinks with the screen. */
+        ${s} .cb-hsl__title--img { align-self: stretch; line-height: 0; }
+        ${s} .cb-hsl__titleImg {
+          display: block; width: 100%; max-width: ${c.num(p.titleImageWidth, 560)}px; height: auto;
+          margin-inline: ${p.align === 'center' ? 'auto' : '0'};
+        }
+        @media (max-width: 640px) {
+          ${s} .cb-hsl__titleImg { margin-inline: 0; }
+        }` : ''}${p.swipe ? `
+        /* Sideways drags are the slider's; up and down, and pinching, stay the
+           page's. Without this a sideways swipe can be taken as the browser's
+           back gesture instead of a change of banner. */
+        ${s} .cb-hsl__stage { touch-action: pan-y pinch-zoom; }` : ''}
 
-        ${sel}
+        ${sel}${fill}
 
         ${s} .cb-hsl__controls {
           position: relative; z-index: 3; width: 100%;
@@ -962,7 +1047,10 @@ ${c.indent(slides, 12)}
         ${s} .cb-hsl__arrows {
           position: absolute; inset: 0; z-index: 3; display: block; pointer-events: none;
         }
-        ${s} .cb-hsl__arrow { position: absolute; top: 50%; translate: 0 -50%; pointer-events: auto; }
+        /* One step more specific than the shared button rule below, whose
+           position: relative (there for the 44px hit area) otherwise won and
+           left both arrows stacked at the left edge, the next one half off it. */
+        ${s} .cb-hsl__arrows .cb-hsl__arrow { position: absolute; top: 50%; translate: 0 -50%; pointer-events: auto; }
         ${s} .cb-hsl__prev { left: 18px; }
         ${s} .cb-hsl__next { right: 18px; }
         @media (max-width: 640px) {
@@ -1025,7 +1113,8 @@ ${c.indent(slides, 12)}
         ${p.dots ? `${s}:not(:has(.cb-hsl__radio:checked)) .cb-hsl__dot:nth-of-type(1) .cb-hsl__dotMark { ${dotActive} }` : ''}
         @supports not selector(:has(*)) {
           ${s} .cb-hsl__slide[data-i="0"] { ${enter} z-index: 1; }
-          ${p.dots ? `${s} .cb-hsl__dot:nth-of-type(1) .cb-hsl__dotMark { ${dotActive} }` : ''}
+          ${p.dots ? `${s} .cb-hsl__dot:nth-of-type(1) .cb-hsl__dotMark { ${dotActive} }` : ''}${progress ? `
+          ${s} .cb-hsl__dot:nth-of-type(1) .cb-hsl__dotMark::after { transform: scaleX(1); }` : ''}
         }
         @media (max-width: 640px) {
           ${s} .cb-hsl__content { align-items: flex-start; text-align: left; margin-inline: 0; }
@@ -1083,6 +1172,7 @@ ${c.indent(slides, 12)}
           if (prev && !loop) prev.disabled = i === 0;
           if (next && !loop) next.disabled = i === radios.length - 1;
           film();
+          fresh();
         }
 
         /* Arrows are markup-hidden until scripts run, so they never sit there
@@ -1095,53 +1185,87 @@ ${c.indent(slides, 12)}
         radios.forEach(function (r) { r.addEventListener("change", sync); });
 
         /* ---- rotation ---- */
-        var timer = null;
         var auto = ${p.autoplay ? 'true' : 'false'} && many;
-        /* Rotating until the visitor stops it, which an arrow, a swipe or the
-           pause control all do. Hover, focus and scrolling away only hold it,
-           so they must not count as stopping it. */
+        /* Rotating until the visitor stops it, which an arrow, a swipe, an
+           arrow key or the pause control all do. A mouse over the slider,
+           focus inside it and scrolling it away only hold it, so they must
+           not count as stopping it. */
         var rotating = auto && !reduced;
-        var every = ${c.num(p.interval, 6) * 1000};
-        var seen = true;
+        /* Each banner's time on screen, by slide number. */
+        var times = [${times.join(', ')}];
+        var timer = null, left = 0, began = 0;
+        var over = false, inside = false, seen = true;
 
-        function tick() {${toEnd ? `
-          /* A video that is let play to the end moves the banner on itself. */
-          var v = videos[index()];
-          if (v && !v.error) return;` : ''}
-          go(index() + 1);
+        function holding() { return over || inside || !seen; }
+        /* Stops the clock but keeps what is left of this banner's time, so a
+           hold carries on where it left off instead of starting over. */
+        function halt() {
+          if (!timer) return;
+          clearTimeout(timer); timer = null;
+          left = Math.max(0, left - (Date.now() - began));
         }
-        function run() {
-          if (timer) return;
-          timer = setInterval(tick, every);
-          if (stage) stage.setAttribute("aria-live", "off");
+        function tick() {
+          if (timer || !rotating || holding()) return;
+          began = Date.now();
+          timer = setTimeout(function () {
+            timer = null;${toEnd ? `
+            /* A video that is let play to the end moves the banner on itself. */
+            var v = videos[index()];
+            if (v && !v.error) { left = times[index()]; tick(); return; }` : ''}
+            go(index() + 1);
+          }, left);
+        }
+        /* A banner that has just come up gets its whole time. */
+        function fresh() {
+          halt();
+          left = times[index()] || times[0];
+          tick();
+        }
+        /* After anything that holds the clock, or lets it go. */
+        function settle() {
+          if (holding()) { halt(); root.setAttribute("data-cb-held", ""); }
+          else { root.removeAttribute("data-cb-held"); tick(); }
         }
         function start() {
           rotating = auto;
-          if (rotating) run();
+          if (stage && rotating) stage.setAttribute("aria-live", "off");
           mark();
+          fresh();
         }
         function stop() {
           rotating = false;
-          suspend();
+          halt();
           if (stage) stage.setAttribute("aria-live", "polite");
           mark();
         }
-        function suspend() { if (timer) { clearInterval(timer); timer = null; } }
-        function resume() {
-          if (!rotating || timer || !seen) return;
-          if (root.contains(document.activeElement)) return;
-          timer = setInterval(tick, every);
-        }
-        root.addEventListener("mouseenter", suspend);
-        root.addEventListener("mouseleave", resume);
-        root.addEventListener("focusin", suspend);
-        root.addEventListener("focusout", function () { setTimeout(resume, 0); });
+
+        /* Only a real mouse holds rotation. A tap on a touch screen sends a
+           mouseenter with no mouseleave after it, which left the slider held
+           until something else on the page was tapped. */
+        root.addEventListener("pointerenter", function (e) { if (e.pointerType === "mouse") { over = true; settle(); } });
+        root.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") { over = false; settle(); } });
+        root.addEventListener("focusin", function () { inside = true; settle(); });
+        root.addEventListener("focusout", function () {
+          setTimeout(function () { inside = root.contains(document.activeElement); settle(); }, 0);
+        });
+
+        /* The left and right arrow keys work from anywhere in the slider, as
+           the arrows do. A dot leaves them to the browser, which already moves
+           through a radio group with them. */
+        root.addEventListener("keydown", function (e) {
+          var step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+          if (!step || !many || (e.target && e.target.type === "radio")) return;
+          e.preventDefault();
+          stop();
+          go(index() + step);
+        });
 
         /* ---- video ---- */${filmed ? `
         /* The visitor paused the motion: no video starts on its own, on this
            banner or any other, until they press play again. */
         var held = reduced;
-        var shown = -1;
+        var shown = -1;${toEnd && progress ? `
+        var marks = Array.prototype.slice.call(root.querySelectorAll(".cb-hsl__dotMark"));` : ''}
 
         function film() {
           var i = index();
@@ -1172,15 +1296,19 @@ ${c.indent(slides, 12)}
           v.addEventListener("ended", function () {
             if (v !== videos[index()]) return;
             var i = index();
-            if (timer) {
+            if (rotating && !holding()) {
               go(i + 1);
-              /* The banner after a video gets its full time on screen. */
-              if (index() !== i) { clearInterval(timer); timer = setInterval(tick, every); return; }
+              if (index() !== i) return;
             }
             /* Held, or nowhere to move on to: play it again, as the loop would. */
             try { v.currentTime = 0; } catch (e) {}
             film();
-          });` : ''}
+          });${progress ? `
+          /* Its progress bar follows the video rather than a clock. */
+          v.addEventListener("timeupdate", function () {
+            var m = marks[videos.indexOf(v)];
+            if (m && v.duration) m.style.setProperty("--cb-fill", Math.min(1, v.currentTime / v.duration).toFixed(3));
+          });` : ''}` : ''}
         });` : `
         var filmed = false, held = true;
         function film() {}`}
@@ -1191,6 +1319,8 @@ ${c.indent(slides, 12)}
         var what = auto && filmed ? "banner rotation and video" : auto ? "banner rotation" : "background video";
         function moving() { return rotating || (filmed && !held); }
         function mark() {
+          if (rotating) root.setAttribute("data-cb-rotating", "");
+          else root.removeAttribute("data-cb-rotating");
           if (!play) return;
           var on = moving();
           play.setAttribute("data-playing", on ? "1" : "0");
@@ -1210,22 +1340,31 @@ ${c.indent(slides, 12)}
            changes banner. Treated as a deliberate choice, like the arrows, so
            it stops autoplay rather than fighting the user. */
         if (many && stage && "ontouchstart" in window) {
-          var sx = 0, sy = 0, swiping = false;
+          var sx = 0, sy = 0, st = 0, swiping = false, swiped = 0;
           stage.addEventListener("touchstart", function (e) {
             swiping = e.touches.length === 1;
             if (!swiping) return;
             sx = e.touches[0].clientX;
             sy = e.touches[0].clientY;
+            st = Date.now();
           }, { passive: true });
           stage.addEventListener("touchend", function (e) {
             if (!swiping) return;
             swiping = false;
             var t = e.changedTouches[0];
             var dx = t.clientX - sx, dy = t.clientY - sy;
-            if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+            /* Far enough, or a quick flick — and clearly more sideways than not. */
+            var far = Math.abs(dx) >= 45 || (Date.now() - st < 300 && Math.abs(dx) > 24);
+            if (!far || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+            swiped = Date.now();
             stop();
             go(index() + (dx < 0 ? 1 : -1));
           }, { passive: true });
+          /* A swipe that starts on a button changes banner; it must not also
+             follow the button's link. */
+          root.addEventListener("click", function (e) {
+            if (Date.now() - swiped < 400) { e.preventDefault(); e.stopPropagation(); }
+          }, true);
         }` : ''}
 
         /* Pause while off-screen so a hero at the top of a long page is not
@@ -1234,15 +1373,15 @@ ${c.indent(slides, 12)}
           new IntersectionObserver(function (entries) {
             entries.forEach(function (e) {
               seen = e.isIntersecting;
-              if (seen) resume(); else suspend();
+              settle();
               film();
             });
           }, { threshold: 0.2 }).observe(root);
         }
 
-        sync();
-        if (rotating) run();
-        mark();`);
+        if (stage && rotating) stage.setAttribute("aria-live", "off");
+        mark();
+        sync();`);
 
       return { html: html, css: css, js: js };
     }

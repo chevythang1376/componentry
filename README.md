@@ -55,8 +55,8 @@ so the deploy that introduces it is the last one that can go stale.
 | Category | Component | Notes |
 |---|---|---|
 | **Heroes & Banners** | Parallax Banner | The photo moves slower than the page, so it seems to sit behind it, at a depth you set — or stays fixed while the page slides over it. Optional zoom in or out as you scroll, and a headline that fades, or fades and falls behind, as the banner leaves. Run by CSS scroll timelines, in step with the scroll, once a small script has checked the page: a wrapper set to `overflow-x: hidden` is a scroll container that never scrolls, and the timeline would freeze inside it and leave a black band across the banner, so there the script moves the photo itself. Where scripts are stripped the photo stays still rather than break. `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't. For several banners that rotate with the same effect, use the Hero Slider |
-| | Hero Slider | Multiple banners that rotate. Any banner can have a background video in place of its photo, played the Video Hero's way — muted, looped, with the photo as its poster — and only while that banner is showing. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay and video always ship with a pause control. Carries the Parallax Banner's scroll effects too — the photo or video slower than the page or fixed, and the headline fading as it leaves — on every slide, from the same shared code; off until chosen. Its own slow zoom stands in for the scroll zoom |
-| | Video Hero | Muted looping background video, poster fallback, pause control |
+| | Hero Slider | Multiple banners that rotate, each for its own time if you set one. Any banner can have a background video in place of its photo, played the Video Hero's way — muted, looped, with the photo as its poster — and only while that banner is showing, and a logo or wordmark in place of its headline text. Styleable arrows and dots, including dots that fill as a progress bar; arrow keys; swipe and flick on touch. Dots work with no JS; autoplay and video always ship with a pause control. Carries the Parallax Banner's scroll effects too — the photo or video slower than the page or fixed, and the headline fading as it leaves — on every slide, from the same shared code; off until chosen. Its own slow zoom stands in for the scroll zoom |
+| | Video Hero | Muted looping background video, poster fallback, pause control. For several videos, or videos and photos that rotate, use the Hero Slider |
 | | Split Hero | Copy + image, reversible, optional tick list |
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
 | | Announcement Bar | A thin strip for a launch, a recall or a notice. Closing it is a checkbox and `:has()`, so it works where scripts are stripped; where they run, it stays closed for the rest of the visit, and a new message shows again |
@@ -291,7 +291,11 @@ Interactive components follow the [WAI-ARIA Authoring Practices](https://www.w3.
   paused on every banner until it is pressed again. Dots are real radios, hidden banners
   use `visibility: hidden` so their links stay out of the focus order, and any user
   interaction halts rotation — an arrow clicked with the mouse used to be undone as soon
-  as the pointer left the slider, which `test/hostile-host.html` now checks.
+  as the pointer left the slider, which `test/hostile-host.html` now checks. The left
+  and right arrow keys work from any control in the slider; on a dot they are left to
+  the browser, which already moves through a radio group with them. A mouse over the
+  slider or focus inside it holds rotation and keeps the time left; a tap on a touch
+  screen does not, since it sends a `mouseenter` with no `mouseleave` after it.
 - **Countdown** — announces remaining time once a minute; a per-second live region
   is unusable with a screen reader.
 - Every component respects `prefers-reduced-motion`, and the marquee and parallax
@@ -328,8 +332,8 @@ pages the library actually ships, rather than on an abstract five:
 | Support page | 4 | 48.6 kB CSS | **17.7 kB** | −64% |
 | Product page | 5 | 72.0 kB CSS | **30.0 kB** | −58% |
 | Capability page | 5 | 73.0 kB CSS | **31.6 kB** | −57% |
-| Landing page | 6 | 79.4 kB CSS | **27.8 kB** | −65% |
-| All 44 | 44 | 612.5 kB CSS | **173.0 kB** | −72% |
+| Landing page | 6 | 79.7 kB CSS | **28.1 kB** | −65% |
+| All 44 | 44 | 612.8 kB CSS | **173.3 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -342,10 +346,10 @@ Complete exports of those starters, HTML + CSS + JS together:
 | Support page | 28.3 kB | **20.6 kB** |
 | Product page | 50.4 kB | **36.6 kB** |
 | Capability page | 51.6 kB | **40.5 kB** |
-| Landing page | 63.1 kB | **49.4 kB** |
+| Landing page | 66.0 kB | **50.9 kB** |
 
 Three of the four fit in one embed minified. **The Landing page no longer does:** it has
-grown to 50,571 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
+grown to 52,146 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
 going on Webflow, because the Webflow export is split files: HTML in the Embed element, CSS
 in the page's head code, script before `</body>`, and Webflow allows 50,000 characters in
 each. Split that way the largest piece is under 20,000.
@@ -1068,7 +1072,7 @@ imagery rather than on the page background:
 | **Arrow size** | 28–68px |
 | **Arrow weight** | Hairline · Thin · Regular · Bold |
 | **Arrow position** | In the row with the dots, or pinned to the left and right edges |
-| **Dot style** | Expanding bar · Dot · Ring |
+| **Dot style** | Expanding bar · Dot · Ring · Progress bar (fills over each banner's time, holds when rotation is held, full when stopped or without scripts) |
 | **Dot size** | 6–18px |
 
 On a **solid fill** the glyph flips to whichever of black or white reads against your
@@ -1144,6 +1148,14 @@ a copy, or point image fields at URLs instead of uploading.
   from the markup, so where scripts are stripped it still moves, as the Video Hero does,
   and the others show their photo instead of streaming unseen. *Let a video play to the
   end* keeps a video banner up until its video finishes rather than for the set seconds.
+- **Hero Slider → timing, headline image and edges.** A banner's *Seconds on screen*
+  overrides the slider's *Seconds per slide* (0 keeps it; anything under two seconds is
+  raised to two). A banner that comes up — on the timer, an arrow or a dot — gets its
+  whole time, and a hold picks up where it left off. *Headline image* puts a logo or
+  wordmark where the headline text was, capped at *Headline image width* and shrinking
+  on narrow screens; the headline text becomes its alt text. *Darken the edges* adds a
+  vignette for copy over busy footage. A swipe that starts on a button changes banner
+  without following its link.
 - **Article → text alignment, paragraph spacing, width and columns.** The alignment is the
   block's default; the toolbar sets one paragraph or heading differently, and pressing the
   same button again hands it back to the block. Justified text uses the page's language
@@ -1199,8 +1211,9 @@ test/
                         moves something larger than itself without containing its
                         paint — the checks that would have caught the page below a
                         Parallax Banner turning bold, and the Hero Slider held to the same rules once it carries the same effect;
-                        plays the slider's background video against a real clip;
-                        206 assertions
+                        plays the slider's background video against a real clip,
+                        and runs its timing on a clock the test moves on exactly;
+                        246 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         352 round-trips, then functionally probes what survives.
                         Structured data (JSON-LD) is left in the markup rather
@@ -1353,7 +1366,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 914 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 954 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
