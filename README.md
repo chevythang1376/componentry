@@ -55,7 +55,7 @@ so the deploy that introduces it is the last one that can go stale.
 | Category | Component | Notes |
 |---|---|---|
 | **Heroes & Banners** | Parallax Banner | The photo moves slower than the page, so it seems to sit behind it, at a depth you set — or stays fixed while the page slides over it. Optional zoom in or out as you scroll, and a headline that fades, or fades and falls behind, as the banner leaves. Run by CSS scroll timelines, in step with the scroll, once a small script has checked the page: a wrapper set to `overflow-x: hidden` is a scroll container that never scrolls, and the timeline would freeze inside it and leave a black band across the banner, so there the script moves the photo itself. Where scripts are stripped the photo stays still rather than break. `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't. For several banners that rotate with the same effect, use the Hero Slider |
-| | Hero Slider | Multiple banners that rotate. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay always ships with a pause control. Carries the Parallax Banner's scroll effects too — the photo slower than the page or fixed, and the headline fading as it leaves — on every slide, from the same shared code; off until chosen. Its own slow zoom stands in for the scroll zoom |
+| | Hero Slider | Multiple banners that rotate. Any banner can have a background video in place of its photo, played the Video Hero's way — muted, looped, with the photo as its poster — and only while that banner is showing. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay and video always ship with a pause control. Carries the Parallax Banner's scroll effects too — the photo or video slower than the page or fixed, and the headline fading as it leaves — on every slide, from the same shared code; off until chosen. Its own slow zoom stands in for the scroll zoom |
 | | Video Hero | Muted looping background video, poster fallback, pause control |
 | | Split Hero | Copy + image, reversible, optional tick list |
 | | CTA Banner | Solid / gradient / image / tint backgrounds |
@@ -286,9 +286,12 @@ Interactive components follow the [WAI-ARIA Authoring Practices](https://www.w3.
   and pause on hover and focus.
 - **Video Hero** — a pause control, because WCAG 2.2.2 requires one for motion
   that runs over five seconds.
-- **Hero Slider** — auto-rotation never ships without a visible pause control, for
-  the same reason. Dots are real radios, hidden banners use `visibility: hidden` so
-  their links stay out of the focus order, and any user interaction halts rotation.
+- **Hero Slider** — auto-rotation and background video never ship without a visible
+  pause control, for the same reason; one control stops both, and a paused video stays
+  paused on every banner until it is pressed again. Dots are real radios, hidden banners
+  use `visibility: hidden` so their links stay out of the focus order, and any user
+  interaction halts rotation — an arrow clicked with the mouse used to be undone as soon
+  as the pointer left the slider, which `test/hostile-host.html` now checks.
 - **Countdown** — announces remaining time once a minute; a per-second live region
   is unusable with a screen reader.
 - Every component respects `prefers-reduced-motion`, and the marquee and parallax
@@ -322,11 +325,11 @@ pages the library actually ships, rather than on an abstract five:
 
 | Page | Blocks | Reset per block | Reset shared | |
 |---|---|---|---|---|
-| Support page | 4 | 50.9 kB CSS | **18.3 kB** | −64% |
-| Product page | 5 | 73.6 kB CSS | **29.3 kB** | −60% |
-| Capability page | 5 | 75.7 kB CSS | **32.1 kB** | −58% |
-| Landing page | 6 | 83.2 kB CSS | **28.8 kB** | −65% |
-| All 44 | 44 | 612.4 kB CSS | **172.9 kB** | −72% |
+| Support page | 4 | 48.6 kB CSS | **17.7 kB** | −64% |
+| Product page | 5 | 72.0 kB CSS | **30.0 kB** | −58% |
+| Capability page | 5 | 73.0 kB CSS | **31.6 kB** | −57% |
+| Landing page | 6 | 79.4 kB CSS | **27.8 kB** | −65% |
+| All 44 | 44 | 612.5 kB CSS | **173.0 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -336,13 +339,13 @@ Complete exports of those starters, HTML + CSS + JS together:
 
 | Page | As written | Minified |
 |---|---|---|
-| Support page | 29.3 kB | **21.4 kB** |
-| Product page | 45.9 kB | **33.8 kB** |
-| Capability page | 52.5 kB | **41.6 kB** |
-| Landing page | 64.0 kB | **50.5 kB** |
+| Support page | 28.3 kB | **20.6 kB** |
+| Product page | 50.4 kB | **36.6 kB** |
+| Capability page | 51.6 kB | **40.5 kB** |
+| Landing page | 63.1 kB | **49.4 kB** |
 
 Three of the four fit in one embed minified. **The Landing page no longer does:** it has
-grown to 50,464 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
+grown to 50,571 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
 going on Webflow, because the Webflow export is split files: HTML in the Embed element, CSS
 in the page's head code, script before `</body>`, and Webflow allows 50,000 characters in
 each. Split that way the largest piece is under 20,000.
@@ -1133,6 +1136,14 @@ a copy, or point image fields at URLs instead of uploading.
   The Hero Slider has the same section, off by default, applied to every slide — the code is
   shared, so the two cannot drift apart. It leaves out the scroll zoom, since the slider has
   its own slow zoom.
+- **Hero Slider → background video.** Each banner takes an optional *Background video*
+  (a self-hosted `.mp4` or `.webm`); its photo becomes the poster. The script plays the
+  video on the banner that is showing, restarts it when that banner comes round again,
+  pauses the rest, loads the next one ahead, and stops it all while the slider is scrolled
+  off screen or the visitor prefers reduced motion. Only the first video plays straight
+  from the markup, so where scripts are stripped it still moves, as the Video Hero does,
+  and the others show their photo instead of streaming unseen. *Let a video play to the
+  end* keeps a video banner up until its video finishes rather than for the set seconds.
 - **Article → text alignment, paragraph spacing, width and columns.** The alignment is the
   block's default; the toolbar sets one paragraph or heading differently, and pressing the
   same button again hands it back to the block. Justified text uses the page's language
@@ -1187,7 +1198,9 @@ test/
                         no block leaves a permanent GPU layer, forces a 3D one, or
                         moves something larger than itself without containing its
                         paint — the checks that would have caught the page below a
-                        Parallax Banner turning bold, and the Hero Slider held to the same rules once it carries the same effect; 177 assertions
+                        Parallax Banner turning bold, and the Hero Slider held to the same rules once it carries the same effect;
+                        plays the slider's background video against a real clip;
+                        206 assertions
   wysiwyg.html          Drives TinyMCE, GrapesJS, Quill and DOMPurify for real;
                         352 round-trips, then functionally probes what survives.
                         Structured data (JSON-LD) is left in the markup rather
@@ -1320,13 +1333,15 @@ test/
                         not a paragraph aligned on its own, a pull quote or
                         extra large text; 99 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
+  clip.webm             A one-second test clip, 10 kB, that the slider's video checks
+                        really play
 tools/
   markup-check.html     Paste into a CMS or page builder like a block, publish,
                         and read the list: whether <style>, scripts, buttons,
                         radio inputs, labels, the hidden attribute, aria-, role,
-                        data- and style attributes, links, SVG, ids and lazy
-                        images survived. Tells you which blocks will work there
-                        before you build a page in it
+                        data- and style attributes, links, SVG, ids, lazy
+                        images and background video survived. Tells you which
+                        blocks will work there before you build a page in it
   us-map/build.js       Regenerates the Territory Map's state outlines from us-atlas's
                         states-albers-10m.json: shared borders simplified once, so
                         neighbouring states still meet, then written as compact
@@ -1338,7 +1353,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 885 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 914 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

@@ -173,8 +173,9 @@ window.addEventListener('load', function () {
   check('every slide\'s photo moves across the slider\'s whole pass',
         /\.cb-hsl__shift \{[^}]*animation-range: cover 0% cover 100%;/.test(hsOn.css) && (hsOn.html.match(/cb-hsl__shift/g) || []).length === 3, true);
   check('and its headline only fades on the way out', /\.cb-hsl__content \{[^}]*animation-range: exit 0% exit 100%;/.test(hsOn.css), true);
+  var early = /if \(!many[^)]*\) return;/;
   check('the effect starts before the rotation can stop early',
-        hsOn.js.indexOf('data-cb-idle') > -1 && hsOn.js.indexOf('data-cb-idle') < hsOn.js.indexOf('radios.length < 2'), true);
+        hsOn.js.indexOf('data-cb-idle') > -1 && hsOn.js.search(early) > -1 && hsOn.js.indexOf('data-cb-idle') < hsOn.js.search(early), true);
   /* The layer the drift moves cannot be what clips the photo. The slider's
      photo layer used to clip its own contents, so the photo was cut off at
      that moving edge and the black ground showed above it — 140px at depth,
