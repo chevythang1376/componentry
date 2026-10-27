@@ -54,7 +54,7 @@ so the deploy that introduces it is the last one that can go stale.
 
 | Category | Component | Notes |
 |---|---|---|
-| **Heroes & Banners** | Parallax Banner | The photo moves slower than the page, so it seems to sit behind it, at a depth you set — or stays fixed while the page slides over it. Optional zoom in or out as you scroll, and a headline that fades, or fades and falls behind, as the banner leaves. Run by CSS scroll timelines, in step with the scroll and with no script; a script does the same where they are missing. `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't. For several banners that rotate with the same effect, use the Hero Slider |
+| **Heroes & Banners** | Parallax Banner | The photo moves slower than the page, so it seems to sit behind it, at a depth you set — or stays fixed while the page slides over it. Optional zoom in or out as you scroll, and a headline that fades, or fades and falls behind, as the banner leaves. Run by CSS scroll timelines, in step with the scroll, once a small script has checked the page: a wrapper set to `overflow-x: hidden` is a scroll container that never scrolls, and the timeline would freeze inside it and leave a black band across the banner, so there the script moves the photo itself. Where scripts are stripped the photo stays still rather than break. `transform`-based, so it works on iOS where `background-attachment: fixed` doesn't. For several banners that rotate with the same effect, use the Hero Slider |
 | | Hero Slider | Multiple banners that rotate. Styleable arrows and dots, swipe on touch. Dots work with no JS; autoplay always ships with a pause control. Carries the Parallax Banner's scroll effects too — the photo slower than the page or fixed, and the headline fading as it leaves — on every slide, from the same shared code; off until chosen. Its own slow zoom stands in for the scroll zoom |
 | | Video Hero | Muted looping background video, poster fallback, pause control |
 | | Split Hero | Copy + image, reversible, optional tick list |
@@ -243,8 +243,8 @@ are measured at 1280px.
 | **Code / embed block** (verbatim) | **44/44** | yes | yes |
 | **TinyMCE**, permissive config | **44/44** | yes | yes |
 | **DOMPurify**, style+script allowed | **44/44** | yes | yes |
-| DOMPurify, defaults | 32/44 | yes | no |
-| GrapesJS (page builder) | 29/44 | yes | no |
+| DOMPurify, defaults | 31/44 | yes | no |
+| GrapesJS (page builder) | 28/44 | yes | no |
 | `wp_kses_post` (approximated) | 12/44 | no | no |
 | TinyMCE, stock config | 12/44 | no | no |
 | Quill | 0/44 | no | no |
@@ -1239,8 +1239,12 @@ test/
                         glide, as do three with the option off. A Hero Slider
                         given the scroll effect keeps its words whole when the
                         effect never runs, and starts the effect before its
-                        rotation script can stop early for a single banner;
-                        47 assertions
+                        rotation script can stop early for a single banner.
+                        Then runs the slider's own script in a plain page and
+                        in one wrapped in overflow-x: hidden: the stylesheet
+                        drives the effect in the first, and in the second the
+                        script moves the photo instead of leaving the effect
+                        frozen with a band of the banner bare; 50 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
@@ -1313,6 +1317,12 @@ test/
                         extra large text; 99 assertions
   probes.js             Per-component functional assertions, shared by the harnesses
 tools/
+  markup-check.html     Paste into a CMS or page builder like a block, publish,
+                        and read the list: whether <style>, scripts, buttons,
+                        radio inputs, labels, the hidden attribute, aria-, role,
+                        data- and style attributes, links, SVG, ids and lazy
+                        images survived. Tells you which blocks will work there
+                        before you build a page in it
   us-map/build.js       Regenerates the Territory Map's state outlines from us-atlas's
                         states-albers-10m.json: shared borders simplified once, so
                         neighbouring states still meet, then written as compact
@@ -1324,7 +1334,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 878 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 881 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

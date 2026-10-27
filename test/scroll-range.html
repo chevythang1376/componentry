@@ -425,6 +425,42 @@ window.addEventListener('load', function () {
     document.title = fail ? 'RANGE FAIL ' + fail : 'RANGE OK ' + pass;
   }
 
-  motionBridge(report);
+  /* --- a page wrapper that would freeze the scroll effect -------------------
+     A page wrapped in overflow-x: hidden — the usual way to stop sideways
+     scrolling — is a scroll container that never scrolls, and a scroll
+     timeline follows the nearest one. Left to the stylesheet, the effect froze
+     part way and opened a black band across the top of the banner. The
+     script has to notice and move the photo itself. Run for real: the
+     slider's own script, in a document of its own, plain and wrapped. */
+  function wrapperChecks(finish) {
+    var parts = CB.Export.parts([{ uid: 'w', cls: 'cb-hsl-w', type: 'hero-slider',
+      props: Object.assign(CB.defaults(CB.get('hero-slider')), { motion: 'depth', autoplay: false }) }], CB.DEFAULT_TOKENS, {});
+    var pages = [['plain', ''], ['wrapped', ' style="overflow-x: hidden"']], i = 0;
+    (function next() {
+      if (i >= pages.length) { finish(); return; }
+      var pg = pages[i++];
+      var d = f.contentDocument;
+      d.open();
+      d.write(CB.Export.fullDocument(parts, {}).replace('<body>', '<body><div' + pg[1] + '>')
+        .replace('</body>', '<div style="height: 2000px"></div></div></body>'));
+      d.close();
+      afterParsing(d, BRIDGE_WAIT_MS, function () {
+        try {
+          var root = d.querySelector('.cb-hsl'), shift = d.querySelector('.cb-hsl__shift');
+          if (pg[0] === 'plain') {
+            check('on a plain page the stylesheet runs the slider\'s scroll effect', root.hasAttribute('data-cb-drift'), true);
+          } else {
+            check('in a page wrapped in overflow-x: hidden it does not', root.hasAttribute('data-cb-drift'), false);
+            check('and the script moves the photo instead', !!(shift && shift.style.transform), true);
+          }
+        } catch (e) {
+          check('the wrapper checks ran at all', 'threw: ' + e.message, 'no exception');
+        }
+        next();
+      });
+    })();
+  }
+
+  motionBridge(function () { wrapperChecks(report); });
 });
 </script>
