@@ -1244,7 +1244,11 @@ test/
                         in one wrapped in overflow-x: hidden: the stylesheet
                         drives the effect in the first, and in the second the
                         script moves the photo instead of leaving the effect
-                        frozen with a band of the banner bare; 50 assertions
+                        frozen with a band of the banner bare. And the layer the
+                        drift moves must not be what clips the photo — the
+                        slider's did, so the photo was cut off at that moving
+                        edge while every box still measured where it should;
+                        54 assertions
   paste-table.html      Asserts a spreadsheet lands where it was aimed: tabs and
                         quoted CSV, columns matched by the name somebody would
                         have typed, a count that describes the data rather than
@@ -1334,7 +1338,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 881 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 885 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 

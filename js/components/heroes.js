@@ -885,6 +885,12 @@ ${c.indent(slides, 12)}
            they paint is allowed past its edges — the rule the Parallax Banner
            and the marquee follow for the same reason. */
         ${s}.cb-hsl { contain: paint; }` : ''}${effect.drift ? `
+        /* The photo layer is the part the drift slides, so it cannot also be
+           what clips the photo: clipped to its own moving box, the photo was
+           cut off at the layer's edge and the slider's black ground showed
+           above it. The slider's own edge does the clipping instead, as the
+           banner's does. */
+        ${s} .cb-hsl__bg { overflow: visible; }
         ${s} .cb-hsl__shift { position: absolute; left: 0; right: 0; top: 0; height: 100%; }` : ''}
         ${p.kenBurns ? `
         ${s}:has(.cb-hsl__radio:checked) .cb-hsl__slide .cb-hsl__bg img { transform: scale(1); transition: transform 9s linear; }
