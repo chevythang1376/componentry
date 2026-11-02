@@ -94,6 +94,16 @@ check('opening it again changes nothing',
       JSON.stringify(CB.migrate([{ uid: 'u', cls: 'c', type: 'parallax-banner', props: oldBanner(45) }])[0].props),
       JSON.stringify(oldBanner(45)));
 
+// --- sample copy that counts the library ---------------------------------
+/* Two blocks ship sample copy that quotes how many blocks there are. It
+   said 41 long after there were 44, and nothing noticed, so the number is
+   read against the registry: add a block and these fail until it is right. */
+var blocks = CB.all().length;
+check('the Stats Counter sample counts every block',
+      CB.defaults(CB.get('stats-counter')).items[0].value, blocks);
+check('the Pricing Table sample counts every block',
+      (/All (\d+) components/.exec(CB.defaults(CB.get('pricing')).items[0].features) || [])[1], blocks);
+
 document.getElementById('out').textContent = log.join('\n');
 var bar = document.getElementById('bar');
 bar.className = 'bar ' + (fail ? 'bad' : 'ok');

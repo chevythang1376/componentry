@@ -379,7 +379,7 @@
           { k: 'sub', t: 'text', label: 'Sub-label', value: '' }
         ].concat(CB.ctaFields({ help: 'Leave empty for no button on this stat.' })),
         value: [
-          { prefix: '', value: '41', suffix: '', label: 'Components', sub: 'and counting' },
+          { prefix: '', value: '44', suffix: '', label: 'Components', sub: 'and counting' },
           { prefix: '', value: '0', suffix: '', label: 'Dependencies', sub: 'nothing to install' },
           { prefix: '', value: '98', suffix: '%', label: 'Lighthouse median', sub: 'across every block' },
           { prefix: '~', value: '12', suffix: 'kB', label: 'Typical export', sub: 'HTML, CSS and JS' }
@@ -708,7 +708,7 @@
           { k: 'badge', t: 'text', label: 'Badge text', value: '' }
         ],
         value: [
-          { name: 'Starter', price: '0', currency: '$', priceYear: '0', period: '/ month', blurb: 'For a single site.', features: 'All 41 components\nUnlimited exports\nLight and dark tokens\n-Priority support', cta: 'Start free', ctaUrl: '#', featured: false, badge: '' },
+          { name: 'Starter', price: '0', currency: '$', priceYear: '0', period: '/ month', blurb: 'For a single site.', features: 'All 44 components\nUnlimited exports\nLight and dark tokens\n-Priority support', cta: 'Start free', ctaUrl: '#', featured: false, badge: '' },
           { name: 'Studio', price: '29', currency: '$', priceYear: '290', period: '/ month', blurb: 'For teams shipping client work.', features: 'Everything in Starter\nSaved brand presets\nShareable project files\nPriority support', cta: 'Choose Studio', ctaUrl: '#', featured: true, badge: 'Most popular' },
           { name: 'Agency', price: '79', currency: '$', priceYear: '790', period: '/ month', blurb: 'For larger design teams.', features: 'Everything in Studio\nCustom component requests\nWhite-label exports\nOnboarding session', cta: 'Talk to us', ctaUrl: '#', featured: false, badge: '' }
         ]
