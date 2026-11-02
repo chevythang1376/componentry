@@ -5,6 +5,11 @@ editor. Pick a pattern, edit it live, and export self-contained HTML + CSS + Jav
 
 **No build step, no dependencies, no server.** Open `index.html` in a browser.
 
+**[Component catalog (PDF)](docs/Componentry-Component-Catalog.pdf)** — a 16-page handout
+for the web team: every block with a screenshot, what it is for and its main options,
+then the starter pages and template ideas. It covers the 44 blocks as of November 2026,
+and its screenshots use sample copy rather than real Southwire content.
+
 ---
 
 ## Running it
@@ -1290,8 +1295,10 @@ test/
                         since a default that reverts is invisible until an
                         export is already out the door. And what an old one
                         opens as: a Parallax Banner saved under the retired
-                        strength slider keeps the movement it was given; 20
-                        assertions
+                        strength slider keeps the movement it was given. And
+                        the two samples that quote the size of the library are
+                        read against the registry, since they still said 41
+                        after the library reached 44; 22 assertions
   radius.html           Asserts one slider reaches every rounded container and
                         that circles and pills are left alone, and fails if any
                         container drifts onto a bare pixel radius; 19 assertions
@@ -1366,7 +1373,7 @@ copy it fetched ten minutes ago — which is how one intermittent carousel failu
 survived two rounds of "fixes" that were never actually running.
 ```
 
-**Fourteen harnesses, 954 assertions**, plus two that report coverage rather than a count:
+**Fourteen harnesses, 956 assertions**, plus two that report coverage rather than a count:
 `gallery.html` builds all 44 through the real export path, and `degrade.html` judges all 44
 under six separate CSS failures. Every one is green at the build in `version.txt`.
 
