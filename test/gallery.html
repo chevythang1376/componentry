@@ -48,7 +48,7 @@
 (function () {
   var tokens = CB.DEFAULT_TOKENS;
   var out = document.getElementById('out');
-  var allCss = [], allJs = [], errors = [], sizes = [];
+  var allCss = [], allJs = [], errors = [], sizes = [], alone = [];
 
   CB.all().forEach(function (def, n) {
     var inst = {
@@ -77,6 +77,7 @@
 
     allCss.push(built.css);
     allJs.push(built.js);
+    alone.push({ id: def.id, html: built.html, css: built.css });
     sizes.push({ id: def.id, kb: ((built.html.length + built.css.length + built.js.length) / 1024).toFixed(1) });
   });
 
@@ -116,9 +117,34 @@
                 shifty.filter(function (v, i, a) { return a.indexOf(v) === i; }).slice(0, 4).join(', '));
   }
 
+  /* Phone width. A block wider than the screen makes the whole host page
+     scroll sideways, and the usual cause hides from a look at the block: an
+     absolutely positioned element inside a scroll box whose containing block
+     sits outside it, so the box cannot clip it. The Table's screen-reader
+     "Yes" and "No" did exactly that from its off-screen columns, while the
+     table itself scrolled correctly inside its frame.
+
+     Each block is laid out alone in a 390px frame, without its script, which
+     is how it first paints and how it stays where an editor strips scripts. */
+  var wide = [];
+  var frame = document.createElement('iframe');
+  frame.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 390px; height: 844px; border: 0;';
+  document.body.appendChild(frame);
+  alone.forEach(function (b) {
+    var d = frame.contentDocument;
+    d.open();
+    d.write('<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1">' +
+            '<style>html, body { margin: 0; }\n' + b.css + '</style>' + b.html);
+    d.close();
+    var over = d.documentElement.scrollWidth - d.documentElement.clientWidth;
+    if (over > 0) wide.push(b.id + ' (' + over + 'px)');
+  });
+  frame.remove();
+  if (wide.length) errors.push(wide.length + ' block(s) wider than a phone: ' + wide.join(', '));
+
   window.__test = {
     errors: errors, jsErrors: jsErrors, sizes: sizes,
-    shifty: shifty.length,
+    shifty: shifty.length, wide: wide,
     count: CB.all().length
   };
 
@@ -129,7 +155,7 @@
     '<span><code>' + CB.all().length + '</code> components</span>' +
     '<span class="' + (bad ? 'tst-bad' : 'tst-ok') + '">' +
       (bad ? bad + ' failure(s): ' + errors.concat(jsErrors).join(' · ')
-           : 'all rendered, initialised, and reserving space for their images') +
+           : 'all rendered, initialised, reserving space for their images, and no wider than a phone') +
     '</span>';
 })();
 </script>

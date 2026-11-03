@@ -1572,8 +1572,9 @@
 
         /* Horizontal, and inside its own box — never sticky to the viewport,
            which is what puts a block in the same paint layer as a host site's
-           fixed header. */
-        ${s} .cb-tbl__scroll { overflow-x: auto; }
+           fixed header. Positioned, or the screen-reader text in its cells
+           escapes it and pushes a phone's page sideways. */
+        ${s} .cb-tbl__scroll { overflow-x: auto; position: relative; }
         ${s} .cb-tbl__scroll:focus-visible { outline: 3px solid var(--cb-brand); outline-offset: 3px; }
         ${s} .cb-tbl__table {
           width: 100%; border-collapse: separate; border-spacing: 0;

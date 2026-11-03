@@ -1210,7 +1210,11 @@ js/components/
 test/
   gallery.html          Renders all 44 through the real export path; reports failures,
                         and fails if any laid-out image reserves no space for
-                        itself — the omission half of Cumulative Layout Shift
+                        itself — the omission half of Cumulative Layout Shift —
+                        or if any block, laid out alone in a 390px frame, is
+                        wider than the phone. The Table was: its screen-reader
+                        "Yes" and "No" escaped its scroll box from the
+                        off-screen columns and pushed the whole page sideways
   hostile-host.html     Pastes exports into a deliberately awful theme, and asserts
                         no block leaves a permanent GPU layer, forces a 3D one, or
                         moves something larger than itself without containing its
