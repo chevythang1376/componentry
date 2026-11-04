@@ -667,19 +667,23 @@ window.CBProbe = (function () {
     t.ok('ships no JavaScript', !root.hasAttribute('data-cb-ready'));
   });
 
+  /* Three products, as a real comparison usually has, so the table is wider
+     than a phone and its scroll box is genuinely in use. Each row is still
+     either all the same or not, exactly as it was with two. */
   sample('table', {
     title: 'Compare the range',
     columns: [
       { label: 'Attribute', tagline: '', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
       { label: 'THHN', tagline: 'Building wire', badge: 'Most specified', featured: true, image: '', alt: '', btnText: '', btnUrl: '#' },
-      { label: 'XHHW-2', tagline: 'Wet or dry', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' }
+      { label: 'XHHW-2', tagline: 'Wet or dry', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' },
+      { label: 'USE-2', tagline: 'Underground', badge: '', featured: false, image: '', alt: '', btnText: '', btnUrl: '#' }
     ],
     rows: [
-      { group: 'Construction', cells: ['Conductor', 'Copper', 'Copper'] },
-      { group: '', cells: ['Insulation', 'PVC with nylon', 'XLPE'] },
-      { group: 'Ratings', cells: ['Voltage rating', '600 V', '600 V'] },
-      { group: '', cells: ['Wet rated', 'Yes', 'Yes'] },
-      { group: '', cells: ['Sunlight resistant', 'No', 'Yes'] }
+      { group: 'Construction', cells: ['Conductor', 'Copper', 'Copper', 'Copper'] },
+      { group: '', cells: ['Insulation', 'PVC with nylon', 'XLPE', 'XLPE'] },
+      { group: 'Ratings', cells: ['Voltage rating', '600 V', '600 V', '600 V'] },
+      { group: '', cells: ['Wet rated', 'Yes', 'Yes', 'Yes'] },
+      { group: '', cells: ['Sunlight resistant', 'No', 'Yes', 'Yes'] }
     ]
   });
 

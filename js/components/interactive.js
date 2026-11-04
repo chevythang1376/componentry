@@ -594,10 +594,14 @@ ${p.deepLink ? `
             : inner;
         }
 
+        /* Not a list. Each slide is a group named "2 of 6", which is what the
+           carousel pattern asks for, and an <li> cannot be one: role="group"
+           takes away its list-item role and leaves the <ul> a list of nothing,
+           which is an error to every accessibility checker. */
         return c.dedent(`
-          <li class="cb-car__slide" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}">
+          <div class="cb-car__slide" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}">
             <figure class="cb-car__fig${card ? ' is-card' : ''}">${body}</figure>
-          </li>`);
+          </div>`);
       }).join('\n');
 
       var dots = p.dots ? items.map(function (it, i) {
@@ -616,9 +620,9 @@ ${p.deepLink ? `
                 <button type="button" class="cb-car__ctl cb-car__next" aria-label="Next slide"><span aria-hidden="true">&#8250;</span></button>` : ''}
               </div>
             </header>` : ''}
-            <ul class="cb-car__track" id="${base}-track" aria-live="${p.autoplay ? 'off' : 'polite'}">
+            <div class="cb-car__track" id="${base}-track" aria-live="${p.autoplay ? 'off' : 'polite'}">
         ${c.indent(slides, 6)}
-            </ul>
+            </div>
             ${p.dots ? '<div class="cb-car__dots" role="group" aria-label="Choose slide">' + dots + '</div>' : ''}
           </div>
         </section>`);
@@ -702,12 +706,22 @@ ${card ? `
         ${s} .cb-car__fig.is-card .cb-actions { padding: 0 18px 16px; margin-top: 8px; }
         ${s} .cb-car__fig.is-card:hover img { transform: none; }
         ${s} .cb-car__fig.is-card:hover { border-color: var(--cb-brand); }` : ''}
-        ${s} .cb-car__dots { display: flex; justify-content: center; gap: 8px; margin-top: 22px; flex-wrap: wrap; }
+        /* The dot is drawn; the button around it is what a thumb has to hit.
+           A 9px button was a 9px target, and WCAG 2.2 asks for 24, so the
+           button is 24 square (wider round the current bar) with the dot
+           centred in it. The spacing between dots now comes from the buttons. */
+        ${s} .cb-car__dots { display: flex; justify-content: center; margin-top: 15px; flex-wrap: wrap; }
         ${s} .cb-car__dot {
-          width: 9px; height: 9px; border-radius: 50%; padding: 0;
+          display: grid; place-items: center;
+          width: 24px; height: 24px; padding: 0; border-radius: 999px;
+          background: none; transition: width .25s ease;
+        }
+        ${s} .cb-car__dot::before {
+          content: ""; width: 9px; height: 9px; border-radius: 50%;
           background: var(--cb-border); transition: all .25s ease;
         }
-        ${s} .cb-car__dot[aria-current="true"] { background: var(--cb-brand); width: 26px; border-radius: 5px; }
+        ${s} .cb-car__dot[aria-current="true"] { width: 40px; }
+        ${s} .cb-car__dot[aria-current="true"]::before { background: var(--cb-brand); width: 26px; border-radius: 5px; }
         @media (max-width: 1024px) { ${s} .cb-car__slide { flex-basis: ${slideWidth(perT)}; } }
         @media (max-width: 640px) { ${s} .cb-car__slide { flex-basis: ${peek ? '86%' : '100%'}; } }`;
 
@@ -984,9 +998,21 @@ ${card ? `
           transition: all .2s ease;
         }
         ${s} .cb-tm__arrow:hover { background: var(--cb-brand); color: var(--cb-on-brand); border-color: var(--cb-brand-ink, var(--cb-brand)); }
-        ${s} .cb-tm__dots { display: flex; gap: 8px; }
-        ${s} .cb-tm__dot { width: 9px; height: 9px; border-radius: 50%; padding: 0; background: var(--cb-border); transition: all .25s ease; }
-        ${s} .cb-tm__dot[aria-current="true"] { background: var(--cb-brand); width: 26px; border-radius: 5px; }`;
+        /* As the Carousel's: a drawn dot inside a 24px button, so the target
+           meets WCAG 2.2 however small the dot looks. The negative margin keeps
+           the dots where they sat beside the arrows. */
+        ${s} .cb-tm__dots { display: flex; margin-inline: -7px; }
+        ${s} .cb-tm__dot {
+          display: grid; place-items: center;
+          width: 24px; height: 24px; padding: 0; border-radius: 999px;
+          background: none; transition: width .25s ease;
+        }
+        ${s} .cb-tm__dot::before {
+          content: ""; width: 9px; height: 9px; border-radius: 50%;
+          background: var(--cb-border); transition: all .25s ease;
+        }
+        ${s} .cb-tm__dot[aria-current="true"] { width: 40px; }
+        ${s} .cb-tm__dot[aria-current="true"]::before { background: var(--cb-brand); width: 26px; border-radius: 5px; }`;
 
       var js = c.wrap(c.cls, `
         var items = Array.prototype.slice.call(root.querySelectorAll(".cb-tm__item"));

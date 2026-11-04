@@ -833,7 +833,10 @@
           content: ""; position: absolute; left: 6px; top: 2px;
           width: 5px; height: 10px; border: solid var(--cb-brand); border-width: 0 2px 2px 0; rotate: 45deg;
         }
-        ${s} .cb-pr__feat.is-off { color: var(--cb-muted); opacity: .7; }
+        /* Muted, struck through and marked with a dash, which is three ways of
+           saying "not included" already. Fading it as well took the muted grey
+           to 2.9:1, below what any text needs to be read. */
+        ${s} .cb-pr__feat.is-off { color: var(--cb-muted); }
         ${s} .cb-pr__feat.is-off span:last-of-type { text-decoration: line-through; }
         ${s} .cb-pr__feat.is-off .cb-pr__mark::after {
           border: 0; left: 4px; top: 8px; width: 11px; height: 2px; rotate: 0deg;
@@ -1192,7 +1195,10 @@
       var lines = raw.split('\n').filter(function (l) { return l.trim(); });
       if (!lines.length) lines = [''];
 
-      var tag = p._heading === 'p' ? 'p' : 'h' + (p._heading === '3' ? 3 : 2);
+      /* Always an h2 here: the export moves every heading in a block down by
+         the level chosen, this one included. Picking h3 here as well moved it
+         twice, so "H3" came out as an h4 and skipped a level in the outline. */
+      var tag = p._heading === 'p' ? 'p' : 'h2';
       var n = 0;
 
       /* One span per piece, numbered, so the CSS can shift each one's slice of
@@ -1572,8 +1578,9 @@
 
         /* Horizontal, and inside its own box — never sticky to the viewport,
            which is what puts a block in the same paint layer as a host site's
-           fixed header. */
-        ${s} .cb-tbl__scroll { overflow-x: auto; }
+           fixed header. Positioned, or the screen-reader text in its cells
+           escapes it and pushes a phone's page sideways. */
+        ${s} .cb-tbl__scroll { overflow-x: auto; position: relative; }
         ${s} .cb-tbl__scroll:focus-visible { outline: 3px solid var(--cb-brand); outline-offset: 3px; }
         ${s} .cb-tbl__table {
           width: 100%; border-collapse: separate; border-spacing: 0;
