@@ -33,14 +33,20 @@ CB.Export = (function () {
       if (out.js) js.push(out.js);
     });
 
-    var urls = CB.fontImports(tokens);
-    var imports = urls.length
-      ? urls.map(function (u) { return '@import url("' + u.replace(/"/g, '') + '");'; }).join('\n') + '\n\n'
+    /* The webfont under a name only these blocks use (see CB.fontSources), so
+       it cannot change the host page's own text. An @import is left only for a
+       stylesheet the builder could not read, and Preflight says so. */
+    var fonts = CB.fontSources(tokens);
+    var imports = fonts.imports.length
+      ? fonts.imports.map(function (u) { return '@import url("' + u.replace(/"/g, '') + '");'; }).join('\n') + '\n\n'
+      : '';
+    var faces = fonts.faces.length
+      ? '/* Webfont, under a name only these blocks ask for */\n' + CB.fontFaceCss(tokens) + '\n\n'
       : '';
 
     return {
       html: html.join('\n\n'),
-      css: imports + css.join('\n\n'),
+      css: imports + faces + css.join('\n\n'),
       js: js.join('\n\n')
     };
   }
@@ -97,10 +103,14 @@ CB.Export = (function () {
 
   function payload(instances, tokens, html, name) {
     var assets = assetMap(html);
+    // The faces read from an imported stylesheet are already in the CSS, and
+    // the builder reads them again from the address when this is pasted back.
+    var kept = {};
+    Object.keys(tokens || {}).forEach(function (k) { if (k !== 'fontFaces') kept[k] = tokens[k]; });
     var data = {
       v: 1,
       name: name || '',
-      tokens: tokens,
+      tokens: kept,
       instances: instances.map(function (i) {
         return {
           uid: i.uid, cls: i.cls, type: i.type,
@@ -252,7 +262,10 @@ CB.Export = (function () {
       if (out.js) js.push(out.js);
     });
 
-    CB.fontImports(tokens).slice().reverse().forEach(function (u) {
+    // The same fonts as the export, declared the same way.
+    var fonts = CB.fontSources(tokens);
+    if (fonts.faces.length) css.unshift(CB.fontFaceCss(tokens));
+    fonts.imports.slice().reverse().forEach(function (u) {
       css.unshift('@import url("' + u.replace(/"/g, '') + '");');
     });
 

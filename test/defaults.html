@@ -45,33 +45,103 @@ function css(over) {
 var INTER = 'https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap';
 
 // --- the three defaults --------------------------------------------------
-check('font stack is Inter with a real fallback',
-      CB.fontStack(tok()), '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif');
+check('font stack is the private Inter, then Inter and a real fallback',
+      CB.fontStack(tok()), '"cb Inter", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif');
 check('button corners are 1px', (css().match(/--cb-btn-radius:[^;]*/) || [''])[0], '--cb-btn-radius: 1px');
 check('the corner radius token is untouched', (css().match(/--cb-radius:[^;]*/) || [''])[0], '--cb-radius: 14px');
 
 // --- Inter has to actually arrive, not just be named ---------------------
-check('Inter is imported, not merely hoped for', CB.fontImports(tok()).join('|'), INTER);
-check('the import is the first rule, which is the only place it is honoured',
-      css().indexOf('@import') === 0, true);
+check('Inter is the webfont in use, not merely hoped for', CB.fontImports(tok()).join('|'), INTER);
 check('the weights cover what the components ask for (500-800)', /wght@400\.\.800/.test(INTER), true);
+
+// --- ...and arrive for the blocks alone ----------------------------------
+/* A font's family name belongs to the whole document. Importing Google's
+   stylesheet gave "Inter" to the host page too, and any host text whose stack
+   named Inter switched to it: reported from SmartEdit as other components'
+   fonts changing with the font token. The faces are declared under a name only
+   the blocks use instead. */
+var faceFamilies = function (c) {
+  return (c.match(/@font-face\s*\{[^}]*\}/g) || []).map(function (r) { return (r.match(/font-family:\s*"([^"]+)"/) || [])[1]; });
+};
+check('the export has no @import, which would hand the family to the host page',
+      /@import/.test(css()), false);
+check('Inter is declared for every script Google serves it in', faceFamilies(css()).length, 7);
+check('every face is under the private name',
+      faceFamilies(css()).every(function (f) { return f === 'cb Inter'; }), true);
+check('and every file is Google’s own, over https',
+      (css().match(/@font-face\s*\{[^}]*\}/g) || []).every(function (r) {
+        return /src: url\("https:\/\/fonts\.gstatic\.com\/s\/inter\/v\d+\/[\w-]+\.woff2"\) format\("woff2"\);/.test(r);
+      }), true);
+check('the faces come before every block rule', css().indexOf('@font-face') < css().indexOf('.cb-'), true);
 
 // --- and the other stacks stay local -------------------------------------
 check('System UI imports nothing', CB.fontImports(tok({ font: 'system' })).length, 0);
 check('grotesk is the local-only twin, still no import',
       CB.fontImports(tok({ font: 'grotesk' })).length, 0);
-check('grotesk names the same family', CB.fontStack(tok({ font: 'grotesk' })), CB.fontStack(tok()));
+check('grotesk names the same family, without the private copy',
+      CB.fontStack(tok({ font: 'grotesk' })), CB.fontStack(tok()).replace('"cb Inter", ', ''));
+check('and declares no font', /@font-face/.test(css({ font: 'grotesk' })), false);
 
-// --- a custom import still behaves as documented -------------------------
+// --- a custom import -----------------------------------------------------
 var custom = 'https://fonts.googleapis.com/css2?family=Fraunces&display=swap';
-check('a custom import is emitted alongside the built-in',
+check('a custom import is used alongside the built-in',
       CB.fontImports(tok({ fontImport: custom })).join('|'), INTER + '|' + custom);
-check('choosing the custom import switches the family',
-      CB.fontStack(tok({ font: 'import', fontImport: custom })).indexOf('"Fraunces"'), 0);
-check('a custom import is not emitted twice',
+check('a custom import is not used twice',
       CB.fontImports(tok({ font: 'import', fontImport: INTER })).join('|'), INTER);
 check('junk in the import field is ignored',
       CB.fontImports(tok({ font: 'system', fontImport: 'not a url' })).length, 0);
+
+/* What Google sends for that address, trimmed to two scripts, plus what other
+   providers have been seen to add: a class rule and a tracking @import. */
+var GOOGLE = "/* latin-ext */\n@font-face {\n  font-family: 'Fraunces';\n  font-style: normal;\n  font-weight: 400;\n" +
+  "  font-display: swap;\n  src: url(https://fonts.gstatic.com/s/fraunces/v38/abc-ext.woff2) format('woff2');\n" +
+  "  unicode-range: U+0100-02BA, U+02BD-02C5;\n}\n/* latin */\n@font-face {\n  font-family: 'Fraunces';\n" +
+  "  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n" +
+  "  src: url(https://fonts.gstatic.com/s/fraunces/v38/abc.woff2) format('woff2');\n  unicode-range: U+0000-00FF;\n}\n" +
+  "@import url('https://p.example.net/track.css');\n.tk-fraunces { font-family: 'Fraunces', serif; }\n";
+var read = CB.parseFontFaces(GOOGLE);
+var withFaces = function (over) { return tok(Object.assign({ fontImport: custom, fontFaces: { url: custom, faces: read } }, over)); };
+var cssWith = function (over) {
+  var def = CB.get('card-grid');
+  return CB.Export.parts([{ uid: 'u', type: 'card-grid', cls: 'cb-cg-d', props: CB.defaults(def) }], withFaces(over), {}).css;
+};
+check('reading a stylesheet keeps its @font-face rules and nothing else', read.length, 2);
+check('with its faces read, choosing the import uses the private copy first',
+      CB.fontStack(withFaces({ font: 'import' })).indexOf('"cb Fraunces", "Fraunces"'), 0);
+check('and the export declares it rather than importing it',
+      /@import/.test(cssWith({ font: 'import' })) + ' ' + faceFamilies(cssWith({ font: 'import' })).join('|'),
+      'false cb Fraunces|cb Fraunces');
+check('the provider’s class rule and tracking import stay out of the export',
+      /tk-fraunces|p\.example\.net/.test(cssWith({ font: 'import' })), false);
+check('a custom stack that names the imported family finds the private copy',
+      CB.fontStack(withFaces({ font: 'custom', fontCustom: "'Fraunces', Georgia, serif" })),
+      '"cb Fraunces", \'Fraunces\', Georgia, serif');
+check('faces read for another address are never used for this one',
+      CB.fontSources(withFaces({ font: 'import', fontImport: 'https://fonts.googleapis.com/css2?family=Lora' })).imports.join('|'),
+      'https://fonts.googleapis.com/css2?family=Lora');
+check('until its faces are read, the import falls back to @import, first in the CSS',
+      css({ font: 'import', fontImport: custom }).indexOf('@import url("' + custom + '")'), 0);
+check('and choosing it still switches the family',
+      CB.fontStack(tok({ font: 'import', fontImport: custom })).indexOf('"Fraunces"'), 0);
+
+/* Faces reach the export from a stylesheet someone named, by way of a saved
+   project that could have come from anywhere. None of this may survive. */
+var EVIL = [
+  { family: 'X<\/style><script>alert(1)<\/script>', src: 'url(https://a.example/x.woff2)' },
+  { family: 'Plain', src: 'url(javascript:alert(1))' },
+  { family: 'Plain', src: 'url(http://insecure.example/x.woff2)' },
+  { family: 'Plain', src: 'url(https://a.example/x.woff2"<\/style>)' },
+  { family: 'Plain', src: 'url(https://a.example/x.woff2)', weight: '400;} body{color:red' },
+  { family: 'Plain', src: 'url(https://a.example/x.woff2)', range: 'U+0000-00FF; } * { display: none' }
+];
+var evilCss = cssWith({ font: 'import', fontFaces: { url: custom, faces: EVIL } });
+check('a face whose family or file could break out of the <style> is dropped',
+      /<\/style>|<script|javascript:|http:\/\/insecure/.test(evilCss), false);
+check('a bad weight or range is dropped back to its default, not written out',
+      /color:\s*red|display:\s*none|\}\s*body|\*\s*\{/.test((evilCss.match(/@font-face\s*\{[^}]*\}/g) || []).join('\n')) ||
+      /body\s*\{\s*color:\s*red/.test(evilCss), false);
+check('the faces that were safe still make it, with the bad values reset',
+      faceFamilies(evilCss).join('|'), 'cb Plain|cb Plain');
 
 // --- exports must survive the font never loading -------------------------
 check('the stack falls back to something real if the import is stripped',

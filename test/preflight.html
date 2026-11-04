@@ -58,6 +58,22 @@ window.addEventListener('load', function () {
   });
   check('no alt warnings on ' + everything.length + ' untouched components', altFindings(everything).length, 0);
 
+  // --- a webfont the host page would share ---------------------------------
+  /* An @import gives the family to the whole host page. Exports declare fonts
+     under a private name instead; this is the case where the faces were never
+     read, and the export has to fall back. */
+  var fontFindings = function (over) {
+    return (CB.Preflight.run([inst('card-grid')], Object.assign({}, CB.DEFAULT_TOKENS, over), {}) || [])
+      .filter(function (f) { return f.title === 'The webfont is not contained'; });
+  };
+  var lora = 'https://fonts.googleapis.com/css2?family=Lora:wght@400..700&display=swap';
+  check('Inter, which ships with the builder, is contained', fontFindings({}).length, 0);
+  var loose = fontFindings({ font: 'import', fontImport: lora });
+  check('an import whose fonts were never read is flagged', loose.length + ' ' + (loose[0] || {}).level, '1 warn');
+  check('and names the family the host would gain', loose.length ? /gives Lora to the whole page/.test(loose[0].detail) : false, true);
+  check('once its faces are read it is quiet', fontFindings({ font: 'import', fontImport: lora, fontFaces: { url: lora,
+    faces: [{ family: 'Lora', src: 'url(https://fonts.gstatic.com/s/lora/v1/x.woff2) format("woff2")' }] } }).length, 0);
+
   // --- but it still catches a real image with no description --------------
   var real = altFindings([inst('split-hero', { image: 'https://example.com/team.jpg', alt: '' })]);
   check('a real image with blank alt warns', real.length, 1);

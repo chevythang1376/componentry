@@ -633,6 +633,7 @@
 
     CB.Inspector.render(fieldHost, { props: TOKEN_FIELDS }, state.tokens, function () {
       dirty = true;
+      ensureFonts();
       pushHistoryDebounced();
       refreshPreview();
       paintContrast(contrast);
@@ -650,6 +651,40 @@
       refreshPreview();
     });
     host.appendChild(reset);
+  }
+
+  /* ------------------------------------------------------------ webfonts */
+
+  /* An imported webfont stylesheet is read once and its faces kept in the
+     tokens, so the export can declare them under a private name rather than
+     @import the stylesheet, which would hand the family to the whole host page
+     (CB.fontSources has the story). Until this answers, or if it cannot,
+     exports carry the @import and Preflight says the font is not contained. */
+  var fontReads = {};
+
+  function ensureFonts() {
+    var t = state.tokens;
+    var url = String(t.fontImport || '').trim();
+    if (!/^https?:\/\//i.test(url) || url === CB.FONT_IMPORTS.inter) {
+      if (t.fontFaces) delete t.fontFaces;
+      return;
+    }
+    if ((t.fontFaces && t.fontFaces.url === url) || fontReads[url]) return;
+    fontReads[url] = fetch(url, { credentials: 'omit' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function (text) {
+      var faces = CB.parseFontFaces(text);
+      if (!faces.length) throw new Error('no @font-face rules');
+      // The address may have changed while this was on its way.
+      if (String(state.tokens.fontImport || '').trim() !== url) return;
+      state.tokens.fontFaces = { url: url, faces: faces };
+      dirty = true;
+      refreshPreview();
+      if (lastPreflightInsts) renderPreflight(lastPreflightInsts);
+    }).catch(function () { /* stays on @import; Preflight reports it */ }).then(function () {
+      delete fontReads[url];
+    });
   }
 
   /* ---------------------------------------------------------- preview */
@@ -1097,6 +1132,8 @@
   }
 
   function renderAll() {
+    // Every load, import, undo and reset comes through here.
+    ensureFonts();
     renderLayers();
     renderInspector();
     buildPreview();

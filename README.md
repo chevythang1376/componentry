@@ -119,6 +119,12 @@ the component can't restyle the host page.
 Custom properties are declared on the wrapper element. A host page that also defines
 `--cb-brand` doesn't win, and your tokens don't leak into the rest of the site.
 
+**The webfont goes under a name of its own.** A selector can't scope a font: its family
+name belongs to the whole page. So the blocks declare their webfont as `"cb Inter"` (or
+`"cb "` plus whichever family you import) and only their stack asks for it. The site's
+own text can't switch to it, even where its font list names Inter. See
+[Using a webfont](#using-a-webfont).
+
 **3. A defensive reset hands back the properties themes usually steal.**
 `box-sizing`, heading and paragraph margins, `line-height`, `color`, `font-family`,
 `letter-spacing`, list bullets, image borders, link underlines and button chrome are
@@ -334,11 +340,11 @@ pages the library actually ships, rather than on an abstract five:
 
 | Page | Blocks | Reset per block | Reset shared | |
 |---|---|---|---|---|
-| Support page | 4 | 48.6 kB CSS | **17.7 kB** | −64% |
-| Product page | 5 | 72.0 kB CSS | **30.0 kB** | −58% |
-| Capability page | 5 | 73.0 kB CSS | **31.6 kB** | −57% |
-| Landing page | 6 | 80.2 kB CSS | **28.5 kB** | −64% |
-| All 44 | 44 | 614.2 kB CSS | **174.7 kB** | −72% |
+| Support page | 4 | 50.9 kB CSS | **19.9 kB** | −61% |
+| Product page | 5 | 74.3 kB CSS | **32.2 kB** | −57% |
+| Capability page | 5 | 75.3 kB CSS | **33.9 kB** | −55% |
+| Landing page | 6 | 82.5 kB CSS | **30.8 kB** | −63% |
+| All 44 | 44 | 617.0 kB CSS | **177.0 kB** | −71% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -348,23 +354,27 @@ Complete exports of those starters, HTML + CSS + JS together:
 
 | Page | As written | Minified |
 |---|---|---|
-| Support page | 28.3 kB | **20.6 kB** |
-| Product page | 50.4 kB | **36.6 kB** |
-| Capability page | 51.6 kB | **40.5 kB** |
-| Landing page | 66.4 kB | **51.2 kB** |
+| Support page | 30.6 kB | **22.7 kB** |
+| Product page | 52.7 kB | **38.7 kB** |
+| Capability page | 53.8 kB | **42.5 kB** |
+| Landing page | 68.7 kB | **53.2 kB** |
 
 Three of the four fit in one embed minified. **The Landing page no longer does:** it has
-grown to 52,398 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
+grown to 54,484 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
 going on Webflow, because the Webflow export is split files: HTML in the Embed element, CSS
 in the page's head code, script before `</body>`, and Webflow allows 50,000 characters in
-each. Split that way the largest piece is under 20,000.
+each. Split that way the largest piece, the CSS, is under 22,000.
+
+About 2,200 characters of every export are the webfont's own `@font-face` rules, which
+keep the font inside the blocks (see [Using a webfont](#using-a-webfont)). An `@import`
+was about 100, and handed the font to the whole host page.
 
 Preflight measures it the same way. For a split export it judges each piece against the
 limit of the place it goes, and names the piece that is over; for a single-embed export it
 judges the whole thing. It used to measure every export as one embed against 50 × 1024 —
 51,200, where Webflow counts 50,000 characters — which let a real overflow through and
 would have flagged a split export that was fine. Any single block fits on its own; the
-largest, Territory Map, is about 29,700 characters minified, and 7,600 of those are the
+largest, Territory Map, is about 31,800 characters minified, and 7,600 of those are the
 outline of every state. That outline was 9,500 until the generator stopped repeating the
 `l` before every pair and the space before every minus sign; the shapes are pixel-identical.
 
@@ -539,6 +549,7 @@ and answers one question: if this were pasted right now, what would go wrong?
 | **Dead image links** | A URL that no longer resolves — invisible here, blank on the live page |
 | **Oversized images** | A master more than 3× the width of the box it is poured into |
 | **Embed cap** | Total over the target platform's limit, with the way out |
+| **Webfont not contained** | An imported font whose stylesheet the builder couldn't read, so it went out as an `@import` and the host page shares the family |
 | **Needs JavaScript** | Which blocks stop responding in a rich-text field |
 
 Findings name the block they came from and say what to do. A clean project collapses to a
@@ -930,16 +941,27 @@ pinned to an absolute value for one block if you want it.
 
 ### Using a webfont
 
-**Inter is the default and needs no setup.** Picking it emits the Google Fonts `@import`
-for you, over the weight range 400–800 so nothing the components ask for gets synthesised
-into a fake bold. It's the one difference between **Inter** and **Inter if installed,
-else Helvetica** in the font list: the second names the same family but imports nothing,
-so it only resolves for visitors who already have Inter locally. Pick that one, or
-**System UI**, if you'd rather exports made no external request at all.
+**Inter is the default and needs no setup.** Picking it puts Inter's font files in the
+export for you, over the weight range 400–800 so nothing the components ask for gets
+synthesised into a fake bold. It's the one difference between **Inter** and **Inter if
+installed, else Helvetica** in the font list: the second names the same family but loads
+nothing, so it only resolves for visitors who already have Inter locally. Pick that one,
+or **System UI**, if you'd rather exports made no external request at all.
 
-Because it's an `@import`, an editor that strips them leaves the fallback stack —
-Helvetica Neue, Helvetica, Arial — which is why the stack has real names in it rather
-than ending at `sans-serif`.
+**The font stays inside the blocks.** A font's family name belongs to the whole page:
+no selector can fence a `@font-face` rule into one part of it. Exports used to
+`@import` Google's stylesheet, which declared `"Inter"` for the entire host page, and any
+of the site's own text whose font list named Inter switched to the blocks' copy. In
+SmartEdit that showed up as other components' fonts changing whenever the font token was
+edited. Exports now declare the same files under a name only the blocks ask for,
+`"cb Inter"`, with the stack `"cb Inter", "Inter", "Helvetica Neue", Helvetica, Arial,
+sans-serif`. The host can't name a family it has never heard of, so nothing outside the
+blocks changes. `test/hostile-host.html` checks every font a paste brings is under a
+private name, and `test/defaults.html` checks there is no `@import`.
+
+If an editor strips the font rules, the stack falls back to Inter where the visitor has
+it installed, then Helvetica Neue, Helvetica and Arial. That's why the stack has real
+names in it rather than ending at `sans-serif`.
 
 For any **other** font, two settings, and both are required — importing a font does not
 switch to it:
@@ -949,10 +971,21 @@ switch to it:
 
 The family name is read out of the URL, so `…css2?family=Open+Sans:…` resolves to
 `"Open Sans"` with the system stack behind it as a fallback. Choosing that option with
-no URL set falls back to the system stack rather than breaking.
+no URL set falls back to the system stack rather than breaking. A **Custom…** stack that
+names the imported family by hand finds it too.
 
-The `@import` is emitted as the first rule in the exported CSS, which is the only place
-browsers honour it.
+When you enter the URL, the builder reads that stylesheet once and keeps its
+`@font-face` rules with the project. Those rules are exported under the private name
+(`"cb Open Sans"`), and anything else in the stylesheet, such as class rules or tracking
+imports some providers add, is left out. The rules are checked before they're written,
+so a project file from elsewhere can't use them to put anything but a font into the
+export.
+
+If the builder can't read the stylesheet (you're offline, or the provider doesn't allow
+it to be read from another site), the export falls back to an `@import` as the first
+rule in the CSS. That font is then shared with the host page, so **Preflight warns "The
+webfont is not contained"** and names the family. It reads the stylesheet again whenever
+the URL changes or the project is opened. Google Fonts URLs work.
 **Reveal on scroll is pure CSS** — an `animation-timeline: view()` scroll timeline, no
 JavaScript, so it still animates in editors that strip `<script>`. Scroll timelines sit
 around 85% support, so it is layered strictly as an enhancement: the block renders
