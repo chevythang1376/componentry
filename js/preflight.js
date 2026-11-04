@@ -524,6 +524,25 @@ CB.Preflight = (function () {
       frame.remove();
     });
 
+    /* ---- a webfont the host page would share ----
+       A font's family name belongs to the whole document, so an @import makes
+       it the host's too: host text whose stack names it switches to this copy.
+       Exports declare fonts under a private name instead, which needs the
+       stylesheet's faces; this is the case where they could not be read. */
+    CB.fontSources(tokens).imports.forEach(function (u) {
+      var fam = CB.familyFromImport(u) || 'this font';
+      out.push({
+        level: 'warn',
+        block: null,
+        title: 'The webfont is not contained',
+        detail: 'The builder could not read the fonts at ' + shortUrl(u) + ', so the export loads them with ' +
+                '@import, which gives ' + fam + ' to the whole page. Any of the site’s own text whose font list ' +
+                'names ' + fam + ' will switch to this copy.',
+        fix: 'Check the address opens in a browser. Google Fonts addresses work; the font is read again ' +
+             'whenever the address changes or the project is opened.'
+      });
+    });
+
     /* ---- behaviour that depends on scripts surviving ---- */
     var jsBlocks = instances.filter(function (i) {
       var b = CB.build(i, tokens);

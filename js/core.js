@@ -403,6 +403,102 @@ window.CB = (function () {
     inter: 'https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap'
   };
 
+  /* Why an export never @imports a webfont stylesheet any more.
+
+     A font's family name belongs to the whole document. There is no scoping a
+     @font-face rule to a subtree, so importing Google's stylesheet for Inter
+     handed "Inter" to the host page as well: any host text whose stack named
+     Inter, even as a fallback it never had, switched to the copy the block
+     loaded, and a site serving its own Inter had it replaced by ours. Reported
+     from SmartEdit as other components' fonts changing when the font token was
+     edited.
+
+     So the blocks declare the same files under a name of their own, "cb Inter",
+     and only their stack asks for it. Host rules cannot name it, so they never
+     match it. The real family still follows in the stack, so a visitor who has
+     it installed still gets it if the webfont is stripped or blocked. */
+  var PRIVATE_FONT = 'cb ';
+
+  /* Inter as Google serves FONT_IMPORTS.inter to a current browser: one
+     variable file per script, so a visitor downloads only the subsets the page
+     uses. Read on 4 November 2026. Google versions these files (v20) and keeps
+     old versions up, so they stay valid after Inter is updated. To refresh,
+     fetch FONT_IMPORTS.inter with a Chrome user agent and copy each file and
+     unicode-range across. */
+  var INTER_FACES = [
+    ['UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc', 'U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F'],
+    ['UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa0ZL7SUc', 'U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116'],
+    ['UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2ZL7SUc', 'U+1F00-1FFF'],
+    ['UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1pL7SUc', 'U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF'],
+    ['UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2pL7SUc', 'U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB'],
+    ['UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc', 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF'],
+    ['UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7', 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD']
+  ].map(function (f) {
+    return { family: 'Inter', style: 'normal', weight: '400 800', display: 'swap',
+             src: 'url("https://fonts.gstatic.com/s/inter/v20/' + f[0] + '.woff2") format("woff2")', range: f[1] };
+  });
+
+  /* One @font-face rule, reduced to the descriptors a font needs and checked
+     value by value. Faces arrive from a stylesheet someone pasted the address
+     of, by way of a saved project, and are written into the export's <style>:
+     nothing in them may close that tag, reach a non-https file or carry a rule
+     that is not a font. Returns null for anything unusable. */
+  function cleanFace(f) {
+    if (!f) return null;
+    var family = String(f.family || '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+    if (!/^[A-Za-z0-9][\w\- ]{0,59}$/.test(family)) return null;
+    var src = [];
+    String(f.src || '').replace(/url\(\s*(['"]?)(https:\/\/[^'"()\s<>\\]+)\1\s*\)(\s*format\(\s*(['"]?)([\w-]+)\4\s*\))?/gi,
+      function (m, q, u, fm, q2, fmt) {
+        src.push('url("' + u + '")' + (fmt ? ' format("' + fmt.toLowerCase() + '")' : ''));
+        return m;
+      });
+    if (!src.length) return null;
+    function pick(v, re) { v = String(v || '').trim(); return re.test(v) ? v : ''; }
+    return {
+      family: family,
+      style: pick(f.style, /^(normal|italic|oblique(\s+-?\d+(\.\d+)?deg){0,2})$/i) || 'normal',
+      weight: pick(f.weight, /^(normal|bold|\d{1,4}(\s+\d{1,4})?)$/i) || 'normal',
+      stretch: pick(f.stretch, /^([a-z-]+|\d+(\.\d+)?%(\s+\d+(\.\d+)?%)?)$/i),
+      display: pick(f.display, /^(auto|block|swap|fallback|optional)$/i),
+      src: src.join(', '),
+      range: pick(f.range, /^U\+[0-9A-F?]+(-[0-9A-F]+)?(\s*,\s*U\+[0-9A-F?]+(-[0-9A-F]+)?)*$/i)
+    };
+  }
+
+  var FACE_KEYS = {
+    'font-family': 'family', 'font-style': 'style', 'font-weight': 'weight', 'font-stretch': 'stretch',
+    'font-display': 'display', 'src': 'src', 'unicode-range': 'range'
+  };
+
+  /* The @font-face rules out of a webfont stylesheet (Google Fonts, Bunny,
+     Fontshare...), cleaned. Everything else in it is dropped: some providers
+     add class rules and tracking @imports of their own, which would be host-wide
+     too. */
+  function parseFontFaces(css) {
+    var faces = [];
+    String(css || '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/@font-face\s*\{([^}]*)\}/gi, function (m, body) {
+      var f = {};
+      body.split(';').forEach(function (decl) {
+        var i = decl.indexOf(':');
+        if (i < 0) return;
+        var key = FACE_KEYS[decl.slice(0, i).trim().toLowerCase()];
+        if (key) f[key] = decl.slice(i + 1).trim();
+      });
+      var clean = cleanFace(f);
+      if (clean) faces.push(clean);
+      return m;
+    });
+    return faces;
+  }
+
+  function faceCss(f) {
+    return '@font-face { font-family: "' + PRIVATE_FONT + f.family + '"; font-style: ' + f.style +
+      '; font-weight: ' + f.weight + ';' + (f.stretch ? ' font-stretch: ' + f.stretch + ';' : '') +
+      (f.display ? ' font-display: ' + f.display + ';' : '') + ' src: ' + f.src + ';' +
+      (f.range ? ' unicode-range: ' + f.range + ';' : '') + ' }';
+  }
+
   /* Southwire: copper on black and white.
      brand2 is a *deeper* copper rather than a lighter one on purpose — every
      gradient built from brand→brand2 stays dark enough for white text to clear
@@ -493,17 +589,38 @@ window.CB = (function () {
   }
 
   function fontStack(t) {
+    var stack;
     if (t.font === 'import') {
       var fam = familyFromImport(t.fontImport);
-      return fam ? '"' + fam + '", ' + FONT_STACKS.system : FONT_STACKS.system;
+      stack = fam ? '"' + fam + '", ' + FONT_STACKS.system : FONT_STACKS.system;
+    } else if (t.font === 'custom') {
+      stack = t.fontCustom || FONT_STACKS.system;
+    } else {
+      stack = FONT_STACKS[t.font] || FONT_STACKS.system;
     }
-    if (t.font === 'custom') return t.fontCustom || FONT_STACKS.system;
-    return FONT_STACKS[t.font] || FONT_STACKS.system;
+    return privateStack(stack, fontSources(t).faces);
   }
 
-  /* Every @import a project needs, in the order they have to be written. A
-     custom import is still emitted when one is set but not selected — that has
-     always been the behaviour, and the field's help text says so. */
+  /* Wherever the stack names a family this export declares, ask for the
+     private copy first and keep the real name behind it as the fallback. A
+     custom stack is covered too, so "Open Sans" typed by hand still finds the
+     Open Sans that was imported. */
+  function privateStack(stack, faces) {
+    var fams = {};
+    faces.forEach(function (f) { fams[f.family.toLowerCase()] = f.family; });
+    var done = {};
+    return String(stack).split(',').map(function (item) {
+      var name = item.trim().replace(/^(['"])(.*)\1$/, '$2').trim().toLowerCase();
+      var fam = fams[name];
+      if (!fam || done[name]) return item.trim();
+      done[name] = true;
+      return '"' + PRIVATE_FONT + fam + '", ' + item.trim();
+    }).join(', ');
+  }
+
+  /* Every webfont stylesheet a project uses, in order. A custom import is still
+     used when one is set but not selected: a custom stack can name it, and the
+     field's help text has always said so. */
   function fontImports(t) {
     var out = [];
     if (FONT_IMPORTS[t.font]) out.push(FONT_IMPORTS[t.font]);
@@ -511,6 +628,25 @@ window.CB = (function () {
     if (/^https?:\/\//i.test(custom) && out.indexOf(custom) < 0) out.push(custom);
     return out;
   }
+
+  /* What those stylesheets become in an export: @font-face rules under private
+     names wherever the faces are known, and a plain @import only for one the
+     builder could not read. Inter's faces ship with the builder; an imported
+     stylesheet is read by the app when its address is entered, and kept in the
+     tokens as fontFaces, together with the address it came from, so a changed
+     address is never answered with the old font. */
+  function fontSources(t) {
+    var faces = [], imports = [];
+    fontImports(t).forEach(function (u) {
+      var got = u === FONT_IMPORTS.inter ? INTER_FACES
+        : (t.fontFaces && t.fontFaces.url === u && Array.isArray(t.fontFaces.faces) ? t.fontFaces.faces : null);
+      got = (got || []).map(cleanFace).filter(Boolean);
+      if (got.length) faces = faces.concat(got); else imports.push(u);
+    });
+    return { faces: faces, imports: imports };
+  }
+
+  function fontFaceCss(t) { return fontSources(t).faces.map(faceCss).join('\n'); }
 
   function btnSize(t) { return BTN_SIZES[t.btnSize] || BTN_SIZES.md; }
 
@@ -1429,7 +1565,9 @@ window.CB = (function () {
     pageCss: pageCss, safeSelector: safeSelector,
     migrate: migrate, MIGRATIONS: MIGRATIONS,
     fontImports: fontImports,
-    familyFromImport: familyFromImport
+    familyFromImport: familyFromImport,
+    FONT_IMPORTS: FONT_IMPORTS, PRIVATE_FONT: PRIVATE_FONT,
+    fontSources: fontSources, fontFaceCss: fontFaceCss, parseFontFaces: parseFontFaces
   };
 })();
 

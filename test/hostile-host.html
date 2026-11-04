@@ -178,6 +178,24 @@ video { width: 100% !important; }
         cs(document.querySelector('.host-junk .cb-btn'), 'background-color') === 'rgb(0, 255, 0)',
         cs(document.querySelector('.host-junk .cb-btn'), 'background-color'));
 
+  /* The one thing a selector cannot scope is a webfont: a family name belongs
+     to the whole document. Blocks that @imported Google's Inter switched every
+     host text whose stack named Inter to it, reported from SmartEdit as other
+     components' fonts changing with the font token. Host CSS can only reach a
+     font by its family name, so the paste must bring none the host could name. */
+  var pastedFaces = [];
+  document.fonts.forEach(function (f) {
+    var fam = f.family.replace(/^["']|["']$/g, '');
+    if (pastedFaces.indexOf(fam) < 0) pastedFaces.push(fam);
+  });
+  check('the paste carries no @import, which would hand its font to the host',
+        !/@import/.test(snippet), (snippet.match(/@import[^;]*/) || ['none'])[0]);
+  check('every font the paste brings is under a name host CSS cannot ask for',
+        pastedFaces.length > 0 && pastedFaces.every(function (f) { return f.indexOf(CB.PRIVATE_FONT) === 0; }),
+        pastedFaces.join(', ') || 'no fonts declared');
+  check('and the blocks ask for that private name first',
+        cs(a, 'font-family').indexOf('"' + CB.PRIVATE_FONT) === 0, cs(a, 'font-family').slice(0, 40));
+
   /* Regression guard for "a black box around the title": the host masthead
      rule must not paint behind any heading wrapper. */
   Array.prototype.forEach.call(document.querySelectorAll('#paste-a [class*="__head"]'), function (hd) {

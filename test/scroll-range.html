@@ -315,7 +315,8 @@ window.addEventListener('load', function () {
 
      This is the one section that depends on another document having run its
      scripts, and document.write + close does not promise that. The preview
-     imports its webfont with @import, and a stylesheet still loading holds
+     used to import its webfont with @import (it still does for one the builder
+     could not read, see CB.fontSources), and a stylesheet still loading holds
      back every script after it — so the bridge exists as soon as close()
      returns only when the font CSS is already cached. A fresh browser (every
      headless run) has to fetch it first, and reading the bridge straight away
