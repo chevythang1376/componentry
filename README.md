@@ -337,8 +337,8 @@ pages the library actually ships, rather than on an abstract five:
 | Support page | 4 | 48.6 kB CSS | **17.7 kB** | −64% |
 | Product page | 5 | 72.0 kB CSS | **30.0 kB** | −58% |
 | Capability page | 5 | 73.0 kB CSS | **31.6 kB** | −57% |
-| Landing page | 6 | 79.7 kB CSS | **28.1 kB** | −65% |
-| All 44 | 44 | 612.8 kB CSS | **173.3 kB** | −72% |
+| Landing page | 6 | 80.2 kB CSS | **28.5 kB** | −64% |
+| All 44 | 44 | 614.2 kB CSS | **174.7 kB** | −72% |
 
 Both columns count the same thing: every byte of CSS the page needs. The shared column
 includes the one copy of the reset, which an earlier version of this table left out — the
@@ -351,10 +351,10 @@ Complete exports of those starters, HTML + CSS + JS together:
 | Support page | 28.3 kB | **20.6 kB** |
 | Product page | 50.4 kB | **36.6 kB** |
 | Capability page | 51.6 kB | **40.5 kB** |
-| Landing page | 66.0 kB | **50.9 kB** |
+| Landing page | 66.4 kB | **51.2 kB** |
 
 Three of the four fit in one embed minified. **The Landing page no longer does:** it has
-grown to 52,146 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
+grown to 52,398 characters, and Webflow stops a Code Embed at 50,000. That does not stop it
 going on Webflow, because the Webflow export is split files: HTML in the Embed element, CSS
 in the page's head code, script before `</body>`, and Webflow allows 50,000 characters in
 each. Split that way the largest piece is under 20,000.
@@ -532,7 +532,7 @@ and answers one question: if this were pasted right now, what would go wrong?
 
 | Check | Catches |
 |---|---|
-| **Contrast** | Text below WCAG 2.2 AA against its own background — 4.5:1, or 3:1 once it is large — judged on the rendered block |
+| **Contrast** | Text below WCAG 2.2 AA against its own background — 4.5:1, or 3:1 once it is large — judged on the rendered block, in the colour it actually paints once any fade between it and its background is counted |
 | **Alt text** | Images you have replaced but not described |
 | **Empty blocks** | A list with no items, or a table whose every cell is blank — exports as a dead band |
 | **Heavy images** | Uploads over ~180 kB, which cost twice: export *and* browser storage |
@@ -1214,7 +1214,16 @@ test/
                         or if any block, laid out alone in a 390px frame, is
                         wider than the phone. The Table was: its screen-reader
                         "Yes" and "No" escaped its scroll box from the
-                        off-screen columns and pushed the whole page sideways
+                        off-screen columns and pushed the whole page sideways.
+                        In the same frame it fails any control a thumb cannot
+                        hit — under 24px with no clear 24px around it, judged
+                        by where a tap lands rather than by the box, which is
+                        how the Carousel's and Testimonial's 9px dots were
+                        caught. It also fails a list holding anything but list
+                        items, as the Carousel's role="group" slides made it,
+                        and any block whose H3 setting does not move every
+                        heading exactly one level: Kinetic Text moved its own
+                        twice, so H3 came out an h4
   hostile-host.html     Pastes exports into a deliberately awful theme, and asserts
                         no block leaves a permanent GPU layer, forces a 3D one, or
                         moves something larger than itself without containing its
@@ -1306,7 +1315,10 @@ test/
   radius.html           Asserts one slider reaches every rounded container and
                         that circles and pills are left alone, and fails if any
                         container drifts onto a bare pixel radius; 19 assertions
-  scheme.html           Audits every block for contrast in light *and* dark, checks
+  scheme.html           Audits every block for contrast in light *and* dark, in
+                        the colour text paints once a fade above its ground is
+                        counted (Pricing's struck-out features were 2.9:1 at
+                        .7 opacity and read as passing until it was), checks
                         the scheme reaches the ground and not only the text at
                         WCAG AA, pins the discrete-swap behaviour the scroll
                         option rests on, and fixes the AA thresholds themselves

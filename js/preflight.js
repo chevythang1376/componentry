@@ -67,6 +67,44 @@ CB.Preflight = (function () {
     return null;
   }
 
+  /* The colour text actually paints in, over the backdrop it was judged on.
+     A colour with alpha, or a faded element between the text and whatever
+     paints its backdrop, lets that backdrop through. Reading the colour as
+     solid missed Pricing's struck-out features: a muted grey at 0.7 opacity,
+     which a browser shows at 2.9:1.
+
+     Only the layers above the backdrop count. Fading the element that paints
+     the backdrop fades text and ground together, against something further
+     down, and that is left unjudged here rather than guessed. So is a layer
+     whose opacity is animating: a block judged the moment it mounts is caught
+     part-way into its entrance, and Tabs' panel read as faint for that reason
+     alone. Its opacity at rest is not knowable from here. */
+  function ink(el, back, root, win) {
+    var c = parse(win.getComputedStyle(el).color);
+    if (!c || !back) return c;
+    var a = c.a;
+    for (var n = el; n && n !== root.parentElement; n = n.parentElement) {
+      var cs = win.getComputedStyle(n);
+      var bg = parse(cs.backgroundColor);
+      if (bg && bg.a > 0.95) break;
+      if (!fading(n)) a *= +cs.opacity;
+    }
+    return {
+      r: c.r * a + back.r * (1 - a),
+      g: c.g * a + back.g * (1 - a),
+      b: c.b * a + back.b * (1 - a),
+      a: 1
+    };
+  }
+
+  function fading(n) {
+    if (!n.getAnimations) return false;
+    return n.getAnimations().some(function (an) {
+      var e = an.effect;
+      return !!(e && e.getKeyframes && e.getKeyframes().some(function (k) { return 'opacity' in k; }));
+    });
+  }
+
   /* --------------------------------------------------------------- audit */
 
   function mount(html, css, width) {
@@ -130,7 +168,7 @@ CB.Preflight = (function () {
       var bg = backdrop(el, root, win);
       if (!bg) return;                        // over imagery — not judgeable
 
-      var r = ratio(fg, bg);
+      var r = ratio(ink(el, bg, root, win), bg);
       var need = required(cs);
       if (r >= need) return;
       count++;
@@ -513,7 +551,7 @@ CB.Preflight = (function () {
      every piece of text over an image came back as a failure — 79 of them,
      none actionable. One implementation, so the two cannot drift again. */
   return {
-    run: run, ratio: ratio, backdrop: backdrop, parse: parse, visible: visible,
+    run: run, ratio: ratio, backdrop: backdrop, parse: parse, visible: visible, ink: ink,
     probeImage: probeImage, probes: probes, onSettle: onSettle,
     required: required
   };

@@ -71,7 +71,7 @@ window.addEventListener('load', function () {
            judging everything against the large-text exemption, and passed 41
            places that did not conform. */
         var cs = w.getComputedStyle(el);
-        if (P.ratio(P.parse(cs.color), back) < P.required(cs)) {
+        if (P.ratio(P.ink(el, back, r.root, w), back) < P.required(cs)) {
           problems.push(def.id + ' ' + (el.className || el.tagName).toString().split(' ')[0]);
         }
       });
@@ -144,7 +144,7 @@ window.addEventListener('load', function () {
               var back = P.backdrop(el, root, w);
               if (!back) return;
               var cs = w.getComputedStyle(el);
-              if (P.ratio(P.parse(cs.color), back) < P.required(cs)) {
+              if (P.ratio(P.ink(el, back, root, w), back) < P.required(cs)) {
                 problems.push(def.id + ' [' + fld.k + '=' + opt[0] + '] ' +
                               (el.className || el.tagName).toString().split(' ')[0]);
               }

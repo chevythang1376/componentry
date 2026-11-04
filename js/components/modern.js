@@ -619,10 +619,12 @@
           margin-bottom: 10px; margin-bottom: clamp(8px, 3.5cqw, 18px);
           font-size: 20px; font-size: calc(clamp(15px, 6.6cqw, 36px) * var(--cb-h-scale, 1));
         }
+        /* At full strength. The tile's ink is chosen to be readable on the
+           tile, and fading it to .95 took white on the default copper from
+           4.75:1 to 4.43:1, under the 4.5 small text needs. */
         ${s} .cb-mo__x {
           line-height: 1.45; font-size: 13px;
           font-size: calc(clamp(12px, 3.7cqw, 19px) * var(--cb-body-scale, 1));
-          opacity: .95;
         }
         ${s} .cb-mo__btn {
           align-self: flex-start; text-decoration: none; display: inline-block;
