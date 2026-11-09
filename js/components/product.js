@@ -1133,7 +1133,9 @@
         }
         ${s} .cb-ss__media { overflow: hidden; ${p.mediaBg === 'none' ? '' : 'background: var(--cb-subtle);'} ${asCards ? '' : 'border-radius: var(--cb-radius);'} }
         ${s} .cb-ss__media img { display: block; width: 100%; aspect-ratio: ${ratio}; object-fit: ${p.fit === 'contain' ? 'contain' : 'cover'}; }
-        ${s} .cb-ss__body { display: flex; flex-direction: column; gap: 6px; ${asCards ? 'padding: 18px 20px 20px;' : ''} }
+        /* The body takes the rest of the card and the button sits at its foot, so
+           buttons line up across the row whatever the copy above them runs to. */
+        ${s} .cb-ss__body { flex: 1; display: flex; flex-direction: column; gap: 6px; ${asCards ? 'padding: 18px 20px 20px;' : ''} }
         ${s} .cb-ss__label {
           font-size: calc(.75em * var(--cb-eyebrow-scale, 1)); font-weight: var(--cb-eyebrow-weight, 700);
           letter-spacing: calc(.1em + var(--cb-eyebrow-track, 0em)); text-transform: uppercase; color: var(--cb-muted);
@@ -1143,7 +1145,7 @@
           line-height: calc(1.3 + var(--cb-h-leading, 0)); letter-spacing: calc(-.01em + var(--cb-h-track, 0em));
         }
         ${s} .cb-ss__x { font-size: .92em; color: var(--cb-muted); }
-        ${s} .cb-ss__cta { margin-top: 6px; }
+        ${s} .cb-ss__cta { margin-top: auto; padding-top: 6px; }
         ${s} .cb-ss__progress { display: none; }
         ${still ? `
         /* Still: the cards share the content column, as wide as their size
