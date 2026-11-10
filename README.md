@@ -395,7 +395,8 @@ Paste it back with **Paste code** — or open an exported `.html` file — and y
 editable project again, even if the `.componentry.json` is long gone.
 
 Round-tripping is exact: re-exporting a recovered project reproduces the original code
-byte for byte, including design tokens, per-block settings and uploaded images.
+byte for byte, including design tokens, per-block settings and uploaded images The one thing that can
+differ is the build stamp below, if the builder has been updated since.
 
 Images are the reason this isn't simply the project JSON in a comment. They're data URIs
 already sitting in the markup, and repeating them made the payload **30% of the export**,
@@ -405,6 +406,19 @@ image used twice or blocks reordered can't mis-map. That brings the cost to **12
 
 Switch it off with **Re-editable** if you'd rather ship the smallest possible code. Split
 files mode puts the comment on the HTML pane, since that's the part you'd paste back.
+
+### Which build made a block
+
+A pasted block is a copy and nothing updates it, so an old one looks just like a new one.
+Every export marks each block's outer element with the build that made it:
+`data-cb-build="20261110"`. It changes nothing on the page, and nothing reads it, so an
+editor that strips it breaks nothing. It adds about 25 characters per block, which the
+size figures in this README leave out.
+
+To see what's out there, search the CMS content or a page's source for `data-cb-build`.
+A block that has the `cb-scope` class but no stamp came from before build 20261110, or
+went through an editor that strips `data-` attributes; `tools/markup-check.html` shows
+whether yours does. Exporting a block again gives it the current build.
 
 ### Filling a long list
 

@@ -143,6 +143,35 @@ check('a bad weight or range is dropped back to its default, not written out',
 check('the faces that were safe still make it, with the bad values reset',
       faceFamilies(evilCss).join('|'), 'cb Plain|cb Plain');
 
+// --- every block says which build made it --------------------------------
+/* A pasted block is a copy nothing updates, and an old one looks just like a
+   new one. The id comes from the address core.js was loaded with, so a stand-in
+   carrying one goes first in the document, typed so it is never fetched. */
+var stamped = (function () {
+  var fake = document.createElement('script');
+  fake.type = 'text/plain';
+  fake.setAttribute('src', '../js/core.js?v=20991231z');
+  document.head.insertBefore(fake, document.head.firstChild);
+  var out = CB.all().map(function (d) {
+    var inst = { uid: 'u', type: d.id, cls: 'cb-' + d.id + '-s', props: CB.defaults(d) };
+    return { id: d.id, html: CB.build(inst, tok(), {}).html, exported: CB.Export.parts([inst], tok(), {}).html };
+  });
+  fake.remove();
+  return out;
+})();
+check('every block carries exactly one build stamp',
+      stamped.filter(function (x) { return (x.html.match(/data-cb-build="/g) || []).length !== 1; }).map(function (x) { return x.id; }).join(' '), '');
+check('on its outer element, beside the scope class, with the right id',
+      stamped.filter(function (x) {
+        var root = new DOMParser().parseFromString(x.exported, 'text/html').body.firstElementChild;
+        return !root || root.getAttribute('data-cb-build') !== '20991231z' || !root.classList.contains(CB.SCOPE);
+      }).map(function (x) { return x.id; }).join(' '), '');
+(function () {
+  var def = CB.get('card-grid');
+  check('a builder loaded with no build id writes no stamp',
+        /data-cb-build/.test(CB.build({ uid: 'u', type: 'card-grid', cls: 'cb-cg-n', props: CB.defaults(def) }, tok(), {}).html), false);
+})();
+
 // --- exports must survive the font never loading -------------------------
 check('the stack falls back to something real if the import is stripped',
       /Helvetica Neue|Helvetica|Arial|sans-serif/.test(CB.fontStack(tok())), true);

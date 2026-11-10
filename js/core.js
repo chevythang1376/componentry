@@ -1007,6 +1007,26 @@ window.CB = (function () {
     });
   }
 
+  /* Which build of the builder made this block, as bump.sh wrote it onto the
+     script's own address, so there is nothing else to keep in sync. Empty
+     where the builder was loaded without one, as the test pages load it. */
+  function buildId() {
+    var el = typeof document !== 'undefined' && document.querySelector('script[src*="js/core.js"]');
+    var m = el && (el.getAttribute('src') || '').match(/[?&]v=([^&"']+)/);
+    return m ? m[1] : '';
+  }
+
+  /* A pasted block is a copy that nothing updates, and an old copy looks just
+     like a new one. The webfont fix showed the cost: the blocks still leaking
+     could not be told from the fixed ones. A plain attribute on the root says
+     which build each came from, for anyone searching the CMS or reading the
+     page source. Nothing reads it, so an editor that strips it breaks nothing. */
+  function stampRoot(html) {
+    var id = buildId();
+    if (!id) return html;
+    return html.replace(/^(\s*<[a-zA-Z0-9]+)/, '$1 data-cb-build="' + attr(id) + '"');
+  }
+
   /* Build a selector from the root's full class list so overrides match the
      component's own specificity and win on source order — no !important. */
   function rootSelector(html, fallback) {
@@ -1538,6 +1558,7 @@ window.CB = (function () {
        for the page. Switching modes never means re-pasting the HTML. */
     html = patchRoot(html, (p._anchor || '').trim().replace(/\s+/g, '-'),
                      (SCOPE + ' ' + (p._class || '').trim()).trim());
+    html = stampRoot(html);
 
     var sel = rootSelector(html, s);
 
